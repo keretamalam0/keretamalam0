@@ -23,7 +23,6 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.window.Dialog
 import androidx.compose.ui.window.DialogProperties
 import id.keretamalam.cafe.data.config.BackendIntegrationStatus
-import id.keretamalam.cafe.data.config.SupabaseConfigManager
 import id.keretamalam.cafe.data.model.*
 import id.keretamalam.cafe.hardware.PrinterRole
 import id.keretamalam.cafe.ui.navigation.PosModuleRoute
@@ -180,41 +179,7 @@ fun RenderModuleScreen(
             }
         }
 
-        // Gate Verifikasi Supabase jika masih INACTIVE_PENDING_VERIFICATION
-        if (
-            uiState.backendStatus == BackendIntegrationStatus.INACTIVE_PENDING_VERIFICATION &&
-            module != PosModuleRoute.PENGATURAN &&
-            module != PosModuleRoute.PRINTER &&
-            module != PosModuleRoute.AI_ASSISTANT
-        ) {
-            OutlinedCard(modifier = Modifier.fillMaxWidth()) {
-                Column(
-                    modifier = Modifier.padding(20.dp),
-                    verticalArrangement = Arrangement.spacedBy(10.dp)
-                ) {
-                    Text(
-                        text = "INTEGRASI SUPABASE: BELUM AKTIF (MENUNGGU VERIFIKASI PROJECT ID)",
-                        style = MaterialTheme.typography.titleMedium,
-                        fontWeight = FontWeight.Bold,
-                        color = MaterialTheme.colorScheme.error
-                    )
-                    Text(
-                        text = "Project Supabase untuk Kereta Malam Cafe sudah ditetapkan: '${SupabaseConfigManager.CONFIRMED_PROJECT_ID}'. Hubungkan melalui Pengaturan dan lakukan pemeriksaan koneksi live sebelum data produksi ditampilkan.",
-                        style = MaterialTheme.typography.bodyMedium
-                    )
-                    Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                        Button(onClick = { onNavigateModule(PosModuleRoute.PENGATURAN) }) {
-                            Text("Verifikasi & Hubungkan Supabase")
-                        }
-                        OutlinedButton(onClick = { viewModel.enableLocalSandboxMode() }) {
-                            Text("Aktifkan Mode Simulasi UI Lokal Terlabel")
-                        }
-                    }
-                }
-            }
-            return@Column
-        }
-
+        // Backend configuration is intentionally hidden from the client-facing UI.
         when (module) {
             PosModuleRoute.DASHBOARD -> DashboardComposeScreen(uiState, isTabletOrWide, onNavigateModule)
             PosModuleRoute.AI_ASSISTANT -> AiAssistantComposeScreen(viewModel, uiState)

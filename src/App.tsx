@@ -178,12 +178,9 @@ export default function App() {
   const [supabaseConfig, setSupabaseConfig] = useState<SupabaseVerificationConfig>(() =>
     loadVerificationConfig()
   );
-  const [backendMode, setBackendMode] = useState<BackendMode>(() => {
-    const cfg = loadVerificationConfig();
-    return cfg.verifiedByUser && cfg.supabaseUrl && cfg.publishableKey
-      ? 'LIVE_SUPABASE'
-      : 'INACTIVE_PENDING_VERIFICATION';
-  });
+  // Never assume a persisted client-side flag is proof that the backend is verified.
+  // Live mode is entered only after a successful explicit connection/sync in this session.
+  const [backendMode, setBackendMode] = useState<BackendMode>('INACTIVE_PENDING_VERIFICATION');
   const [isSyncingBackend, setIsSyncingBackend] = useState(false);
   const [authEmail, setAuthEmail] = useState('');
   const [authPassword, setAuthPassword] = useState('');
@@ -370,7 +367,7 @@ export default function App() {
         'error',
         'Kredensial Supabase belum lengkap atau belum diverifikasi. Silakan periksa Pengaturan Outlet.'
       );
-      return;
+      return false;
     }
     setIsSyncingBackend(true);
     try {
@@ -407,20 +404,21 @@ export default function App() {
         }))
       );
       setTables((tblRes.data ?? []) as RestaurantTable[]);
-      if (!ordRes.error && ordRes.data) {
-        setOrders(ordRes.data as unknown as OrderWithItems[]);
-      }
-      if (!promoRes.error && promoRes.data) {
-        setPromotions(promoRes.data as unknown as Promotion[]);
-      }
+      if (ordRes.error) throw ordRes.error;
+      if (promoRes.error) throw promoRes.error;
+      setOrders((ordRes.data ?? []) as unknown as OrderWithItems[]);
+      setPromotions((promoRes.data ?? []) as unknown as Promotion[]);
 
       setBackendMode('LIVE_SUPABASE');
       showNotice('success', `Berhasil sinkronisasi dengan Supabase (${cfg.projectId}).`);
+      return true;
     } catch (err) {
+      setBackendMode('INACTIVE_PENDING_VERIFICATION');
       showNotice(
         'error',
         `Gagal memuat dari Supabase: ${err instanceof Error ? err.message : 'Periksa URL, Anon Key, atau RLS'}`
       );
+      return false;
     } finally {
       setIsSyncingBackend(false);
     }
@@ -441,17 +439,43 @@ export default function App() {
       });
       if (error) throw error;
       if (data.user) {
-        const { data: profileData } = await client
+        const { data: profileData, error: profileError } = await client
           .from('staff_profiles')
           .select('*')
           .eq('user_id', data.user.id)
           .maybeSingle();
-        if (profileData) {
-          setCurrentStaff(profileData as StaffProfile);
+        if (profileError) throw profileError;
+        if (!profileData || profileData.is_active !== true) {
+          await client.auth.signOut();
+          setCurrentStaff({
+            ...INITIAL_STAFF[0],
+            user_id: data.user.id,
+            full_name: data.user.email || 'Akun belum terdaftar',
+            role: 'cashier',
+            is_active: false,
+            permissions: {
+              dashboard: false,
+              orders: false,
+              payments: false,
+              products: false,
+              inventory: false,
+              tables: false,
+              reports: false,
+              customers: false,
+              promotions: false,
+              settings: false,
+            },
+          });
+          throw new Error('Akun berhasil login, tetapi tidak memiliki profil staf aktif. Hubungi owner.');
         }
+        setCurrentStaff(profileData as StaffProfile);
         setAuthPassword('');
+        const syncSucceeded = await syncFromLiveSupabase(supabaseConfig);
+        if (!syncSucceeded) {
+          await client.auth.signOut();
+          throw new Error('Login dibatalkan karena data backend gagal dimuat dengan lengkap.');
+        }
         showNotice('success', `Login Supabase berhasil sebagai ${data.user.email}`);
-        await syncFromLiveSupabase(supabaseConfig);
       }
     } catch (err) {
       showNotice('error', err instanceof Error ? err.message : 'Login gagal. Periksa email & password.');
@@ -1027,16 +1051,11 @@ export default function App() {
             Verifikasi Project ID Supabase Sebelum Menghubungkan Database Produksi
           </h2>
           <p className="text-sm leading-relaxed text-zinc-600 dark:text-zinc-400">
-            Hasil pemeriksaan kami terhadap kedua referensi menunjukkan dua Project ID yang berbeda:
+            Project Supabase yang dipilih untuk Kereta Malam Cafe adalah
             <span className="mx-1 font-mono font-semibold text-zinc-900 dark:text-zinc-100">
-              rvaemgwtdvncfvaerhgr
+              tywmaqjmagbausayyirn
             </span>
-            (pada <code className="font-mono">supabase/config.toml</code> di repository GitHub) dan
-            <span className="mx-1 font-mono font-semibold text-zinc-900 dark:text-zinc-100">
-              dbazoxwhhljpgtbnletc
-            </span>
-            (pada bundle produksi <code className="font-mono">pos.yuripratama246.workers.dev</code>).
-            Sesuai pedoman keamanan, aplikasi tidak memilih salah satu secara asumsi dan tidak menampilkan data contoh seolah-olah berasal dari database produksi.
+            . Database ini saat ini belum memiliki tabel aplikasi, jadi mode live tetap nonaktif sampai skema dan kebijakan akses siap serta terverifikasi. Data contoh hanya untuk simulasi lokal.
           </p>
         </div>
 
@@ -3080,7 +3099,7 @@ export default function App() {
                     onChange={(e) =>
                       setSupabaseConfig((prev) => ({ ...prev, projectId: e.target.value.trim() }))
                     }
-                    placeholder="rvaemgwtdvncfvaerhgr atau dbazoxwhhljpgtbnletc"
+                    placeholder="tywmaqjmagbausayyirn"
                     className="mt-1 w-full rounded-lg border border-zinc-200 bg-zinc-50 px-3 py-2 font-mono text-xs dark:border-zinc-800 dark:bg-zinc-950"
                   />
                 </div>
@@ -3092,7 +3111,7 @@ export default function App() {
                     onChange={(e) =>
                       setSupabaseConfig((prev) => ({ ...prev, supabaseUrl: e.target.value.trim() }))
                     }
-                    placeholder="https://xxxx.supabase.co"
+                    placeholder="https://tywmaqjmagbausayyirn.supabase.co"
                     className="mt-1 w-full rounded-lg border border-zinc-200 bg-zinc-50 px-3 py-2 font-mono text-xs dark:border-zinc-800 dark:bg-zinc-950"
                   />
                 </div>

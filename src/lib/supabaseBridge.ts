@@ -15,14 +15,9 @@ const STORAGE_KEY = 'kereta_malam_supabase_verification_v1';
 
 export const CANDIDATE_PROJECTS = [
   {
-    id: 'rvaemgwtdvncfvaerhgr',
-    url: 'https://rvaemgwtdvncfvaerhgr.supabase.co',
-    source: 'Ditemukan di supabase/config.toml pada repository github.com/yuripratama246-lang/cafe-flow',
-  },
-  {
-    id: 'dbazoxwhhljpgtbnletc',
-    url: 'https://dbazoxwhhljpgtbnletc.supabase.co',
-    source: 'Ditemukan di bundle produksi pos.yuripratama246.workers.dev',
+    id: 'tywmaqjmagbausayyirn',
+    url: 'https://tywmaqjmagbausayyirn.supabase.co',
+    source: 'Project Supabase yang dipilih untuk Kereta Malam Cafe',
   },
 ] as const;
 
@@ -30,7 +25,9 @@ export function loadVerificationConfig(): SupabaseVerificationConfig {
   try {
     const raw = localStorage.getItem(STORAGE_KEY);
     if (raw) {
-      return JSON.parse(raw);
+      const parsed = JSON.parse(raw) as SupabaseVerificationConfig;
+      // A browser-stored flag must never count as verification after a reload.
+      return { ...parsed, verifiedByUser: false };
     }
   } catch {
     // ignore storage errors
@@ -45,15 +42,40 @@ export function loadVerificationConfig(): SupabaseVerificationConfig {
 }
 
 export function saveVerificationConfig(config: SupabaseVerificationConfig) {
-  if (
-    config.publishableKey.includes('service_role') ||
-    config.publishableKey.startsWith('sb_secret_')
-  ) {
+  const key = config.publishableKey.trim();
+  if (/service_role/i.test(key) || /^sb_secret_/i.test(key)) {
     throw new Error(
-      'Keamanan Ditolak: Jangan pernah memasukkan service_role key atau secret key ke aplikasi klien Android!'
+      'Keamanan Ditolak: service_role dan secret key tidak boleh dimasukkan ke aplikasi klien.'
     );
   }
-  localStorage.setItem(STORAGE_KEY, JSON.stringify(config));
+  const projectId = config.projectId.trim();
+  let parsedUrl: URL;
+  try {
+    parsedUrl = new URL(config.supabaseUrl.trim());
+  } catch {
+    throw new Error('URL Supabase tidak valid.');
+  }
+  if (!/^[a-z0-9]{20}$/.test(projectId)) {
+    throw new Error('Project ID Supabase tidak valid.');
+  }
+  if (
+    parsedUrl.protocol !== 'https:' ||
+    parsedUrl.hostname !== `${projectId}.supabase.co` ||
+    parsedUrl.pathname !== '/' ||
+    parsedUrl.search ||
+    parsedUrl.hash ||
+    parsedUrl.username ||
+    parsedUrl.password
+  ) {
+    throw new Error('Project ID tidak cocok dengan URL Supabase atau URL bukan endpoint HTTPS resmi.');
+  }
+  localStorage.setItem(STORAGE_KEY, JSON.stringify({
+    ...config,
+    projectId,
+    supabaseUrl: parsedUrl.origin,
+    publishableKey: key,
+    verifiedByUser: false,
+  }));
 }
 
 let activeSupabaseClient: SupabaseClient | null = null;
@@ -63,7 +85,28 @@ export function getVerifiedSupabaseClient(config: SupabaseVerificationConfig): S
   if (!config.verifiedByUser || !config.supabaseUrl || !config.publishableKey) {
     return null;
   }
-  const cacheKey = `${config.supabaseUrl}::${config.publishableKey}`;
+  const projectId = config.projectId.trim();
+  let parsedUrl: URL;
+  try {
+    parsedUrl = new URL(config.supabaseUrl.trim());
+  } catch {
+    return null;
+  }
+  if (
+    !/^[a-z0-9]{20}$/.test(projectId) ||
+    parsedUrl.protocol !== 'https:' ||
+    parsedUrl.hostname !== `${projectId}.supabase.co` ||
+    parsedUrl.pathname !== '/' ||
+    parsedUrl.search ||
+    parsedUrl.hash ||
+    parsedUrl.username ||
+    parsedUrl.password ||
+    /service_role/i.test(config.publishableKey) ||
+    /^sb_secret_/i.test(config.publishableKey)
+  ) {
+    return null;
+  }
+  const cacheKey = `${parsedUrl.origin}::${config.publishableKey}`;
   if (activeSupabaseClient && activeClientKey === cacheKey) {
     return activeSupabaseClient;
   }

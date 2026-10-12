@@ -32,7 +32,7 @@ import id.keretamalam.cafe.viewmodel.PosUiState
 import id.keretamalam.cafe.viewmodel.PosViewModel
 
 // ============================================================================
-// 0. DEDICATED LOGIN & SUPABASE VERIFICATION SCREEN (ADAPTIVE PHONE & TABLET)
+// 0. STAFF LOGIN — keep backend configuration and local sandbox out of this screen.
 // ============================================================================
 @Composable
 fun LoginComposeScreen(
@@ -42,52 +42,34 @@ fun LoginComposeScreen(
 ) {
     var email by remember { mutableStateOf("") }
     var password by remember { mutableStateOf("") }
-    var projectId by remember(uiState.currentProjectId) { mutableStateOf(uiState.currentProjectId) }
-    var supabaseUrl by remember(uiState.currentSupabaseUrl) { mutableStateOf(uiState.currentSupabaseUrl) }
-    var anonKey by remember { mutableStateOf("") }
-    var showVerifyConfig by remember { mutableStateOf(false) }
 
     Box(
         modifier = Modifier
             .fillMaxSize()
             .background(MaterialTheme.colorScheme.background)
-            .padding(if (isTabletOrWide) 32.dp else 16.dp),
+            .imePadding()
+            .padding(horizontal = if (isTabletOrWide) 32.dp else 20.dp, vertical = 20.dp),
         contentAlignment = Alignment.Center
     ) {
         Column(
             modifier = Modifier
-                .widthIn(max = if (isTabletOrWide) 920.dp else 520.dp)
+                .fillMaxWidth()
+                .widthIn(max = 440.dp)
                 .verticalScroll(rememberScrollState()),
-            verticalArrangement = Arrangement.spacedBy(16.dp)
+            verticalArrangement = Arrangement.spacedBy(16.dp),
+            horizontalAlignment = Alignment.CenterHorizontally
         ) {
-            // Header Brand Monochrome Classic
-            OutlinedCard(modifier = Modifier.fillMaxWidth()) {
-                Row(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .padding(20.dp),
-                    horizontalArrangement = Arrangement.SpaceBetween,
-                    verticalAlignment = Alignment.CenterVertically
-                ) {
-                    Column(modifier = Modifier.weight(1f)) {
-                        Text(
-                            text = "KERETA MALAM CAFE",
-                            style = MaterialTheme.typography.headlineLarge,
-                            fontWeight = FontWeight.Bold
-                        )
-                        Text(
-                            text = "Point of Sale & QR Ordering Operasional Staf · Android Native (Kotlin + Jetpack Compose)",
-                            style = MaterialTheme.typography.bodyMedium,
-                            color = MaterialTheme.colorScheme.onSurfaceVariant
-                        )
-                    }
-                    TextButton(onClick = { viewModel.setThemeMode(!uiState.darkTheme) }) {
-                        Text(if (uiState.darkTheme) "Mode Terang" else "Mode Gelap")
-                    }
-                }
-            }
+            Text(
+                text = "KERETA MALAM CAFE",
+                style = MaterialTheme.typography.headlineMedium,
+                fontWeight = FontWeight.Bold
+            )
+            Text(
+                text = "Masuk ke akun staf untuk melanjutkan",
+                style = MaterialTheme.typography.bodyMedium,
+                color = MaterialTheme.colorScheme.onSurfaceVariant
+            )
 
-            // Notifikasi Error / Sukses
             val activeMsg = uiState.errorMessage ?: uiState.successMessage
             if (activeMsg != null) {
                 Surface(
@@ -96,10 +78,7 @@ fun LoginComposeScreen(
                     modifier = Modifier.fillMaxWidth()
                 ) {
                     Row(
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .padding(horizontal = 16.dp, vertical = 10.dp),
-                        horizontalArrangement = Arrangement.SpaceBetween,
+                        modifier = Modifier.fillMaxWidth().padding(12.dp),
                         verticalAlignment = Alignment.CenterVertically
                     ) {
                         Text(
@@ -108,162 +87,49 @@ fun LoginComposeScreen(
                             modifier = Modifier.weight(1f)
                         )
                         TextButton(onClick = { viewModel.clearBannerMessages() }) {
-                            Text(
-                                text = "Tutup",
-                                color = if (uiState.errorMessage != null) MaterialTheme.colorScheme.onErrorContainer else MaterialTheme.colorScheme.onPrimary
-                            )
+                            Text("Tutup")
                         }
                     }
                 }
             }
 
-            // Status Jujur Integrasi Supabase
             OutlinedCard(modifier = Modifier.fillMaxWidth()) {
-                Column(modifier = Modifier.padding(18.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                    Text(
-                        text = when (uiState.backendStatus) {
-                            BackendIntegrationStatus.ACTIVE_VERIFIED ->
-                                "STATUS SUPABASE: TERVERIFIKASI (${uiState.currentProjectId})"
-                            BackendIntegrationStatus.LOCAL_SANDBOX_UI ->
-                                "STATUS: MODE SIMULASI LOKAL TERLABEL (SUPABASE BELUM AKTIF)"
-                            BackendIntegrationStatus.INACTIVE_PENDING_VERIFICATION ->
-                                "STATUS SUPABASE: BELUM AKTIF (MENUNGGU VERIFIKASI PROJECT ID)"
-                        },
-                        style = MaterialTheme.typography.titleMedium,
-                        fontWeight = FontWeight.Bold,
-                        color = if (uiState.backendStatus == BackendIntegrationStatus.ACTIVE_VERIFIED)
-                            MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.error
-                    )
-                    Text(
-                        text = "Pemeriksaan referensi menemukan dua kandidat Project ID berbeda: '${SupabaseConfigManager.CANDIDATE_REPO_PROJECT_ID}' (pada supabase/config.toml di repo GitHub) dan '${SupabaseConfigManager.CANDIDATE_WORKER_PROJECT_ID}' (pada bundle pos.yuripratama246.workers.dev). Aplikasi tidak mengklaim integrasi aktif sebelum Anda memverifikasi kredensial yang benar.",
-                        style = MaterialTheme.typography.bodyMedium
-                    )
-                    OutlinedButton(onClick = { showVerifyConfig = !showVerifyConfig }) {
-                        Text(if (showVerifyConfig) "Sembunyikan Konfigurasi Supabase" else "Konfigurasi & Verifikasi Project ID Supabase")
-                    }
-
-                    if (showVerifyConfig) {
-                        HorizontalDivider(modifier = Modifier.padding(vertical = 6.dp))
-                        Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                            OutlinedButton(onClick = {
-                                projectId = SupabaseConfigManager.CANDIDATE_REPO_PROJECT_ID
-                                supabaseUrl = "https://${SupabaseConfigManager.CANDIDATE_REPO_PROJECT_ID}.supabase.co"
-                            }) {
-                                Text("Repo (${SupabaseConfigManager.CANDIDATE_REPO_PROJECT_ID})")
-                            }
-                            OutlinedButton(onClick = {
-                                projectId = SupabaseConfigManager.CANDIDATE_WORKER_PROJECT_ID
-                                supabaseUrl = "https://${SupabaseConfigManager.CANDIDATE_WORKER_PROJECT_ID}.supabase.co"
-                            }) {
-                                Text("Worker (${SupabaseConfigManager.CANDIDATE_WORKER_PROJECT_ID})")
-                            }
-                        }
-                        OutlinedTextField(
-                            value = projectId,
-                            onValueChange = { projectId = it },
-                            label = { Text("Verified Project ID") },
-                            modifier = Modifier.fillMaxWidth(),
-                            singleLine = true
-                        )
-                        OutlinedTextField(
-                            value = supabaseUrl,
-                            onValueChange = { supabaseUrl = it },
-                            label = { Text("Supabase Project URL") },
-                            modifier = Modifier.fillMaxWidth(),
-                            singleLine = true
-                        )
-                        OutlinedTextField(
-                            value = anonKey,
-                            onValueChange = { anonKey = it },
-                            label = { Text("Publishable / Anon Key (Dilarang menggunakan service_role key)") },
-                            visualTransformation = PasswordVisualTransformation(),
-                            modifier = Modifier.fillMaxWidth(),
-                            singleLine = true
-                        )
-                        Button(onClick = {
-                            viewModel.verifyAndSaveSupabaseConfig(
-                                projectId = projectId,
-                                url = supabaseUrl,
-                                publishableKey = anonKey,
-                                webMenuBaseUrl = uiState.outletSettings.publicWebBaseUrl
-                            )
-                        }) {
-                            Text("Simpan & Verifikasi Kredensial Supabase")
-                        }
-                    }
-                }
-            }
-
-            // 2 Panel Login (Adaptif: Berdampingan di Tablet, Bertumpuk di HP)
-            val supabaseLoginCard: @Composable (Modifier) -> Unit = { mod ->
-                OutlinedCard(modifier = mod) {
-                    Column(modifier = Modifier.padding(20.dp), verticalArrangement = Arrangement.spacedBy(10.dp)) {
-                        Text("Login Akun Staf (Supabase Auth)", style = MaterialTheme.typography.titleLarge)
-                        Text(
-                            text = "Masuk menggunakan email & password staf yang terdaftar pada tabel staff_profiles di Supabase.",
-                            style = MaterialTheme.typography.bodyMedium,
-                            color = MaterialTheme.colorScheme.onSurfaceVariant
-                        )
-                        OutlinedTextField(
-                            value = email,
-                            onValueChange = { email = it },
-                            label = { Text("Email Staf") },
-                            modifier = Modifier.fillMaxWidth(),
-                            singleLine = true
-                        )
-                        OutlinedTextField(
-                            value = password,
-                            onValueChange = { password = it },
-                            label = { Text("Password") },
-                            visualTransformation = PasswordVisualTransformation(),
-                            modifier = Modifier.fillMaxWidth(),
-                            singleLine = true
-                        )
-                        Button(
-                            onClick = { viewModel.loginWithSupabaseAuth(email, password) },
-                            enabled = !uiState.isLoading,
-                            modifier = Modifier.fillMaxWidth()
-                        ) {
-                            Text(if (uiState.isLoading) "Memverifikasi Sesi..." else "Masuk dengan Supabase Auth")
-                        }
-                    }
-                }
-            }
-
-            val sandboxLoginCard: @Composable (Modifier) -> Unit = { mod ->
-                OutlinedCard(modifier = mod) {
-                    Column(modifier = Modifier.padding(20.dp), verticalArrangement = Arrangement.spacedBy(10.dp)) {
-                        Text("Mode Simulasi Operasional Lokal", style = MaterialTheme.typography.titleLarge)
-                        Text(
-                            text = "Uji seluruh 18 modul POS, Kasir, QR Meja, Shift, Inventori, Laporan CSV, dan Printer Bluetooth dengan data lokal berlabel [SIMULASI LOKAL]:",
-                            style = MaterialTheme.typography.bodyMedium,
-                            color = MaterialTheme.colorScheme.onSurfaceVariant
-                        )
-                        uiState.staffList.forEach { profile ->
-                            OutlinedButton(
-                                onClick = { viewModel.enableLocalSandboxMode(profile) },
-                                modifier = Modifier.fillMaxWidth()
-                            ) {
-                                Text("Masuk sebagai ${profile.fullName} · ${profile.role.labelId}")
-                            }
-                        }
-                    }
-                }
-            }
-
-            if (isTabletOrWide) {
-                Row(
-                    modifier = Modifier.fillMaxWidth(),
-                    horizontalArrangement = Arrangement.spacedBy(16.dp)
+                Column(
+                    modifier = Modifier.padding(22.dp),
+                    verticalArrangement = Arrangement.spacedBy(14.dp)
                 ) {
-                    supabaseLoginCard(Modifier.weight(1f))
-                    sandboxLoginCard(Modifier.weight(1f))
+                    OutlinedTextField(
+                        value = email,
+                        onValueChange = { email = it },
+                        label = { Text("Email staf") },
+                        modifier = Modifier.fillMaxWidth(),
+                        singleLine = true
+                    )
+                    OutlinedTextField(
+                        value = password,
+                        onValueChange = { password = it },
+                        label = { Text("Password") },
+                        visualTransformation = PasswordVisualTransformation(),
+                        modifier = Modifier.fillMaxWidth(),
+                        singleLine = true
+                    )
+                    Button(
+                        onClick = { viewModel.loginWithSupabaseAuth(email.trim(), password) },
+                        enabled = !uiState.isLoading && email.isNotBlank() && password.isNotBlank(),
+                        modifier = Modifier.fillMaxWidth()
+                    ) {
+                        Text(if (uiState.isLoading) "Memproses..." else "Masuk")
+                    }
+                    Text(
+                        text = "Gunakan email dan password akun staf yang terdaftar.",
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                    )
                 }
-            } else {
-                Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
-                    supabaseLoginCard(Modifier.fillMaxWidth())
-                    sandboxLoginCard(Modifier.fillMaxWidth())
-                }
+            }
+
+            TextButton(onClick = { viewModel.setThemeMode(!uiState.darkTheme) }) {
+                Text(if (uiState.darkTheme) "Gunakan Mode Terang" else "Gunakan Mode Gelap")
             }
         }
     }

@@ -10,6 +10,7 @@ This tracker distinguishes **verified existing behavior** from **new work reques
 - [x] A previous Android build completed successfully (Build #11, commit `a1523bbf3810b675f4eba73219e3b915661044b4`). This is a compile result, not an end-to-end test.
 - [x] Login UI was previously simplified to email/password staff login.
 - [ ] Supabase login + staff profile retrieval tested against the intended production project.
+- [x] Android login no longer silently grants a fallback Cashier profile when no staff record exists; it clears the session and rejects missing/inactive staff profiles (runtime test still required).
 - [ ] Confirm which Supabase project is canonical. Source currently lists two candidates: `rvaemgwtdvncfvaerhgr` and `dbazoxwhhljpgtbnletc`.
 - [ ] Confirm production schema, RLS policies, RPCs, and Edge Functions match the Android repository calls.
 - [ ] Remove or clearly isolate seeded sandbox data from any live/production session. Current Android UI state initializes from `SandboxSeedData`; web preview state initializes from `sandboxSeed`.
@@ -111,7 +112,7 @@ Status meanings: **Not started** = no implementation verified for this request; 
 - [ ] Discover actual nearby Bluetooth devices (no fake device list), connect, select role, test print on supported hardware.
 
 ### Super Admin / multi-owner
-- [x] Remove “Management Website” menu from the web preview navigation (Android navigation still needs review).
+- [x] Remove “Management Website” menu from both web preview and Android navigation.
 - [ ] Verify the intended “Alfana Alvin” account/email before assigning Super Admin; do not guess an identity.
 - [ ] Super Admin operational view limited to Owner Management.
 - [ ] Create owners and invite them by email to set password.
@@ -120,4 +121,4 @@ Status meanings: **Not started** = no implementation verified for this request; 
 - [ ] Enforce authorization and tenant isolation at database/backend level.
 
 ## Work log
-- 2026-10-12: Audited repository tree and key Android repository/ViewModel plus web Supabase bridge. Added this tracker and removed the “Management Website” entry from the web preview navigation (commit `0e789fbf2329a538dab4e9a667026d2d69f3cbbf`). Android navigation still needs review. Next work should prioritize verifying schema/auth/RLS and separating seeded sandbox state from production state before high-risk destructive or multi-tenant features.
+- 2026-10-12: Added tracker (commit `962d054a0e99bb5219ea782564ddebe9b8980348`). Removed “Management Website” from web navigation (commit `0e789fbf2329a538dab4e9a667026d2d69f3cbbf`) and Android navigation (commit `fcf3122b2a334f01c3540300647962722e803e9c`). Hardened Android login to reject missing/inactive staff profiles rather than silently creating a Cashier fallback (commit `cdc0e695c91eb38f8db7aa74438366ca32277f4f`). Runtime/build verification for these latest commits is pending.

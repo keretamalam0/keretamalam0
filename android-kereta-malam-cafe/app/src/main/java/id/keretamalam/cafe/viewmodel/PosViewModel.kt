@@ -434,7 +434,7 @@ class PosViewModel(application: Application) : AndroidViewModel(application) {
             it.copy(
                 backendStatus = BackendIntegrationStatus.INACTIVE_PENDING_VERIFICATION,
                 isLoggedIn = false,
-                successMessage = "Integrasi Supabase dinonaktifkan (kembali ke status Menunggu Verifikasi)."
+                successMessage = "Pengaturan koneksi diperbarui."
             )
         }
     }
@@ -535,7 +535,7 @@ class PosViewModel(application: Application) : AndroidViewModel(application) {
                 _uiState.update {
                     it.copy(
                         aiReplyText = null,
-                        errorMessage = "Integrasi Supabase belum aktif dan Edge Function 'ai-assistant' belum terhubung. Aplikasi tidak menampilkan jawaban AI palsu."
+                        errorMessage = "Fitur asisten belum tersedia saat ini. Silakan coba lagi nanti."
                     )
                 }
                 return@launch

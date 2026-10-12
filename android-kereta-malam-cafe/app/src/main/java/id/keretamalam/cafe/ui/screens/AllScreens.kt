@@ -199,7 +199,7 @@ fun RenderModuleScreen(
                         color = MaterialTheme.colorScheme.error
                     )
                     Text(
-                        text = "Hasil pemeriksaan referensi menunjukkan dua Project ID berbeda: '${SupabaseConfigManager.CANDIDATE_REPO_PROJECT_ID}' (pada supabase/config.toml di repo) dan '${SupabaseConfigManager.CANDIDATE_WORKER_PROJECT_ID}' (pada bundle pos.yuripratama246.workers.dev). Aplikasi tidak memilih salah satunya secara asumsi dan tidak menampilkan data contoh sebagai data database produksi.",
+                        text = "Project Supabase untuk Kereta Malam Cafe sudah ditetapkan: '${SupabaseConfigManager.CONFIRMED_PROJECT_ID}'. Hubungkan melalui Pengaturan dan lakukan pemeriksaan koneksi live sebelum data produksi ditampilkan.",
                         style = MaterialTheme.typography.bodyMedium
                     )
                     Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {

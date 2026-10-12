@@ -79,7 +79,7 @@ class CafeFlowRepository(private val context: Context) {
 
         executeJsonRequest(
             method = "GET",
-            url = "$normalizedUrl/rest/v1/staff_profiles?select=id&limit=1",
+            url = "$normalizedUrl/rest/v1/staff_profiles?select=user_id&limit=1",
             headers = mapOf(
                 "apikey" to publishableKey.trim(),
                 "Authorization" to "Bearer ${publishableKey.trim()}",

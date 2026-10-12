@@ -194,7 +194,7 @@ class PosViewModel(application: Application) : AndroidViewModel(application) {
                 isLoggedIn = creds.status == BackendIntegrationStatus.ACTIVE_VERIFIED && creds.accessToken.isNotBlank()
             )
         }
-        if (creds.status == BackendIntegrationStatus.ACTIVE_VERIFIED) {
+        if (creds.status == BackendIntegrationStatus.ACTIVE_VERIFIED && creds.accessToken.isNotBlank()) {
             syncAllDataFromBackend()
         }
     }
@@ -326,19 +326,50 @@ class PosViewModel(application: Application) : AndroidViewModel(application) {
         publishableKey: String,
         webMenuBaseUrl: String
     ) {
-        runCatching {
-            SupabaseConfigManager.saveVerifiedCredentials(
-                context = getApplication(),
-                projectId = projectId,
-                supabaseUrl = url,
-                publishableKey = publishableKey,
-                publicWebMenuBaseUrl = webMenuBaseUrl
-            )
-        }.onSuccess {
-            refreshBackendConfigStatus()
-            showNotice("Konfigurasi Supabase ($projectId) disimpan dan siap digunakan.")
-        }.onFailure { err ->
-            showNotice(err.message ?: "Gagal menyimpan konfigurasi Supabase.", isError = true)
+        viewModelScope.launch {
+            _uiState.update { it.copy(isLoading = true, errorMessage = null, successMessage = null) }
+            runCatching {
+                // Prevent a token from the previous project being reused with new credentials.
+                SupabaseConfigManager.clearAuthSession(getApplication())
+                repository.verifyDatabaseConnection(
+                    projectId = projectId,
+                    supabaseUrl = url,
+                    publishableKey = publishableKey
+                )
+                SupabaseConfigManager.saveVerifiedCredentials(
+                    context = getApplication(),
+                    projectId = projectId,
+                    supabaseUrl = url,
+                    publishableKey = publishableKey,
+                    publicWebMenuBaseUrl = webMenuBaseUrl
+                )
+            }.onSuccess {
+                refreshBackendConfigStatus()
+                _uiState.update { it.copy(isLoading = false, isLoggedIn = false) }
+                showNotice("Verifikasi berhasil: koneksi Supabase dan endpoint staff_profiles dapat diakses.")
+            }.onFailure { err ->
+                runCatching {
+                    SupabaseConfigManager.savePendingCredentials(
+                        context = getApplication(),
+                        projectId = projectId,
+                        supabaseUrl = url,
+                        publishableKey = publishableKey,
+                        publicWebMenuBaseUrl = webMenuBaseUrl
+                    )
+                }
+                SupabaseConfigManager.clearAuthSession(getApplication())
+                _uiState.update {
+                    it.copy(
+                        isLoading = false,
+                        backendStatus = BackendIntegrationStatus.INACTIVE_PENDING_VERIFICATION,
+                        isLoggedIn = false,
+                        currentProjectId = projectId.trim(),
+                        currentSupabaseUrl = url.trim().removeSuffix("/"),
+                        errorMessage = "Verifikasi Supabase gagal. Konfigurasi disimpan sebagai belum terverifikasi. ${err.message ?: "Periksa URL, Project ID, key, skema, dan izin akses."}",
+                        successMessage = null
+                    )
+                }
+            }
         }
     }
 

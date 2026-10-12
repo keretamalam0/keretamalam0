@@ -49,7 +49,6 @@ enum class PosModuleRoute(
     PEGAWAI("pegawai", "Pegawai & Shift", "MANAJEMEN", PermissionKey.SETTINGS, Icons.Outlined.Badge),
     PENGATURAN("pengaturan", "Pengaturan Outlet", "MANAJEMEN", PermissionKey.SETTINGS, Icons.Outlined.Settings),
     PRINTER("printer", "Printer", "MANAJEMEN", PermissionKey.SETTINGS, Icons.Outlined.Print),
-    WEBSITE_MANAGEMENT("website-management", "Management Website", "MANAJEMEN", PermissionKey.SETTINGS, Icons.Outlined.Language)
 }
 
 @OptIn(ExperimentalMaterial3Api::class)

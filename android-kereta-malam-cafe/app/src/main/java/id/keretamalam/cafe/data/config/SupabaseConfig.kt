@@ -76,10 +76,9 @@ object SupabaseConfigManager {
         val webUrl = prefs.getString(KEY_WEB_BASE_URL, BuildConfig.PUBLIC_WEB_MENU_BASE_URL)
             .orEmpty()
             .ifBlank { "https://pos.yuripratama246.workers.dev" }
-        val verified = prefs.getBoolean(
-            KEY_VERIFIED,
-            projectId.isNotBlank() && url.isNotBlank() && key.isNotBlank()
-        )
+        // Never infer verification from populated fields. A successful live request
+        // must explicitly set KEY_VERIFIED to true.
+        val verified = prefs.getBoolean(KEY_VERIFIED, false)
         val accessToken = prefs.getString(KEY_ACCESS_TOKEN, "").orEmpty()
         val userId = prefs.getString(KEY_AUTH_USER_ID, "").orEmpty()
         val email = prefs.getString(KEY_AUTH_EMAIL, "").orEmpty()
@@ -94,6 +93,29 @@ object SupabaseConfigManager {
             authenticatedUserId = userId,
             authenticatedEmail = email
         )
+    }
+
+    fun savePendingCredentials(
+        context: Context,
+        projectId: String,
+        supabaseUrl: String,
+        publishableKey: String,
+        publicWebMenuBaseUrl: String
+    ) {
+        require(!publishableKey.startsWith("sb_secret_") && !publishableKey.contains("service_role")) {
+            "Keamanan: Dilarang memasukkan service_role atau secret key ke aplikasi Android!"
+        }
+        val prefs = encryptedPrefs(context)
+        prefs.edit()
+            .putString(KEY_PROJECT_ID, projectId.trim())
+            .putString(KEY_URL, supabaseUrl.trim().removeSuffix("/"))
+            .putString(KEY_ANON, publishableKey.trim())
+            .putString(KEY_WEB_BASE_URL, publicWebMenuBaseUrl.trim().removeSuffix("/"))
+            .putBoolean(KEY_VERIFIED, false)
+            .remove(KEY_ACCESS_TOKEN)
+            .remove(KEY_AUTH_USER_ID)
+            .remove(KEY_AUTH_EMAIL)
+            .apply()
     }
 
     fun saveVerifiedCredentials(

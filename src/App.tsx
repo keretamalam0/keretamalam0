@@ -141,7 +141,6 @@ const NAV_GROUPS: NavGroup[] = [
       { id: 'pegawai', label: 'Pegawai & Shift', permission: 'settings', icon: UserCog },
       { id: 'pengaturan', label: 'Pengaturan Outlet', permission: 'settings', icon: Settings },
       { id: 'printer', label: 'Printer', permission: 'settings', icon: Printer },
-      { id: 'website-management', label: 'Management Website', permission: 'settings', icon: Globe },
     ],
   },
 ];

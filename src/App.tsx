@@ -932,8 +932,8 @@ export default function App() {
       setPrintedKitchenIds((prev) => (prev.includes(order.id) ? prev : [...prev, order.id]));
     }
     showNotice(
-      'success',
-      `Berhasil mengirim stream ESC/POS ke ${targetPrinter.name} (${targetPrinter.address}).`
+      'info',
+      `Preview struk/tiket dibuat untuk ${targetPrinter.name}. Pengiriman ESC/POS ke printer fisik belum terhubung di UI web ini.`
     );
   };
 

@@ -18,7 +18,7 @@ import java.util.UUID
 import java.util.concurrent.TimeUnit
 
 class BackendNotVerifiedException(
-    message: String = "Integrasi Supabase BELUM AKTIF. Harap verifikasi Project ID dbazoxwhhljpgtbnletc, URL https://dbazoxwhhljpgtbnletc.supabase.co, dan Publishable Key di Pengaturan Outlet atau Halaman Login."
+    message: String = "Layanan belum dapat terhubung. Periksa koneksi internet lalu coba lagi."
 ) : IllegalStateException(message)
 
 /**
@@ -127,7 +127,7 @@ class CafeFlowRepository(private val context: Context) {
                         ?: obj["error_description"]?.jsonPrimitive?.contentOrNull
                         ?: raw
                 }.getOrDefault(raw.ifBlank { "HTTP ${response.code}" })
-                throw IllegalStateException("Supabase Error (${response.code}): $errMsg")
+                throw IllegalStateException("Layanan sementara tidak tersedia. Silakan coba lagi.")
             }
             raw
         }

@@ -51,10 +51,22 @@ export const KotlinProjectModal: React.FC<KotlinProjectModalProps> = ({
       const folder = zip.folder('android-kereta-malam-cafe');
       if (folder) {
         ANDROID_PROJECT_FILES.forEach((file) => {
-          folder.file(file.path, file.content);
+          if (file.base64Content) {
+            folder.file(file.path, file.base64Content, {
+              base64: true,
+              unixPermissions: file.executable ? '755' : '644',
+            });
+          } else {
+            folder.file(file.path, file.content, {
+              unixPermissions: file.executable ? '755' : '644',
+            });
+          }
         });
       }
-      const blob = await zip.generateAsync({ type: 'blob' });
+      const blob = await zip.generateAsync({
+        type: 'blob',
+        platform: 'UNIX',
+      });
       const url = URL.createObjectURL(blob);
       const a = document.createElement('a');
       a.href = url;
@@ -276,18 +288,19 @@ export const KotlinProjectModal: React.FC<KotlinProjectModalProps> = ({
                 Lingkungan container preview di browser tidak menyertakan Android SDK (<code className="font-mono">ANDROID_HOME</code>), sehingga file biner <code className="font-mono">.apk</code> belum dikompilasi di container ini. Seluruh source code project Android Native Kotlin + Jetpack Compose sudah lengkap di direktori <code className="font-mono">/android-kereta-malam-cafe</code> dan dapat diunduh sebagai <code className="font-mono">.zip</code>.
               </p>
               <pre className="mt-4 overflow-x-auto rounded-xl bg-zinc-950 p-4 font-mono text-xs text-zinc-100">
-{`# 1. Ekstrak file kereta-malam-cafe-android-native.zip lalu masuk ke folder project:
+{`# === DI WINDOWS (Command Prompt / PowerShell) ===
 cd android-kereta-malam-cafe
+copy local.properties.example local.properties
+# Pastikan sdk.dir di local.properties atau ANDROID_HOME mengarah ke Android SDK Anda, serta JAVA_HOME ke JDK 17
+gradlew.bat assembleDebug
 
-# 2. Salin konfigurasi local.properties.example menjadi local.properties:
+# === DI LINUX / MACOS ===
+cd android-kereta-malam-cafe
 cp local.properties.example local.properties
-
-# 3. Isi SUPABASE_PROJECT_ID, SUPABASE_URL, dan SUPABASE_PUBLISHABLE_KEY yang sudah Anda verifikasi
-
-# 4. Jalankan Gradle untuk menghasilkan APK Debug yang siap diinstal:
+chmod +x gradlew
 ./gradlew assembleDebug
 
-# Lokasi output APK:
+# Lokasi output APK Debug yang siap diinstal:
 # app/build/outputs/apk/debug/app-debug.apk`}
               </pre>
             </div>

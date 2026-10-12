@@ -1,11 +1,13 @@
 package id.keretamalam.cafe.ui.navigation
 
 import androidx.compose.foundation.background
+import androidx.compose.foundation.border
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.automirrored.outlined.Logout
 import androidx.compose.material.icons.outlined.*
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
@@ -17,6 +19,7 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import id.keretamalam.cafe.data.config.BackendIntegrationStatus
 import id.keretamalam.cafe.data.model.PermissionKey
+import id.keretamalam.cafe.ui.screens.LoginComposeScreen
 import id.keretamalam.cafe.ui.screens.RenderModuleScreen
 import id.keretamalam.cafe.viewmodel.PosUiState
 import id.keretamalam.cafe.viewmodel.PosViewModel
@@ -62,6 +65,16 @@ fun CafeFlowAppShell(
     BoxWithConstraints(modifier = Modifier.fillMaxSize()) {
         val isTabletOrWide = maxWidth >= 840.dp
 
+        // Jika belum login, tampilkan Halaman Login Native penuh (adaptif HP & Tablet)
+        if (!uiState.isLoggedIn) {
+            LoginComposeScreen(
+                viewModel = viewModel,
+                uiState = uiState,
+                isTabletOrWide = isTabletOrWide
+            )
+            return@BoxWithConstraints
+        }
+
         val drawerContent: @Composable () -> Unit = {
             ModalDrawerSheet(
                 modifier = Modifier.width(280.dp),
@@ -72,16 +85,27 @@ fun CafeFlowAppShell(
                         .fillMaxSize()
                         .padding(16.dp)
                 ) {
-                    Text(
-                        text = "Kereta Malam Cafe",
-                        style = MaterialTheme.typography.titleLarge,
-                        fontWeight = FontWeight.Bold
-                    )
-                    Text(
-                        text = "POS & QR Ordering · Android Native",
-                        style = MaterialTheme.typography.bodyMedium,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant
-                    )
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.SpaceBetween,
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Column(modifier = Modifier.weight(1f)) {
+                            Text(
+                                text = uiState.outletSettings.name,
+                                style = MaterialTheme.typography.titleLarge,
+                                fontWeight = FontWeight.Bold,
+                                maxLines = 1,
+                                overflow = TextOverflow.Ellipsis
+                            )
+                            Text(
+                                text = "POS & QR Ordering · Android Native",
+                                style = MaterialTheme.typography.bodyMedium,
+                                color = MaterialTheme.colorScheme.onSurfaceVariant
+                            )
+                        }
+                    }
+
                     HorizontalDivider(modifier = Modifier.padding(vertical = 12.dp))
 
                     Column(
@@ -92,15 +116,21 @@ fun CafeFlowAppShell(
                     ) {
                         val grouped = PosModuleRoute.entries.groupBy { it.groupLabel }
                         grouped.forEach { (group, items) ->
-                            Text(
-                                text = group,
-                                style = MaterialTheme.typography.labelMedium,
-                                color = MaterialTheme.colorScheme.onSurfaceVariant,
-                                modifier = Modifier.padding(top = 8.dp, bottom = 4.dp, start = 8.dp)
-                            )
-                            items.forEach { item ->
-                                val allowed = uiState.staffProfile?.canAccess(item.permission) ?: true
-                                if (allowed) {
+                            val visible = items.filter { uiState.staffProfile.canAccess(it.permission) }
+                            if (visible.isNotEmpty()) {
+                                Text(
+                                    text = group,
+                                    style = MaterialTheme.typography.labelMedium,
+                                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                    modifier = Modifier.padding(top = 8.dp, bottom = 4.dp, start = 8.dp)
+                                )
+                                visible.forEach { item ->
+                                    val badgeText = when (item) {
+                                        PosModuleRoute.KASIR -> uiState.cart.sumOf { it.quantity }.takeIf { it > 0 }?.toString()
+                                        PosModuleRoute.PESANAN -> uiState.activeOrdersCount.takeIf { it > 0 }?.toString()
+                                        PosModuleRoute.PRODUK -> uiState.lowStockProducts.size.takeIf { it > 0 }?.toString()
+                                        else -> null
+                                    }
                                     NavigationDrawerItem(
                                         label = {
                                             Text(
@@ -110,6 +140,11 @@ fun CafeFlowAppShell(
                                             )
                                         },
                                         icon = { Icon(item.icon, contentDescription = item.titleId) },
+                                        badge = badgeText?.let { b ->
+                                            {
+                                                Badge { Text(b) }
+                                            }
+                                        },
                                         selected = activeModule == item,
                                         onClick = {
                                             activeModule = item
@@ -121,6 +156,34 @@ fun CafeFlowAppShell(
                                     )
                                 }
                             }
+                        }
+                    }
+
+                    HorizontalDivider(modifier = Modifier.padding(vertical = 8.dp))
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.SpaceBetween,
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Column(modifier = Modifier.weight(1f)) {
+                            Text(
+                                text = uiState.staffProfile.fullName,
+                                style = MaterialTheme.typography.bodyMedium,
+                                fontWeight = FontWeight.SemiBold,
+                                maxLines = 1,
+                                overflow = TextOverflow.Ellipsis
+                            )
+                            Text(
+                                text = "Role: ${uiState.staffProfile.role.labelId}",
+                                style = MaterialTheme.typography.labelMedium,
+                                color = MaterialTheme.colorScheme.onSurfaceVariant
+                            )
+                        }
+                        IconButton(onClick = { viewModel.logoutSession() }) {
+                            Icon(
+                                imageVector = Icons.AutoMirrored.Outlined.Logout,
+                                contentDescription = "Keluar / Ganti Akun"
+                            )
                         }
                     }
                 }
@@ -140,17 +203,22 @@ fun CafeFlowAppShell(
                                     overflow = TextOverflow.Ellipsis
                                 )
                                 Text(
-                                    text = if (uiState.backendStatus == BackendIntegrationStatus.ACTIVE_VERIFIED) {
-                                        "Supabase Terhubung (${uiState.currentProjectId})"
-                                    } else {
-                                        "Supabase BELUM AKTIF (Verifikasi Project ID diperlukan)"
+                                    text = when (uiState.backendStatus) {
+                                        BackendIntegrationStatus.ACTIVE_VERIFIED ->
+                                            "Supabase Terhubung (${uiState.currentProjectId})"
+                                        BackendIntegrationStatus.LOCAL_SANDBOX_UI ->
+                                            "SIMULASI LOKAL · Bukan Database Produksi"
+                                        BackendIntegrationStatus.INACTIVE_PENDING_VERIFICATION ->
+                                            "Supabase BELUM AKTIF · Verifikasi Project ID Diperlukan"
                                     },
                                     style = MaterialTheme.typography.labelMedium,
-                                    color = if (uiState.backendStatus == BackendIntegrationStatus.ACTIVE_VERIFIED) {
-                                        MaterialTheme.colorScheme.onSurfaceVariant
-                                    } else {
-                                        MaterialTheme.colorScheme.error
-                                    }
+                                    color = when (uiState.backendStatus) {
+                                        BackendIntegrationStatus.ACTIVE_VERIFIED ->
+                                            MaterialTheme.colorScheme.onSurfaceVariant
+                                        else -> MaterialTheme.colorScheme.error
+                                    },
+                                    maxLines = 1,
+                                    overflow = TextOverflow.Ellipsis
                                 )
                             }
                         },
@@ -162,15 +230,14 @@ fun CafeFlowAppShell(
                             }
                         },
                         actions = {
-                            // Pengaturan Skala Zoom Cepat (40%, 50%, 60%, 80%, 100%)
-                            listOf(40, 50, 60, 80, 100).forEach { scale ->
-                                TextButton(
-                                    onClick = { viewModel.setUiScale(scale) }
-                                ) {
-                                    Text(
-                                        text = "$scale%",
-                                        fontWeight = if (uiState.uiScalePercent == scale) FontWeight.Bold else FontWeight.Normal
-                                    )
+                            if (isTabletOrWide) {
+                                listOf(40, 50, 60, 80, 100).forEach { scale ->
+                                    TextButton(onClick = { viewModel.setUiScale(scale) }) {
+                                        Text(
+                                            text = "$scale%",
+                                            fontWeight = if (uiState.uiScalePercent == scale) FontWeight.Bold else FontWeight.Normal
+                                        )
+                                    }
                                 }
                             }
                             IconButton(onClick = { viewModel.setThemeMode(!uiState.darkTheme) }) {
@@ -179,8 +246,41 @@ fun CafeFlowAppShell(
                                     contentDescription = "Ganti Tema Terang/Gelap"
                                 )
                             }
+                            IconButton(onClick = { viewModel.logoutSession() }) {
+                                Icon(
+                                    imageVector = Icons.AutoMirrored.Outlined.Logout,
+                                    contentDescription = "Halaman Login / Keluar"
+                                )
+                            }
                         }
                     )
+                },
+                bottomBar = {
+                    // Navigasi Bawah khusus layar HP untuk akses cepat 1 tangan
+                    if (!isTabletOrWide) {
+                        NavigationBar {
+                            val quickRoutes = listOf(
+                                PosModuleRoute.DASHBOARD,
+                                PosModuleRoute.KASIR,
+                                PosModuleRoute.PESANAN,
+                                PosModuleRoute.HISTORY
+                            )
+                            quickRoutes.forEach { route ->
+                                NavigationBarItem(
+                                    selected = activeModule == route,
+                                    onClick = { activeModule = route },
+                                    icon = { Icon(route.icon, contentDescription = route.titleId) },
+                                    label = { Text(route.titleId, maxLines = 1, overflow = TextOverflow.Ellipsis) }
+                                )
+                            }
+                            NavigationBarItem(
+                                selected = activeModule !in quickRoutes,
+                                onClick = { scope.launch { drawerState.open() } },
+                                icon = { Icon(Icons.Outlined.Menu, contentDescription = "Semua Modul") },
+                                label = { Text("Modul") }
+                            )
+                        }
+                    }
                 }
             ) { innerPadding ->
                 Box(
@@ -191,9 +291,40 @@ fun CafeFlowAppShell(
                 ) {
                     RenderModuleScreen(
                         module = activeModule,
+                        isTabletOrWide = isTabletOrWide,
+                        onNavigateModule = { activeModule = it },
                         viewModel = viewModel,
                         uiState = uiState
                     )
+
+                    // Floating Bottom-Right Zoom Control (- 100% +)
+                    Surface(
+                        shape = RoundedCornerShape(24.dp),
+                        color = MaterialTheme.colorScheme.surface,
+                        modifier = Modifier
+                            .align(Alignment.BottomEnd)
+                            .padding(12.dp)
+                            .border(1.dp, MaterialTheme.colorScheme.outline, RoundedCornerShape(24.dp))
+                    ) {
+                        Row(
+                            verticalAlignment = Alignment.CenterVertically,
+                            modifier = Modifier.padding(horizontal = 8.dp, vertical = 2.dp)
+                        ) {
+                            TextButton(
+                                onClick = { viewModel.setUiScale(uiState.uiScalePercent - 10) },
+                                enabled = uiState.uiScalePercent > 40
+                            ) { Text("-") }
+                            Text(
+                                text = "${uiState.uiScalePercent}%",
+                                style = MaterialTheme.typography.labelMedium,
+                                fontWeight = FontWeight.Bold
+                            )
+                            TextButton(
+                                onClick = { viewModel.setUiScale(uiState.uiScalePercent + 10) },
+                                enabled = uiState.uiScalePercent < 120
+                            ) { Text("+") }
+                        }
+                    }
                 }
             }
         }

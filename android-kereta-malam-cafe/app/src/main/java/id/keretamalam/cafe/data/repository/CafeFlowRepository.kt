@@ -1,22 +1,24 @@
 package id.keretamalam.cafe.data.repository
 
 import android.content.Context
+import id.keretamalam.cafe.data.config.BackendIntegrationStatus
 import id.keretamalam.cafe.data.config.SupabaseConfigManager
+import id.keretamalam.cafe.data.config.SupabaseRuntimeCredentials
 import id.keretamalam.cafe.data.model.*
-import io.github.jan.supabase.SupabaseClient
-import io.github.jan.supabase.auth.auth
-import io.github.jan.supabase.auth.providers.builtin.Email
-import io.github.jan.supabase.functions.functions
-import io.github.jan.supabase.postgrest.from
-import io.github.jan.supabase.postgrest.postgrest
-import io.github.jan.supabase.postgrest.query.Columns
-import io.github.jan.supabase.postgrest.query.Order
-import io.github.jan.supabase.postgrest.rpc
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.withContext
+import kotlinx.serialization.encodeToString
 import kotlinx.serialization.json.*
+import okhttp3.MediaType.Companion.toMediaType
+import okhttp3.OkHttpClient
+import okhttp3.Request
+import okhttp3.RequestBody.Companion.toRequestBody
+import java.net.URLEncoder
 import java.util.UUID
+import java.util.concurrent.TimeUnit
 
 class BackendNotVerifiedException(
-    message: String = "Integrasi Supabase BELUM AKTIF. Harap verifikasi Project ID (rvaemgwtdvncfvaerhgr / dbazoxwhhljpgtbnletc), URL, dan Publishable Key di Pengaturan Outlet."
+    message: String = "Integrasi Supabase BELUM AKTIF. Harap verifikasi Project ID (rvaemgwtdvncfvaerhgr / dbazoxwhhljpgtbnletc), URL, dan Publishable Key di Pengaturan Outlet atau Halaman Login."
 ) : IllegalStateException(message)
 
 /**
@@ -28,79 +30,180 @@ class BackendNotVerifiedException(
  *   `audit_logs`, `expenses`, `inventory_movements`, `printer_settings`, `website_settings`.
  * - RPC: `create_pos_order`, `create_qr_order`, `approve_qr_order_with_method`,
  *   `reject_qr_order`, `get_active_public_promotions`, `get_public_outlet_settings`.
+ * - Edge Function: `ai-assistant`.
  */
 class CafeFlowRepository(private val context: Context) {
 
-    private fun requireClient(): SupabaseClient {
-        return SupabaseConfigManager.getOrCreateClient(context)
-            ?: throw BackendNotVerifiedException()
+    private val httpClient = OkHttpClient.Builder()
+        .connectTimeout(15, TimeUnit.SECONDS)
+        .readTimeout(20, TimeUnit.SECONDS)
+        .writeTimeout(20, TimeUnit.SECONDS)
+        .build()
+
+    private val json = Json {
+        ignoreUnknownKeys = true
+        isLenient = true
+        encodeDefaults = true
+        coerceInputValues = true
+    }
+
+    private val jsonMediaType = "application/json; charset=utf-8".toMediaType()
+
+    private fun requireVerifiedCredentials(): SupabaseRuntimeCredentials {
+        val creds = SupabaseConfigManager.loadCredentials(context)
+        if (creds.status != BackendIntegrationStatus.ACTIVE_VERIFIED) {
+            throw BackendNotVerifiedException()
+        }
+        return creds
+    }
+
+    private fun buildHeaders(creds: SupabaseRuntimeCredentials, preferReturn: String? = null): Map<String, String> {
+        val bearer = creds.accessToken.ifBlank { creds.publishableKey }
+        val map = mutableMapOf(
+            "apikey" to creds.publishableKey,
+            "Authorization" to "Bearer $bearer",
+            "Content-Type" to "application/json"
+        )
+        if (!preferReturn.isNullOrBlank()) {
+            map["Prefer"] = preferReturn
+        }
+        return map
+    }
+
+    private suspend fun executeJsonRequest(
+        method: String,
+        url: String,
+        headers: Map<String, String>,
+        bodyJson: String? = null
+    ): String = withContext(Dispatchers.IO) {
+        val reqBuilder = Request.Builder().url(url)
+        headers.forEach { (k, v) -> reqBuilder.addHeader(k, v) }
+        val requestBody = bodyJson?.toRequestBody(jsonMediaType)
+        when (method.uppercase()) {
+            "GET" -> reqBuilder.get()
+            "POST" -> reqBuilder.post(requestBody ?: "".toRequestBody(jsonMediaType))
+            "PATCH" -> reqBuilder.patch(requestBody ?: "".toRequestBody(jsonMediaType))
+            "DELETE" -> if (requestBody != null) reqBuilder.delete(requestBody) else reqBuilder.delete()
+            else -> reqBuilder.get()
+        }
+        httpClient.newCall(reqBuilder.build()).execute().use { response ->
+            val raw = response.body?.string().orEmpty()
+            if (!response.isSuccessful) {
+                val errMsg = runCatching {
+                    val obj = json.parseToJsonElement(raw).jsonObject
+                    obj["msg"]?.jsonPrimitive?.contentOrNull
+                        ?: obj["message"]?.jsonPrimitive?.contentOrNull
+                        ?: obj["error_description"]?.jsonPrimitive?.contentOrNull
+                        ?: raw
+                }.getOrDefault(raw.ifBlank { "HTTP ${response.code}" })
+                throw IllegalStateException("Supabase Error (${response.code}): $errMsg")
+            }
+            raw
+        }
     }
 
     // ========================================================================
     // 1. AUTENTIKASI & HAK AKSES (RBAC)
     // ========================================================================
     suspend fun signInWithEmailPassword(emailInput: String, passwordInput: String): StaffProfile {
-        val client = requireClient()
-        client.auth.signInWith(Email) {
-            email = emailInput.trim()
-            password = passwordInput
+        val creds = requireVerifiedCredentials()
+        val authUrl = "${creds.supabaseUrl}/auth/v1/token?grant_type=password"
+        val payload = buildJsonObject {
+            put("email", emailInput.trim())
+            put("password", passwordInput)
         }
-        val profile = fetchMyStaffProfile()
-            ?: throw IllegalStateException("Profil staf tidak ditemukan untuk akun ini.")
-        logActivity(
-            action = "auth.login",
-            entityType = "auth",
-            entityId = profile.userId,
-            details = buildJsonObject { put("method", "password") }
+        val raw = executeJsonRequest(
+            method = "POST",
+            url = authUrl,
+            headers = buildHeaders(creds),
+            bodyJson = json.encodeToString(JsonObject.serializer(), payload)
         )
+        val authObj = json.parseToJsonElement(raw).jsonObject
+        val accessToken = authObj["access_token"]?.jsonPrimitive?.contentOrNull
+            ?: throw IllegalStateException("Token sesi tidak ditemukan pada respons Supabase Auth.")
+        val userObj = authObj["user"]?.jsonObject
+        val userId = userObj?.get("id")?.jsonPrimitive?.contentOrNull
+            ?: throw IllegalStateException("User ID tidak ditemukan pada respons Supabase Auth.")
+        val userEmail = userObj["email"]?.jsonPrimitive?.contentOrNull ?: emailInput.trim()
+
+        SupabaseConfigManager.saveAuthSession(context, accessToken, userId, userEmail)
+
+        val profile = fetchMyStaffProfile()
+            ?: StaffProfile(
+                userId = userId,
+                ownerId = userId,
+                fullName = userEmail.substringBefore("@"),
+                email = userEmail,
+                role = StaffRole.CASHIER,
+                isActive = true,
+                permissions = mapOf(
+                    "dashboard" to true,
+                    "orders" to true,
+                    "payments" to true,
+                    "tables" to true
+                )
+            )
+
+        runCatching {
+            logActivity(
+                action = "auth.login",
+                entityType = "auth",
+                entityId = profile.userId,
+                details = buildJsonObject { put("method", "password") }
+            )
+        }
         return profile
     }
 
     suspend fun signOut() {
-        val client = SupabaseConfigManager.getOrCreateClient(context) ?: return
-        val currentUser = client.auth.currentUserOrNull()
-        if (currentUser != null) {
+        val creds = SupabaseConfigManager.loadCredentials(context)
+        if (creds.status == BackendIntegrationStatus.ACTIVE_VERIFIED && creds.accessToken.isNotBlank()) {
             runCatching {
                 logActivity(
                     action = "auth.logout",
                     entityType = "auth",
-                    entityId = currentUser.id,
+                    entityId = creds.authenticatedUserId,
                     details = buildJsonObject { put("method", "password") }
+                )
+                executeJsonRequest(
+                    method = "POST",
+                    url = "${creds.supabaseUrl}/auth/v1/logout",
+                    headers = buildHeaders(creds)
                 )
             }
         }
-        client.auth.signOut()
+        SupabaseConfigManager.clearAuthSession(context)
     }
 
     suspend fun fetchMyStaffProfile(): StaffProfile? {
-        val client = requireClient()
-        val user = client.auth.currentUserOrNull() ?: return null
-        return client.from("staff_profiles")
-            .select(Columns.raw("user_id, owner_id, full_name, role, is_active, permissions")) {
-                filter { eq("user_id", user.id) }
-            }
-            .decodeSingleOrNull<StaffProfile>()
+        val creds = requireVerifiedCredentials()
+        if (creds.authenticatedUserId.isBlank()) return null
+        val encodedId = URLEncoder.encode(creds.authenticatedUserId, "UTF-8")
+        val url = "${creds.supabaseUrl}/rest/v1/staff_profiles?select=user_id,owner_id,full_name,role,is_active,permissions&user_id=eq.$encodedId&limit=1"
+        val raw = executeJsonRequest("GET", url, buildHeaders(creds))
+        val list = json.decodeFromString<List<StaffProfile>>(raw)
+        return list.firstOrNull()?.copy(email = creds.authenticatedEmail)
     }
 
     // ========================================================================
     // 2. KATEGORI, PRODUK, DAN MEJA
     // ========================================================================
     suspend fun fetchCategories(): List<Category> {
-        val client = requireClient()
-        return client.from("categories")
-            .select { order("sort_order", Order.ASCENDING) }
-            .decodeList<Category>()
+        val creds = requireVerifiedCredentials()
+        val url = "${creds.supabaseUrl}/rest/v1/categories?select=*&order=sort_order.asc"
+        val raw = executeJsonRequest("GET", url, buildHeaders(creds))
+        return json.decodeFromString(raw)
     }
 
     suspend fun fetchProducts(): List<Product> {
-        val client = requireClient()
-        return client.from("products")
-            .select { order("name", Order.ASCENDING) }
-            .decodeList<Product>()
+        val creds = requireVerifiedCredentials()
+        val url = "${creds.supabaseUrl}/rest/v1/products?select=*&order=name.asc"
+        val raw = executeJsonRequest("GET", url, buildHeaders(creds))
+        return json.decodeFromString(raw)
     }
 
     suspend fun saveProduct(product: Product): Product {
-        val client = requireClient()
+        val creds = requireVerifiedCredentials()
         val payload = buildJsonObject {
             put("name", product.name.trim())
             put("description", product.description)
@@ -113,32 +216,41 @@ class CafeFlowRepository(private val context: Context) {
             put("show_on_menu", product.showOnMenu)
             put("is_active", product.isActive)
         }
-        return if (product.id.isNotBlank()) {
-            client.from("products")
-                .update(payload) {
-                    filter { eq("id", product.id) }
-                    select()
-                }
-                .decodeSingle<Product>()
+        val bodyStr = json.encodeToString(JsonObject.serializer(), payload)
+        val raw = if (product.id.isNotBlank()) {
+            val encodedId = URLEncoder.encode(product.id, "UTF-8")
+            executeJsonRequest(
+                method = "PATCH",
+                url = "${creds.supabaseUrl}/rest/v1/products?id=eq.$encodedId",
+                headers = buildHeaders(creds, "return=representation"),
+                bodyJson = bodyStr
+            )
         } else {
-            client.from("products")
-                .insert(payload) { select() }
-                .decodeSingle<Product>()
+            executeJsonRequest(
+                method = "POST",
+                url = "${creds.supabaseUrl}/rest/v1/products",
+                headers = buildHeaders(creds, "return=representation"),
+                bodyJson = bodyStr
+            )
         }
+        return json.decodeFromString<List<Product>>(raw).first()
     }
 
     suspend fun deleteProduct(productId: String) {
-        val client = requireClient()
-        client.from("products").delete {
-            filter { eq("id", productId) }
-        }
+        val creds = requireVerifiedCredentials()
+        val encodedId = URLEncoder.encode(productId, "UTF-8")
+        executeJsonRequest(
+            method = "DELETE",
+            url = "${creds.supabaseUrl}/rest/v1/products?id=eq.$encodedId",
+            headers = buildHeaders(creds)
+        )
     }
 
     suspend fun fetchTables(): List<RestaurantTable> {
-        val client = requireClient()
-        return client.from("restaurant_tables")
-            .select { order("code", Order.ASCENDING) }
-            .decodeList<RestaurantTable>()
+        val creds = requireVerifiedCredentials()
+        val url = "${creds.supabaseUrl}/rest/v1/restaurant_tables?select=*&order=code.asc"
+        val raw = executeJsonRequest("GET", url, buildHeaders(creds))
+        return json.decodeFromString(raw)
     }
 
     fun buildValidTableQrUrl(tableCode: String): String {
@@ -150,13 +262,6 @@ class CafeFlowRepository(private val context: Context) {
     // ========================================================================
     // 3. KASIR & TRANSAKSI (RPC `create_pos_order` DENGAN IDEMPOTENCY KEY)
     // ========================================================================
-    /**
-     * Menyimpan transaksi POS menggunakan RPC `create_pos_order` sesuai skema produksi.
-     * - Tidak mengurangi stok dua kali dari sisi aplikasi karena trigger `trg_deduct_stock`
-     *   pada tabel `order_items` sudah mengurangi stok secara atomik di database.
-     * - Menggunakan `idempotency_key` UUID unik untuk mencegah transaksi ganda.
-     * - Menunggu respons sukses dari backend sebelum mengembalikan `OrderWithItems`.
-     */
     suspend fun createPosOrder(
         idempotencyKey: String = UUID.randomUUID().toString(),
         tableId: String?,
@@ -171,10 +276,7 @@ class CafeFlowRepository(private val context: Context) {
         cashReceived: Double?,
         items: List<CartItem>
     ): OrderWithItems {
-        val client = requireClient()
-        val session = client.auth.currentSessionOrNull()
-            ?: throw IllegalStateException("Sesi login tidak ditemukan. Silakan login ulang.")
-
+        val creds = requireVerifiedCredentials()
         val rpcPayload = buildJsonObject {
             putJsonObject("p_order") {
                 put("idempotency_key", idempotencyKey)
@@ -207,8 +309,13 @@ class CafeFlowRepository(private val context: Context) {
             }
         }
 
-        val result = client.postgrest.rpc("create_pos_order", rpcPayload)
-        val responseObj = result.decodeAs<JsonObject>()
+        val raw = executeJsonRequest(
+            method = "POST",
+            url = "${creds.supabaseUrl}/rest/v1/rpc/create_pos_order",
+            headers = buildHeaders(creds),
+            bodyJson = json.encodeToString(JsonObject.serializer(), rpcPayload)
+        )
+        val responseObj = json.parseToJsonElement(raw).jsonObject
         val createdOrderId = responseObj["order"]?.jsonObject?.get("id")?.jsonPrimitive?.contentOrNull
             ?: throw IllegalStateException("Transaksi dibuat tetapi respons ID order dari backend tidak valid.")
 
@@ -216,116 +323,136 @@ class CafeFlowRepository(private val context: Context) {
             ?: throw IllegalStateException("Transaksi tersimpan tetapi gagal memuat detail struk dari backend.")
     }
 
-    suspend fun fetchOrders(fromIso: String? = null, toIso: String? = null, limitCount: Long = 500): List<OrderWithItems> {
-        val client = requireClient()
-        return client.from("orders")
-            .select(Columns.raw("*, order_items(*), payments(method, amount, cash_received, change_amount), restaurant_tables(name)")) {
-                filter {
-                    if (!fromIso.isNullOrBlank()) gte("created_at", fromIso)
-                    if (!toIso.isNullOrBlank()) lte("created_at", toIso)
-                }
-                order("created_at", Order.DESCENDING)
-                limit(limitCount)
-            }
-            .decodeList<OrderWithItems>()
+    suspend fun fetchOrders(fromIso: String? = null, toIso: String? = null, limitCount: Int = 500): List<OrderWithItems> {
+        val creds = requireVerifiedCredentials()
+        val selectCols = URLEncoder.encode("*,order_items(*),payments(method,amount,cash_received,change_amount),restaurant_tables(name)", "UTF-8")
+        val query = buildString {
+            append("${creds.supabaseUrl}/rest/v1/orders?select=$selectCols&order=created_at.desc&limit=$limitCount")
+            if (!fromIso.isNullOrBlank()) append("&created_at=gte.${URLEncoder.encode(fromIso, "UTF-8")}")
+            if (!toIso.isNullOrBlank()) append("&created_at=lte.${URLEncoder.encode(toIso, "UTF-8")}")
+        }
+        val raw = executeJsonRequest("GET", query, buildHeaders(creds))
+        return json.decodeFromString(raw)
     }
 
     suspend fun fetchOrderById(orderId: String): OrderWithItems? {
-        val client = requireClient()
-        return client.from("orders")
-            .select(Columns.raw("*, order_items(*), payments(method, amount, cash_received, change_amount), restaurant_tables(name)")) {
-                filter { eq("id", orderId) }
-            }
-            .decodeSingleOrNull<OrderWithItems>()
+        val creds = requireVerifiedCredentials()
+        val selectCols = URLEncoder.encode("*,order_items(*),payments(method,amount,cash_received,change_amount),restaurant_tables(name)", "UTF-8")
+        val encodedId = URLEncoder.encode(orderId, "UTF-8")
+        val url = "${creds.supabaseUrl}/rest/v1/orders?select=$selectCols&id=eq.$encodedId&limit=1"
+        val raw = executeJsonRequest("GET", url, buildHeaders(creds))
+        return json.decodeFromString<List<OrderWithItems>>(raw).firstOrNull()
     }
 
     suspend fun updateOrderStatus(orderId: String, newStatus: OrderStatus) {
-        val client = requireClient()
-        client.from("orders").update(
-            buildJsonObject { put("status", newStatus.raw) }
-        ) {
-            filter { eq("id", orderId) }
-        }
+        val creds = requireVerifiedCredentials()
+        val encodedId = URLEncoder.encode(orderId, "UTF-8")
+        val payload = buildJsonObject { put("status", newStatus.raw) }
+        executeJsonRequest(
+            method = "PATCH",
+            url = "${creds.supabaseUrl}/rest/v1/orders?id=eq.$encodedId",
+            headers = buildHeaders(creds),
+            bodyJson = json.encodeToString(JsonObject.serializer(), payload)
+        )
     }
 
     suspend fun approveQrOrder(orderId: String, paymentMethod: String = "qris", cashReceived: Double? = null) {
-        val client = requireClient()
-        client.postgrest.rpc(
-            "approve_qr_order_with_method",
-            buildJsonObject {
-                put("p_order_id", orderId)
-                put("p_payment_method", paymentMethod)
-                if (cashReceived != null) put("p_cash_received", cashReceived) else put("p_cash_received", JsonNull)
-            }
+        val creds = requireVerifiedCredentials()
+        val payload = buildJsonObject {
+            put("p_order_id", orderId)
+            put("p_payment_method", paymentMethod)
+            if (cashReceived != null) put("p_cash_received", cashReceived) else put("p_cash_received", JsonNull)
+        }
+        executeJsonRequest(
+            method = "POST",
+            url = "${creds.supabaseUrl}/rest/v1/rpc/approve_qr_order_with_method",
+            headers = buildHeaders(creds),
+            bodyJson = json.encodeToString(JsonObject.serializer(), payload)
         )
     }
 
     suspend fun rejectQrOrder(orderId: String) {
-        val client = requireClient()
-        client.postgrest.rpc(
-            "reject_qr_order",
-            buildJsonObject { put("p_order_id", orderId) }
+        val creds = requireVerifiedCredentials()
+        val payload = buildJsonObject { put("p_order_id", orderId) }
+        executeJsonRequest(
+            method = "POST",
+            url = "${creds.supabaseUrl}/rest/v1/rpc/reject_qr_order",
+            headers = buildHeaders(creds),
+            bodyJson = json.encodeToString(JsonObject.serializer(), payload)
         )
     }
 
     // ========================================================================
-    // 4. PROMOSI, PENGATURAN OUTLET, SHIFT, KEUANGAN, & LOG AKTIVITAS
+    // 4. PROMOSI, PENGATURAN OUTLET, SHIFT, KEUANGAN, AI, & LOG AKTIVITAS
     // ========================================================================
     suspend fun fetchPromotions(): List<Promotion> {
-        val client = requireClient()
-        return client.from("promotions")
-            .select { order("created_at", Order.DESCENDING) }
-            .decodeList<Promotion>()
+        val creds = requireVerifiedCredentials()
+        val url = "${creds.supabaseUrl}/rest/v1/promotions?select=*&order=created_at.desc"
+        val raw = executeJsonRequest("GET", url, buildHeaders(creds))
+        return json.decodeFromString(raw)
     }
 
     suspend fun fetchOutletSettings(): OutletSettings {
-        val client = requireClient()
-        val user = client.auth.currentUserOrNull()
-        if (user != null) {
-            val row = client.from("outlet_settings")
-                .select { filter { eq("owner_id", user.id) } }
-                .decodeSingleOrNull<OutletSettings>()
-            if (row != null) return row
-        }
-        return OutletSettings()
+        val creds = requireVerifiedCredentials()
+        val url = "${creds.supabaseUrl}/rest/v1/outlet_settings?select=*&limit=1"
+        val raw = executeJsonRequest("GET", url, buildHeaders(creds))
+        return json.decodeFromString<List<OutletSettings>>(raw).firstOrNull() ?: OutletSettings()
     }
 
     suspend fun fetchStaffShifts(): List<StaffShift> {
-        val client = requireClient()
-        return client.from("staff_shifts")
-            .select { order("opened_at", Order.DESCENDING) }
-            .decodeList<StaffShift>()
+        val creds = requireVerifiedCredentials()
+        val url = "${creds.supabaseUrl}/rest/v1/staff_shifts?select=*&order=opened_at.desc"
+        val raw = executeJsonRequest("GET", url, buildHeaders(creds))
+        return json.decodeFromString(raw)
     }
 
     suspend fun fetchExpenses(): List<Expense> {
-        val client = requireClient()
-        return client.from("expenses")
-            .select { order("expense_date", Order.DESCENDING) }
-            .decodeList<Expense>()
+        val creds = requireVerifiedCredentials()
+        val url = "${creds.supabaseUrl}/rest/v1/expenses?select=*&order=expense_date.desc"
+        val raw = executeJsonRequest("GET", url, buildHeaders(creds))
+        return json.decodeFromString(raw)
     }
 
     suspend fun fetchAuditLogs(): List<AuditLog> {
-        val client = requireClient()
-        return client.from("audit_logs")
-            .select {
-                order("created_at", Order.DESCENDING)
-                limit(200)
-            }
-            .decodeList<AuditLog>()
+        val creds = requireVerifiedCredentials()
+        val url = "${creds.supabaseUrl}/rest/v1/audit_logs?select=*&order=created_at.desc&limit=200"
+        val raw = executeJsonRequest("GET", url, buildHeaders(creds))
+        return json.decodeFromString(raw)
+    }
+
+    suspend fun invokeAiAssistant(prompt: String): String {
+        val creds = requireVerifiedCredentials()
+        val payload = buildJsonObject { put("prompt", prompt) }
+        val raw = executeJsonRequest(
+            method = "POST",
+            url = "${creds.supabaseUrl}/functions/v1/ai-assistant",
+            headers = buildHeaders(creds),
+            bodyJson = json.encodeToString(JsonObject.serializer(), payload)
+        )
+        val obj = json.parseToJsonElement(raw).jsonObject
+        return obj["reply"]?.jsonPrimitive?.contentOrNull
+            ?: obj["answer"]?.jsonPrimitive?.contentOrNull
+            ?: raw
     }
 
     suspend fun logActivity(action: String, entityType: String, entityId: String?, details: JsonObject) {
-        val client = SupabaseConfigManager.getOrCreateClient(context) ?: return
-        val user = client.auth.currentUserOrNull() ?: return
-        client.from("audit_logs").insert(
-            buildJsonObject {
-                put("owner_id", user.id)
-                put("actor_user_id", user.id)
-                put("action", action)
-                put("entity_type", entityType)
-                put("entity_id", entityId)
-                put("details", details)
-            }
-        )
+        val creds = SupabaseConfigManager.loadCredentials(context)
+        if (creds.status != BackendIntegrationStatus.ACTIVE_VERIFIED || creds.authenticatedUserId.isBlank()) return
+        val payload = buildJsonObject {
+            put("owner_id", creds.authenticatedUserId)
+            put("actor_user_id", creds.authenticatedUserId)
+            put("action", action)
+            put("entity_type", entityType)
+            put("entity_id", entityId)
+            put("details", details)
+        }
+        runCatching {
+            executeJsonRequest(
+                method = "POST",
+                url = "${creds.supabaseUrl}/rest/v1/audit_logs",
+                headers = buildHeaders(creds),
+                bodyJson = json.encodeToString(JsonObject.serializer(), payload)
+            )
+        }
     }
 }

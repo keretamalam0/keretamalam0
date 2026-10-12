@@ -169,6 +169,7 @@ export default function App() {
   const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
   const [mobileDrawerOpen, setMobileDrawerOpen] = useState(false);
   const [kotlinModalOpen, setKotlinModalOpen] = useState(false);
+  const [loginScreenOpen, setLoginScreenOpen] = useState(false);
 
   // Navigation Module
   const [activeModule, setActiveModule] = useState<ModuleId>('dashboard');
@@ -3553,6 +3554,15 @@ export default function App() {
 
           <button
             type="button"
+            onClick={() => setLoginScreenOpen(true)}
+            className="inline-flex items-center gap-1.5 rounded-lg border border-zinc-300 bg-white px-2.5 py-1.5 text-xs font-semibold text-zinc-900 hover:bg-zinc-100 dark:border-zinc-700 dark:bg-zinc-900 dark:text-zinc-100 dark:hover:bg-zinc-800 whitespace-nowrap shrink-0"
+          >
+            <LogIn className="size-3.5" />
+            Halaman Login
+          </button>
+
+          <button
+            type="button"
             onClick={() => setKotlinModalOpen(true)}
             className="inline-flex items-center gap-1.5 rounded-lg bg-zinc-900 px-3 py-1.5 text-xs font-semibold text-white hover:bg-zinc-800 dark:bg-zinc-100 dark:text-zinc-900 dark:hover:bg-zinc-200 whitespace-nowrap shrink-0"
           >
@@ -3629,11 +3639,19 @@ export default function App() {
                 })}
               </div>
 
-              <div className="border-t border-zinc-200 pt-3 dark:border-zinc-800">
-                <div className="px-2.5 pb-2 text-[11px]">
+              <div className="flex items-center justify-between border-t border-zinc-200 pt-3 dark:border-zinc-800">
+                <div className="min-w-0 px-2.5 pb-2 text-[11px]">
                   <p className="font-semibold truncate">{currentStaff.full_name}</p>
                   <p className="font-mono text-zinc-500 uppercase">{currentStaff.role}</p>
                 </div>
+                <button
+                  type="button"
+                  onClick={() => setLoginScreenOpen(true)}
+                  className="inline-flex size-8 items-center justify-center rounded-lg border border-zinc-200 text-zinc-600 hover:bg-zinc-100 dark:border-zinc-800 dark:text-zinc-300 dark:hover:bg-zinc-800"
+                  title="Keluar / Ganti Sesi Login"
+                >
+                  <LogOut className="size-3.5" />
+                </button>
               </div>
             </aside>
           )}
@@ -3669,6 +3687,14 @@ export default function App() {
                     Mode Simulasi UI Lokal
                   </span>
                 )}
+                <button
+                  type="button"
+                  onClick={() => setLoginScreenOpen(true)}
+                  className="inline-flex items-center gap-1 rounded-lg border border-zinc-200 px-2.5 py-1 text-[11px] font-semibold hover:bg-zinc-100 dark:border-zinc-800 dark:hover:bg-zinc-800"
+                >
+                  <LogOut className="size-3.5" />
+                  <span className="hidden sm:inline">Ganti Sesi</span>
+                </button>
               </div>
             </header>
 
@@ -3686,6 +3712,44 @@ export default function App() {
             )}
 
             <main className="flex-1 p-4 md:p-6">{renderModuleContent()}</main>
+
+            {/* Bottom Navigation Bar khusus Mode HP Android (Sesuai NavigationBar di CafeFlowAppShell.kt) */}
+            {viewportMode === 'phone' && (
+              <nav className="sticky bottom-0 z-20 grid grid-cols-5 border-t border-zinc-200 bg-white/95 px-1 py-1.5 backdrop-blur-xs dark:border-zinc-800 dark:bg-zinc-900/95">
+                {[
+                  { id: 'dashboard' as ModuleId, label: 'Dashboard', icon: LayoutDashboard },
+                  { id: 'kasir' as ModuleId, label: 'Kasir', icon: ScanLine },
+                  { id: 'pesanan' as ModuleId, label: 'Pesanan', icon: ClipboardList },
+                  { id: 'history' as ModuleId, label: 'History', icon: History },
+                ].map((tab) => {
+                  const Icon = tab.icon;
+                  const active = activeModule === tab.id;
+                  return (
+                    <button
+                      key={tab.id}
+                      type="button"
+                      onClick={() => setActiveModule(tab.id)}
+                      className={`flex flex-col items-center justify-center gap-0.5 rounded-xl py-1.5 text-[10px] font-semibold ${
+                        active
+                          ? 'bg-zinc-900 text-white dark:bg-zinc-100 dark:text-zinc-900'
+                          : 'text-zinc-500 dark:text-zinc-400'
+                      }`}
+                    >
+                      <Icon className="size-4" />
+                      <span className="truncate">{tab.label}</span>
+                    </button>
+                  );
+                })}
+                <button
+                  type="button"
+                  onClick={() => setMobileDrawerOpen(true)}
+                  className="flex flex-col items-center justify-center gap-0.5 rounded-xl py-1.5 text-[10px] font-semibold text-zinc-500 dark:text-zinc-400"
+                >
+                  <Menu className="size-4" />
+                  <span>Modul</span>
+                </button>
+              </nav>
+            )}
           </div>
         </div>
       </div>
@@ -4095,6 +4159,120 @@ export default function App() {
               >
                 Ya, Hapus Produk
               </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* ==================================================================== */}
+      {/* CENTERED DIALOG 6: HALAMAN LOGIN & VERIFIKASI SESI (LoginComposeScreen) */}
+      {/* ==================================================================== */}
+      {loginScreenOpen && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/70 p-4 backdrop-blur-xs">
+          <div className="max-h-[90vh] w-full max-w-4xl overflow-y-auto rounded-2xl border border-zinc-200 bg-white p-6 shadow-2xl dark:border-zinc-800 dark:bg-zinc-950">
+            <div className="flex items-center justify-between border-b border-zinc-200 pb-4 dark:border-zinc-800">
+              <div>
+                <h2 className="text-xl font-bold tracking-tight">
+                  KERETA MALAM CAFE — Halaman Login &amp; Sesi Staf
+                </h2>
+                <p className="text-xs text-zinc-500">
+                  Sesuai implementasi <code className="font-mono">LoginComposeScreen</code> pada <code className="font-mono">AllScreens.kt</code> (Adaptif HP &amp; Tablet)
+                </p>
+              </div>
+              <button
+                type="button"
+                onClick={() => setLoginScreenOpen(false)}
+                className="inline-flex size-9 items-center justify-center rounded-lg border border-zinc-200 dark:border-zinc-800"
+              >
+                <X className="size-4" />
+              </button>
+            </div>
+
+            <div className="mt-4 rounded-xl border border-zinc-200 bg-zinc-50 p-4 text-xs dark:border-zinc-800 dark:bg-zinc-900">
+              <p className="font-bold text-amber-700 dark:text-amber-400">
+                {backendMode === 'LIVE_SUPABASE'
+                  ? `STATUS SUPABASE: TERVERIFIKASI (${supabaseConfig.projectId})`
+                  : backendMode === 'LOCAL_SANDBOX_UI'
+                    ? 'STATUS: MODE SIMULASI LOKAL TERLABEL (SUPABASE BELUM AKTIF)'
+                    : 'STATUS SUPABASE: BELUM AKTIF (MENUNGGU VERIFIKASI PROJECT ID)'}
+              </p>
+              <p className="mt-1 text-zinc-600 dark:text-zinc-400">
+                Ditemukan dua kandidat Project ID pada referensi: <code className="font-mono font-semibold">rvaemgwtdvncfvaerhgr</code> (repo <code className="font-mono">supabase/config.toml</code>) dan <code className="font-mono font-semibold">dbazoxwhhljpgtbnletc</code> (bundle <code className="font-mono">pos.yuripratama246.workers.dev</code>). Verifikasi kredensial di Pengaturan Outlet sebelum menggunakan login produksi.
+              </p>
+            </div>
+
+            <div className="mt-4 grid gap-4 md:grid-cols-2">
+              {/* Panel 1: Login Supabase Auth */}
+              <form
+                onSubmit={async (e) => {
+                  await handleSupabaseLogin(e);
+                  setLoginScreenOpen(false);
+                }}
+                className="space-y-3 rounded-xl border border-zinc-200 p-5 dark:border-zinc-800"
+              >
+                <h3 className="text-sm font-bold">1. Login Akun Staf (Supabase Auth)</h3>
+                <p className="text-xs text-zinc-500">
+                  Memanggil <code className="font-mono">signInWithEmailPassword</code> dan memuat hak akses dari tabel <code className="font-mono">staff_profiles</code>.
+                </p>
+                <div>
+                  <label className="block text-xs font-medium">Email Staf</label>
+                  <input
+                    type="email"
+                    value={authEmail}
+                    onChange={(e) => setAuthEmail(e.target.value)}
+                    placeholder="kasir@keretamalam.id"
+                    className="mt-1 w-full rounded-lg border border-zinc-200 bg-zinc-50 px-3 py-2 text-xs dark:border-zinc-800 dark:bg-zinc-900"
+                  />
+                </div>
+                <div>
+                  <label className="block text-xs font-medium">Password</label>
+                  <input
+                    type="password"
+                    value={authPassword}
+                    onChange={(e) => setAuthPassword(e.target.value)}
+                    placeholder="••••••••"
+                    className="mt-1 w-full rounded-lg border border-zinc-200 bg-zinc-50 px-3 py-2 text-xs dark:border-zinc-800 dark:bg-zinc-900"
+                  />
+                </div>
+                <button
+                  type="submit"
+                  disabled={authLoading}
+                  className="w-full rounded-xl bg-zinc-900 py-2.5 text-xs font-bold text-white hover:bg-zinc-800 dark:bg-zinc-100 dark:text-zinc-900"
+                >
+                  {authLoading ? 'Memverifikasi...' : 'Masuk dengan Supabase Auth'}
+                </button>
+              </form>
+
+              {/* Panel 2: Mode Simulasi Lokal Terlabel */}
+              <div className="space-y-3 rounded-xl border border-zinc-200 p-5 dark:border-zinc-800">
+                <h3 className="text-sm font-bold">2. Mode Simulasi Operasional Lokal</h3>
+                <p className="text-xs text-zinc-500">
+                  Pilih profil peran staf untuk menguji seluruh 18 modul POS &amp; RBAC secara lokal (berlabel <code className="font-mono">[SIMULASI LOKAL]</code>):
+                </p>
+                <div className="space-y-2">
+                  {staffList.map((st) => (
+                    <button
+                      key={st.user_id}
+                      type="button"
+                      onClick={() => {
+                        setCurrentStaff(st);
+                        setBackendMode('LOCAL_SANDBOX_UI');
+                        setLoginScreenOpen(false);
+                        showNotice(
+                          'info',
+                          `Masuk Mode Simulasi Lokal sebagai ${st.full_name} (${st.role.toUpperCase()}).`
+                        );
+                      }}
+                      className="flex w-full items-center justify-between rounded-xl border border-zinc-200 px-3.5 py-2.5 text-left text-xs font-semibold hover:bg-zinc-100 dark:border-zinc-800 dark:hover:bg-zinc-900"
+                    >
+                      <span>{st.full_name}</span>
+                      <span className="rounded bg-zinc-200 px-2 py-0.5 font-mono text-[10px] uppercase dark:bg-zinc-800">
+                        {st.role}
+                      </span>
+                    </button>
+                  ))}
+                </div>
+              </div>
             </div>
           </div>
         </div>

@@ -1,19 +1,15 @@
 package id.keretamalam.cafe.data.config
 
 import android.content.Context
+import android.content.SharedPreferences
 import androidx.security.crypto.EncryptedSharedPreferences
 import androidx.security.crypto.MasterKey
 import id.keretamalam.cafe.BuildConfig
-import io.github.jan.supabase.SupabaseClient
-import io.github.jan.supabase.auth.Auth
-import io.github.jan.supabase.createSupabaseClient
-import io.github.jan.supabase.functions.Functions
-import io.github.jan.supabase.postgrest.Postgrest
-import io.github.jan.supabase.realtime.Realtime
 
 enum class BackendIntegrationStatus {
     INACTIVE_PENDING_VERIFICATION,
-    ACTIVE_VERIFIED
+    ACTIVE_VERIFIED,
+    LOCAL_SANDBOX_UI
 }
 
 data class SupabaseRuntimeCredentials(
@@ -21,7 +17,10 @@ data class SupabaseRuntimeCredentials(
     val supabaseUrl: String,
     val publishableKey: String,
     val publicWebMenuBaseUrl: String,
-    val isVerifiedByUser: Boolean
+    val isVerifiedByUser: Boolean,
+    val accessToken: String = "",
+    val authenticatedUserId: String = "",
+    val authenticatedEmail: String = ""
 ) {
     val status: BackendIntegrationStatus
         get() = if (isVerifiedByUser && supabaseUrl.startsWith("https://") && publishableKey.isNotBlank()) {
@@ -32,7 +31,7 @@ data class SupabaseRuntimeCredentials(
 }
 
 /**
- * Mengelola konfigurasi Supabase secara terpisah dari UI.
+ * Mengelola konfigurasi Supabase dan sesi Auth secara terpisah dari UI menggunakan EncryptedSharedPreferences.
  *
  * PENTING:
  * - Project ID di repo `supabase/config.toml` adalah `rvaemgwtdvncfvaerhgr`.
@@ -48,20 +47,26 @@ object SupabaseConfigManager {
     private const val KEY_ANON = "supabase_publishable_key"
     private const val KEY_WEB_BASE_URL = "public_web_menu_base_url"
     private const val KEY_VERIFIED = "supabase_verified_by_user"
+    private const val KEY_ACCESS_TOKEN = "supabase_access_token"
+    private const val KEY_AUTH_USER_ID = "supabase_auth_user_id"
+    private const val KEY_AUTH_EMAIL = "supabase_auth_email"
 
     const val CANDIDATE_REPO_PROJECT_ID = "rvaemgwtdvncfvaerhgr"
     const val CANDIDATE_WORKER_PROJECT_ID = "dbazoxwhhljpgtbnletc"
 
-    @Volatile
-    private var cachedClient: SupabaseClient? = null
-
-    private fun encryptedPrefs(context: Context) = EncryptedSharedPreferences.create(
-        context,
-        PREF_FILE,
-        MasterKey.Builder(context).setKeyScheme(MasterKey.KeyScheme.AES256_GCM).build(),
-        EncryptedSharedPreferences.PrefKeyEncryptionScheme.AES256_SIV,
-        EncryptedSharedPreferences.PrefValueEncryptionScheme.AES256_GCM
-    )
+    private fun encryptedPrefs(context: Context): SharedPreferences {
+        return try {
+            EncryptedSharedPreferences.create(
+                context,
+                PREF_FILE,
+                MasterKey.Builder(context).setKeyScheme(MasterKey.KeyScheme.AES256_GCM).build(),
+                EncryptedSharedPreferences.PrefKeyEncryptionScheme.AES256_SIV,
+                EncryptedSharedPreferences.PrefValueEncryptionScheme.AES256_GCM
+            )
+        } catch (_: Exception) {
+            context.getSharedPreferences(PREF_FILE, Context.MODE_PRIVATE)
+        }
+    }
 
     fun loadCredentials(context: Context): SupabaseRuntimeCredentials {
         val prefs = encryptedPrefs(context)
@@ -75,12 +80,19 @@ object SupabaseConfigManager {
             KEY_VERIFIED,
             projectId.isNotBlank() && url.isNotBlank() && key.isNotBlank()
         )
+        val accessToken = prefs.getString(KEY_ACCESS_TOKEN, "").orEmpty()
+        val userId = prefs.getString(KEY_AUTH_USER_ID, "").orEmpty()
+        val email = prefs.getString(KEY_AUTH_EMAIL, "").orEmpty()
+
         return SupabaseRuntimeCredentials(
             projectId = projectId,
             supabaseUrl = url,
             publishableKey = key,
             publicWebMenuBaseUrl = webUrl,
-            isVerifiedByUser = verified
+            isVerifiedByUser = verified,
+            accessToken = accessToken,
+            authenticatedUserId = userId,
+            authenticatedEmail = email
         )
     }
 
@@ -102,37 +114,29 @@ object SupabaseConfigManager {
             .putString(KEY_WEB_BASE_URL, publicWebMenuBaseUrl.trim().removeSuffix("/"))
             .putBoolean(KEY_VERIFIED, projectId.isNotBlank() && supabaseUrl.isNotBlank() && publishableKey.isNotBlank())
             .apply()
-        cachedClient = null
+    }
+
+    fun saveAuthSession(context: Context, accessToken: String, userId: String, email: String) {
+        val prefs = encryptedPrefs(context)
+        prefs.edit()
+            .putString(KEY_ACCESS_TOKEN, accessToken)
+            .putString(KEY_AUTH_USER_ID, userId)
+            .putString(KEY_AUTH_EMAIL, email)
+            .apply()
+    }
+
+    fun clearAuthSession(context: Context) {
+        val prefs = encryptedPrefs(context)
+        prefs.edit()
+            .remove(KEY_ACCESS_TOKEN)
+            .remove(KEY_AUTH_USER_ID)
+            .remove(KEY_AUTH_EMAIL)
+            .apply()
     }
 
     fun deactivateIntegration(context: Context) {
         val prefs = encryptedPrefs(context)
         prefs.edit().putBoolean(KEY_VERIFIED, false).apply()
-        cachedClient = null
-    }
-
-    fun getOrCreateClient(context: Context): SupabaseClient? {
-        val creds = loadCredentials(context)
-        if (creds.status != BackendIntegrationStatus.ACTIVE_VERIFIED) {
-            return null
-        }
-        cachedClient?.let { return it }
-        synchronized(this) {
-            cachedClient?.let { return it }
-            val client = createSupabaseClient(
-                supabaseUrl = creds.supabaseUrl,
-                supabaseKey = creds.publishableKey
-            ) {
-                install(Auth) {
-                    alwaysAutoRefresh = true
-                    autoLoadFromStorage = true
-                }
-                install(Postgrest)
-                install(Realtime)
-                install(Functions)
-            }
-            cachedClient = client
-            return client
-        }
+        clearAuthSession(context)
     }
 }

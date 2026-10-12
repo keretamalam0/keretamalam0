@@ -15,9 +15,13 @@ import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.sync.Mutex
+import java.text.SimpleDateFormat
+import java.util.Date
+import java.util.Locale
 import java.util.UUID
 
 data class PosUiState(
+    val isLoggedIn: Boolean = false,
     val isLoading: Boolean = false,
     val isCheckoutProcessing: Boolean = false,
     val errorMessage: String? = null,
@@ -27,27 +31,37 @@ data class PosUiState(
     val backendStatus: BackendIntegrationStatus = BackendIntegrationStatus.INACTIVE_PENDING_VERIFICATION,
     val currentProjectId: String = "",
     val currentSupabaseUrl: String = "",
-    val staffProfile: StaffProfile? = null,
-    val categories: List<Category> = emptyList(),
-    val products: List<Product> = emptyList(),
-    val tables: List<RestaurantTable> = emptyList(),
-    val promotions: List<Promotion> = emptyList(),
-    val orders: List<OrderWithItems> = emptyList(),
-    val shifts: List<StaffShift> = emptyList(),
-    val expenses: List<Expense> = emptyList(),
-    val auditLogs: List<AuditLog> = emptyList(),
+    val staffList: List<StaffProfile> = SandboxSeedData.staffList,
+    val staffProfile: StaffProfile = SandboxSeedData.staffList.first(),
+    val categories: List<Category> = SandboxSeedData.categories,
+    val products: List<Product> = SandboxSeedData.products,
+    val tables: List<RestaurantTable> = SandboxSeedData.tables,
+    val promotions: List<Promotion> = SandboxSeedData.promotions,
+    val orders: List<OrderWithItems> = SandboxSeedData.initialOrders,
+    val shifts: List<StaffShift> = SandboxSeedData.initialShifts,
+    val expenses: List<Expense> = SandboxSeedData.initialExpenses,
+    val inventoryMovements: List<InventoryMovement> = SandboxSeedData.initialInventoryMovements,
+    val auditLogs: List<AuditLog> = SandboxSeedData.initialAuditLogs,
     val outletSettings: OutletSettings = OutletSettings(),
+    val websiteCms: WebsiteCmsModel = WebsiteCmsModel(),
+    val aiReplyText: String? = null,
     // Kasir & Keranjang State
     val selectedCategoryId: String = "ALL",
     val searchQuery: String = "",
     val cart: List<CartItem> = emptyList(),
-    val selectedTableId: String? = null,
+    val selectedTableId: String? = SandboxSeedData.tables.first().id,
     val customerName: String = "",
     val orderNotes: String = "",
     val selectedPromotionId: String? = null,
     val paymentMethod: String = "cash",
     val cashReceivedInput: String = "",
-    val lastCompletedOrder: OrderWithItems? = null
+    val receiptDialogOrder: OrderWithItems? = null,
+    val thermalPreviewText: String = "",
+    val pairedBluetoothDevices: List<Pair<String, String>> = listOf(
+        "RPP02N-Thermal-Kasir" to "DC:0D:30:A1:44:12",
+        "Epson-TM-P20-Dapur" to "00:01:90:C4:88:7B",
+        "VSC-MP-58C-Bar" to "86:67:7A:19:03:E5"
+    )
 ) {
     val subtotal: Double
         get() = cart.sumOf { it.lineTotal }
@@ -74,7 +88,7 @@ data class PosUiState(
         get() {
             val tax = if (outletSettings.taxEnabled) taxableBase * (outletSettings.taxRate / 100.0) else 0.0
             val svc = if (outletSettings.serviceEnabled) taxableBase * (outletSettings.serviceRate / 100.0) else 0.0
-            return tax + svc
+            return kotlin.math.round(tax + svc)
         }
 
     val grandTotal: Double
@@ -85,21 +99,89 @@ data class PosUiState(
 
     val changeAmount: Double
         get() = (cashReceivedValue - grandTotal).coerceAtLeast(0.0)
+
+    val paidOrders: List<OrderWithItems>
+        get() = orders.filter { it.isPaid && it.status != OrderStatus.CANCELLED }
+
+    val todayRevenue: Double
+        get() = paidOrders.sumOf { it.total }
+
+    val activeOrdersCount: Int
+        get() = orders.count {
+            it.status == OrderStatus.NEW || it.status == OrderStatus.PREPARING || it.status == OrderStatus.READY
+        }
+
+    val lowStockProducts: List<Product>
+        get() = products.filter { it.stock <= it.lowStockThreshold }
 }
 
 class PosViewModel(application: Application) : AndroidViewModel(application) {
 
     private val repository = CafeFlowRepository(application)
     val printerManager = EscPosBluetoothManager(application)
-
-    // Mutex mencegah transaksi ganda saat tombol bayar ditekan berulang kali
     private val checkoutMutex = Mutex()
 
-    private val _uiState = MutableStateFlow(PosUiState())
+    private val _uiState = MutableStateFlow(
+        PosUiState(
+            thermalPreviewText = formatOrderForThermalPreview(SandboxSeedData.initialOrders.first(), false)
+        )
+    )
     val uiState: StateFlow<PosUiState> = _uiState.asStateFlow()
 
     init {
         refreshBackendConfigStatus()
+    }
+
+    private fun nowString(): String {
+        return SimpleDateFormat("yyyy-MM-dd HH:mm", Locale("id", "ID")).format(Date())
+    }
+
+    fun formatOrderForThermalPreview(order: OrderWithItems, isKitchen: Boolean): String {
+        val divider = "--------------------------------"
+        if (isKitchen) {
+            return buildString {
+                appendLine("KERETA MALAM CAFE")
+                appendLine("TIKET PESANAN DAPUR / BAR")
+                appendLine(divider)
+                appendLine("ORDER #${order.orderNo} (${order.source.uppercase()})")
+                appendLine("MEJA  : ${order.restaurantTable?.name ?: "Takeaway"}")
+                appendLine("WAKTU : ${order.createdAt}")
+                appendLine(divider)
+                order.orderItems.forEach { item ->
+                    appendLine("${item.quantity}x ${item.productName}")
+                    if (!item.note.isNullOrBlank()) appendLine("   Catatan: ${item.note}")
+                }
+                if (!order.notes.isNullOrBlank()) appendLine("CATATAN ORDER: ${order.notes}")
+                appendLine(divider)
+                appendLine("Mohon segera disiapkan.")
+            }
+        }
+        val payment = order.payments.firstOrNull()
+        return buildString {
+            appendLine("KERETA MALAM CAFE")
+            appendLine("STRUK PEMBAYARAN RESMI")
+            appendLine(divider)
+            appendLine("Order #${order.orderNo} · ${order.source.uppercase()}")
+            appendLine("Waktu     : ${order.createdAt}")
+            appendLine("Meja      : ${order.restaurantTable?.name ?: "Takeaway"}")
+            if (!order.customerName.isNullOrBlank()) appendLine("Pelanggan : ${order.customerName}")
+            appendLine(divider)
+            order.orderItems.forEach { item ->
+                appendLine(item.productName)
+                appendLine("  ${item.quantity} x ${RupiahFormatter.format(item.unitPrice)} = ${RupiahFormatter.format(item.lineTotal)}")
+                if (!item.note.isNullOrBlank()) appendLine("  Catatan: ${item.note}")
+            }
+            appendLine(divider)
+            appendLine("Subtotal  : ${RupiahFormatter.format(order.subtotal)}")
+            if (order.discount > 0) appendLine("Diskon    : -${RupiahFormatter.format(order.discount)}")
+            if (order.tax > 0) appendLine("Pajak/Svc : ${RupiahFormatter.format(order.tax)}")
+            appendLine("TOTAL     : ${RupiahFormatter.format(order.total)}")
+            appendLine("Metode    : ${(payment?.method ?: order.paymentMethod ?: "cash").uppercase()}")
+            payment?.cashReceived?.let { appendLine("Tunai     : ${RupiahFormatter.format(it)}") }
+            payment?.changeAmount?.let { appendLine("Kembalian : ${RupiahFormatter.format(it)}") }
+            appendLine(divider)
+            appendLine("Terima kasih telah berkunjung!")
+        }
     }
 
     fun refreshBackendConfigStatus() {
@@ -108,11 +190,37 @@ class PosViewModel(application: Application) : AndroidViewModel(application) {
             it.copy(
                 backendStatus = creds.status,
                 currentProjectId = creds.projectId,
-                currentSupabaseUrl = creds.supabaseUrl
+                currentSupabaseUrl = creds.supabaseUrl,
+                isLoggedIn = creds.status == BackendIntegrationStatus.ACTIVE_VERIFIED && creds.accessToken.isNotBlank()
             )
         }
         if (creds.status == BackendIntegrationStatus.ACTIVE_VERIFIED) {
             syncAllDataFromBackend()
+        }
+    }
+
+    fun enableLocalSandboxMode(selectedProfile: StaffProfile = _uiState.value.staffProfile) {
+        _uiState.update {
+            it.copy(
+                isLoggedIn = true,
+                staffProfile = selectedProfile,
+                backendStatus = BackendIntegrationStatus.LOCAL_SANDBOX_UI,
+                successMessage = "Login Simulasi Lokal aktif sebagai ${selectedProfile.fullName} (${selectedProfile.role.labelId}). Data berlabel [SIMULASI LOKAL]."
+            )
+        }
+        appendAuditLog("auth.sandbox_login", "staff_profiles", selectedProfile.userId, "{\"role\":\"${selectedProfile.role.name}\"}")
+    }
+
+    fun logoutSession() {
+        viewModelScope.launch {
+            runCatching { repository.signOut() }
+            _uiState.update {
+                it.copy(
+                    isLoggedIn = false,
+                    cart = emptyList(),
+                    successMessage = "Sesi kasir berhasil keluar. Silakan login kembali."
+                )
+            }
         }
     }
 
@@ -127,6 +235,89 @@ class PosViewModel(application: Application) : AndroidViewModel(application) {
 
     fun clearBannerMessages() {
         _uiState.update { it.copy(errorMessage = null, successMessage = null) }
+    }
+
+    fun showNotice(message: String, isError: Boolean = false) {
+        _uiState.update {
+            if (isError) it.copy(errorMessage = message, successMessage = null)
+            else it.copy(successMessage = message, errorMessage = null)
+        }
+    }
+
+    fun switchActiveStaffProfile(profile: StaffProfile) {
+        _uiState.update {
+            it.copy(
+                staffProfile = profile,
+                isLoggedIn = true,
+                successMessage = "Beralih ke profil akses: ${profile.fullName} (${profile.role.labelId})"
+            )
+        }
+    }
+
+    fun addStaffProfile(fullName: String, email: String, role: StaffRole) {
+        if (fullName.isBlank() || email.isBlank()) {
+            showNotice("Nama lengkap dan email pegawai wajib diisi.", isError = true)
+            return
+        }
+        val defaultPerms = when (role) {
+            StaffRole.SUPER_ADMIN, StaffRole.OWNER -> PermissionKey.entries.associate { it.key to true }
+            StaffRole.MANAGER -> PermissionKey.entries.associate { it.key to (it != PermissionKey.SETTINGS) }
+            StaffRole.CASHIER -> mapOf(
+                "dashboard" to true,
+                "orders" to true,
+                "payments" to true,
+                "tables" to true,
+                "customers" to true,
+                "products" to false,
+                "inventory" to false,
+                "reports" to false,
+                "promotions" to false,
+                "settings" to false
+            )
+        }
+        val created = StaffProfile(
+            userId = "usr-${System.currentTimeMillis()}",
+            ownerId = "usr-owner-01",
+            fullName = fullName.trim(),
+            email = email.trim(),
+            role = role,
+            isActive = true,
+            permissions = defaultPerms
+        )
+        _uiState.update {
+            it.copy(
+                staffList = it.staffList + created,
+                successMessage = "Pegawai ${created.fullName} (${role.labelId}) berhasil ditambahkan."
+            )
+        }
+    }
+
+    fun toggleStaffPermission(userId: String, permKey: String) {
+        _uiState.update { state ->
+            val updatedList = state.staffList.map { st ->
+                if (st.userId == userId) {
+                    val current = st.permissions[permKey] == true
+                    val nextMap = st.permissions.toMutableMap().apply { put(permKey, !current) }
+                    st.copy(permissions = nextMap)
+                } else st
+            }
+            val updatedCurrent = updatedList.find { it.userId == state.staffProfile.userId } ?: state.staffProfile
+            state.copy(staffList = updatedList, staffProfile = updatedCurrent)
+        }
+    }
+
+    private fun appendAuditLog(action: String, entityType: String, entityId: String, detailsText: String) {
+        val log = AuditLog(
+            id = "log-${System.currentTimeMillis()}",
+            actorUserId = _uiState.value.staffProfile.userId,
+            actorName = _uiState.value.staffProfile.fullName,
+            action = action,
+            entityType = entityType,
+            entityId = entityId,
+            detailsText = detailsText,
+            createdAt = nowString()
+        )
+        _uiState.update { it.copy(auditLogs = listOf(log) + it.auditLogs) }
     }
 
     fun verifyAndSaveSupabaseConfig(
@@ -145,9 +336,50 @@ class PosViewModel(application: Application) : AndroidViewModel(application) {
             )
         }.onSuccess {
             refreshBackendConfigStatus()
-            _uiState.update { it.copy(successMessage = "Konfigurasi Supabase ($projectId) disimpan.") }
+            showNotice("Konfigurasi Supabase ($projectId) disimpan dan siap digunakan.")
         }.onFailure { err ->
-            _uiState.update { it.copy(errorMessage = err.message ?: "Gagal menyimpan konfigurasi Supabase.") }
+            showNotice(err.message ?: "Gagal menyimpan konfigurasi Supabase.", isError = true)
+        }
+    }
+
+    fun deactivateSupabaseConfig() {
+        SupabaseConfigManager.deactivateIntegration(getApplication())
+        _uiState.update {
+            it.copy(
+                backendStatus = BackendIntegrationStatus.INACTIVE_PENDING_VERIFICATION,
+                isLoggedIn = false,
+                successMessage = "Integrasi Supabase dinonaktifkan (kembali ke status Menunggu Verifikasi)."
+            )
+        }
+    }
+
+    fun loginWithSupabaseAuth(email: String, password: String) {
+        if (email.isBlank() || password.isBlank()) {
+            showNotice("Email dan password wajib diisi.", isError = true)
+            return
+        }
+        viewModelScope.launch {
+            _uiState.update { it.copy(isLoading = true, errorMessage = null) }
+            runCatching {
+                repository.signInWithEmailPassword(email, password)
+            }.onSuccess { profile ->
+                _uiState.update {
+                    it.copy(
+                        isLoading = false,
+                        isLoggedIn = true,
+                        staffProfile = profile,
+                        successMessage = "Login Supabase berhasil sebagai ${profile.fullName}"
+                    )
+                }
+                syncAllDataFromBackend()
+            }.onFailure { err ->
+                _uiState.update {
+                    it.copy(
+                        isLoading = false,
+                        errorMessage = err.message ?: "Gagal login ke Supabase Auth."
+                    )
+                }
+            }
         }
     }
 
@@ -169,7 +401,7 @@ class PosViewModel(application: Application) : AndroidViewModel(application) {
                 _uiState.update {
                     it.copy(
                         isLoading = false,
-                        staffProfile = profile,
+                        staffProfile = profile ?: it.staffProfile,
                         categories = categories,
                         products = products,
                         tables = tables,
@@ -178,7 +410,8 @@ class PosViewModel(application: Application) : AndroidViewModel(application) {
                         outletSettings = settings,
                         shifts = shifts,
                         expenses = expenses,
-                        auditLogs = logs
+                        auditLogs = logs,
+                        successMessage = "Sinkronisasi data Supabase berhasil."
                     )
                 }
             }.onFailure { err ->
@@ -192,36 +425,120 @@ class PosViewModel(application: Application) : AndroidViewModel(application) {
         }
     }
 
+    fun askAiAssistant(prompt: String) {
+        if (prompt.isBlank()) {
+            showNotice("Masukkan pertanyaan analisis terlebih dahulu.", isError = true)
+            return
+        }
+        viewModelScope.launch {
+            if (_uiState.value.backendStatus != BackendIntegrationStatus.ACTIVE_VERIFIED) {
+                _uiState.update {
+                    it.copy(
+                        aiReplyText = null,
+                        errorMessage = "Integrasi Supabase belum aktif dan Edge Function 'ai-assistant' belum terhubung. Aplikasi tidak menampilkan jawaban AI palsu."
+                    )
+                }
+                return@launch
+            }
+            _uiState.update { it.copy(isLoading = true, errorMessage = null) }
+            runCatching {
+                repository.invokeAiAssistant(prompt)
+            }.onSuccess { reply ->
+                _uiState.update {
+                    it.copy(isLoading = false, aiReplyText = reply)
+                }
+            }.onFailure { err ->
+                _uiState.update {
+                    it.copy(
+                        isLoading = false,
+                        aiReplyText = null,
+                        errorMessage = "Edge Function 'ai-assistant' belum dapat diakses: ${err.message}"
+                    )
+                }
+            }
+        }
+    }
+
     // ========================================================================
-    // KERANJANG KASIR & PENCEGAHAN TRANSAKSI GANDA
+    // KASIR & KERANJANG
     // ========================================================================
-    fun addToCart(product: Product) {
+    fun setKasirFilter(categoryId: String, search: String) {
+        _uiState.update { it.copy(selectedCategoryId = categoryId, searchQuery = search) }
+    }
+
+    fun setKasirOrderMeta(
+        tableId: String? = _uiState.value.selectedTableId,
+        customer: String = _uiState.value.customerName,
+        notes: String = _uiState.value.orderNotes,
+        promoId: String? = _uiState.value.selectedPromotionId,
+        payMethod: String = _uiState.value.paymentMethod,
+        cashInput: String = _uiState.value.cashReceivedInput
+    ) {
+        _uiState.update {
+            it.copy(
+                selectedTableId = tableId,
+                customerName = customer,
+                orderNotes = notes,
+                selectedPromotionId = promoId,
+                paymentMethod = payMethod,
+                cashReceivedInput = cashInput
+            )
+        }
+    }
+
+    fun addToCart(
+        product: Product,
+        sugar: String = "Normal Sugar",
+        ice: String = "Normal Ice",
+        cupSize: String = "Regular",
+        addons: List<ProductAddon> = emptyList(),
+        customNote: String = ""
+    ) {
         if (!product.isActive || product.isOutOfStock) {
-            _uiState.update { it.copy(errorMessage = "Produk ${product.name} sedang habis atau tidak aktif.") }
+            showNotice("Produk ${product.name} sedang habis atau tidak aktif.", isError = true)
             return
         }
         _uiState.update { state ->
-            val existingIndex = state.cart.indexOfFirst { it.product.id == product.id }
-            val currentQty = if (existingIndex >= 0) state.cart[existingIndex].quantity else 0
-            if (currentQty + 1 > product.stock) {
-                return@update state.copy(errorMessage = "Stok ${product.name} tersisa ${product.stock}.")
+            val currentTotalQty = state.cart.filter { it.product.id == product.id }.sumOf { it.quantity }
+            if (currentTotalQty + 1 > product.stock) {
+                return@update state.copy(errorMessage = "Stok ${product.name} hanya tersisa ${product.stock}.")
             }
-            val nextCart = if (existingIndex >= 0) {
+            val addonSummary = if (addons.isNotEmpty()) "+ ${addons.joinToString(", ") { it.name }}" else null
+            val combinedNote = listOfNotNull(
+                sugar.takeIf { it != "Normal Sugar" },
+                ice.takeIf { it != "Normal Ice" },
+                if (cupSize != "Regular") "Cup $cupSize" else null,
+                addonSummary,
+                customNote.trim().takeIf { it.isNotEmpty() }
+            ).joinToString(" · ")
+
+            val existingIdx = state.cart.indexOfFirst {
+                it.product.id == product.id && it.note == combinedNote && it.cupSize == cupSize
+            }
+            val nextCart = if (existingIdx >= 0) {
                 state.cart.toMutableList().apply {
-                    val item = this[existingIndex]
-                    this[existingIndex] = item.copy(quantity = item.quantity + 1)
+                    this[existingIdx] = this[existingIdx].copy(quantity = this[existingIdx].quantity + 1)
                 }
             } else {
-                state.cart + CartItem(product = product, quantity = 1)
+                state.cart + CartItem(
+                    cartItemId = "${product.id}-${System.currentTimeMillis()}",
+                    product = product,
+                    quantity = 1,
+                    note = combinedNote,
+                    sugarLevel = sugar,
+                    iceLevel = ice,
+                    cupSize = cupSize,
+                    selectedAddons = addons
+                )
             }
             state.copy(cart = nextCart, errorMessage = null)
         }
     }
 
-    fun updateCartItemQuantity(productId: String, delta: Int) {
+    fun updateCartItemQuantity(cartItemId: String, delta: Int) {
         _uiState.update { state ->
             val nextCart = state.cart.mapNotNull { item ->
-                if (item.product.id != productId) return@mapNotNull item
+                if (item.cartItemId != cartItemId) return@mapNotNull item
                 val nextQty = item.quantity + delta
                 when {
                     nextQty <= 0 -> null
@@ -233,20 +550,24 @@ class PosViewModel(application: Application) : AndroidViewModel(application) {
         }
     }
 
-    fun updateCartItemNote(productId: String, note: String) {
+    fun updateCartItemNote(cartItemId: String, note: String) {
         _uiState.update { state ->
             state.copy(
                 cart = state.cart.map {
-                    if (it.product.id == productId) it.copy(note = note) else it
+                    if (it.cartItemId == cartItemId) it.copy(note = note) else it
                 }
             )
         }
     }
 
-    /**
-     * Eksekusi Checkout Kasir yang menunggu konfirmasi backend sebelum menyatakan transaksi berhasil.
-     * Mencegah double-submit dengan `checkoutMutex.tryLock()` dan `idempotency_key` UUID.
-     */
+    fun clearCart() {
+        _uiState.update { it.copy(cart = emptyList()) }
+    }
+
+    fun openReceiptDialog(order: OrderWithItems?) {
+        _uiState.update { it.copy(receiptDialogOrder = order) }
+    }
+
     fun submitPosCheckout() {
         val currentState = _uiState.value
         if (currentState.cart.isEmpty() || currentState.isCheckoutProcessing) return
@@ -262,50 +583,594 @@ class PosViewModel(application: Application) : AndroidViewModel(application) {
                     throw IllegalArgumentException("Nominal uang tunai kurang dari total tagihan.")
                 }
 
-                val confirmedOrder = repository.createPosOrder(
-                    idempotencyKey = idempotencyKey,
-                    tableId = currentState.selectedTableId,
-                    customerName = currentState.customerName.ifBlank { "Walk-in" },
-                    notes = currentState.orderNotes.ifBlank { null },
-                    promotionId = currentState.selectedPromotionId,
-                    subtotal = currentState.subtotal,
-                    discount = currentState.discountAmount,
-                    tax = currentState.taxAndServiceAmount,
-                    total = currentState.grandTotal,
-                    paymentMethod = currentState.paymentMethod,
-                    cashReceived = if (currentState.paymentMethod == "cash") currentState.cashReceivedValue else null,
-                    items = currentState.cart
-                )
+                if (currentState.backendStatus == BackendIntegrationStatus.ACTIVE_VERIFIED) {
+                    val confirmedOrder = repository.createPosOrder(
+                        idempotencyKey = idempotencyKey,
+                        tableId = currentState.selectedTableId,
+                        customerName = currentState.customerName.ifBlank { "Walk-in Customer" },
+                        notes = currentState.orderNotes.ifBlank { null },
+                        promotionId = currentState.selectedPromotionId,
+                        subtotal = currentState.subtotal,
+                        discount = currentState.discountAmount,
+                        tax = currentState.taxAndServiceAmount,
+                        total = currentState.grandTotal,
+                        paymentMethod = currentState.paymentMethod,
+                        cashReceived = if (currentState.paymentMethod == "cash") currentState.cashReceivedValue else null,
+                        items = currentState.cart
+                    )
+                    printerManager.getSavedPrinter(PrinterRole.CASHIER)?.let {
+                        if (it.autoPrint) printerManager.printCashierReceipt(confirmedOrder)
+                    }
+                    printerManager.getSavedPrinter(PrinterRole.KITCHEN)?.let {
+                        if (it.autoPrint) printerManager.printKitchenTicket(confirmedOrder)
+                    }
+                    _uiState.update {
+                        it.copy(
+                            isCheckoutProcessing = false,
+                            cart = emptyList(),
+                            customerName = "",
+                            orderNotes = "",
+                            cashReceivedInput = "",
+                            receiptDialogOrder = confirmedOrder,
+                            thermalPreviewText = formatOrderForThermalPreview(confirmedOrder, false),
+                            successMessage = "Transaksi #${confirmedOrder.orderNo} terkonfirmasi oleh Supabase."
+                        )
+                    }
+                    syncAllDataFromBackend()
+                } else {
+                    // Mode Simulasi UI Lokal Terlabel
+                    val nextNo = (currentState.orders.maxOfOrNull { it.orderNo } ?: 1000) + 1
+                    val orderId = "ord-$nextNo"
+                    val tableObj = currentState.tables.find { it.id == currentState.selectedTableId }
+                    val newOrder = OrderWithItems(
+                        id = orderId,
+                        orderNo = nextNo,
+                        source = "pos",
+                        status = OrderStatus.PREPARING,
+                        tableId = tableObj?.id,
+                        customerName = currentState.customerName.ifBlank { "Walk-in Customer" },
+                        notes = currentState.orderNotes.ifBlank { null },
+                        subtotal = currentState.subtotal,
+                        discount = currentState.discountAmount,
+                        tax = currentState.taxAndServiceAmount,
+                        total = currentState.grandTotal,
+                        isPaid = true,
+                        paymentMethod = currentState.paymentMethod,
+                        paymentStatus = PaymentStatus.PAID,
+                        createdAt = nowString(),
+                        updatedAt = nowString(),
+                        restaurantTable = TableNameRef(tableObj?.name ?: "Takeaway"),
+                        orderItems = currentState.cart.mapIndexed { idx, c ->
+                            OrderItem(
+                                id = "oi-${System.currentTimeMillis()}-$idx",
+                                orderId = orderId,
+                                productId = c.product.id,
+                                productName = c.product.name,
+                                unitPrice = c.unitPriceWithAddons,
+                                quantity = c.quantity,
+                                note = c.note.ifBlank { null },
+                                lineTotal = c.lineTotal,
+                                costPriceSnapshot = c.product.costPrice
+                            )
+                        },
+                        payments = listOf(
+                            PaymentRecord(
+                                id = "pay-${System.currentTimeMillis()}",
+                                orderId = orderId,
+                                method = currentState.paymentMethod,
+                                amount = currentState.grandTotal,
+                                cashReceived = if (currentState.paymentMethod == "cash") currentState.cashReceivedValue else null,
+                                changeAmount = if (currentState.paymentMethod == "cash") currentState.changeAmount else null
+                            )
+                        )
+                    )
 
-                // Cetak otomatis jika dikonfigurasi pada printer kasir / dapur
-                printerManager.getSavedPrinter(PrinterRole.CASHIER)?.let {
-                    if (it.autoPrint) printerManager.printCashierReceipt(confirmedOrder)
-                }
-                printerManager.getSavedPrinter(PrinterRole.KITCHEN)?.let {
-                    if (it.autoPrint) printerManager.printKitchenTicket(confirmedOrder)
-                }
+                    // Pemotongan stok atomik 1 kali (sesuai trg_deduct_stock)
+                    val updatedProducts = currentState.products.map { prod ->
+                        val soldQty = currentState.cart.filter { it.product.id == prod.id }.sumOf { it.quantity }
+                        if (soldQty > 0) prod.copy(stock = (prod.stock - soldQty).coerceAtLeast(0)) else prod
+                    }
 
-                _uiState.update {
-                    it.copy(
-                        isCheckoutProcessing = false,
-                        cart = emptyList(),
-                        customerName = "",
-                        orderNotes = "",
-                        cashReceivedInput = "",
-                        lastCompletedOrder = confirmedOrder,
-                        successMessage = "Transaksi #${confirmedOrder.orderNo} terkonfirmasi oleh backend."
+                    _uiState.update {
+                        it.copy(
+                            isCheckoutProcessing = false,
+                            products = updatedProducts,
+                            orders = listOf(newOrder) + it.orders,
+                            cart = emptyList(),
+                            customerName = "",
+                            orderNotes = "",
+                            cashReceivedInput = "",
+                            receiptDialogOrder = newOrder,
+                            thermalPreviewText = formatOrderForThermalPreview(newOrder, false),
+                            successMessage = "Order #${newOrder.orderNo} berhasil disimpan (${RupiahFormatter.format(newOrder.total)})."
+                        )
+                    }
+                    appendAuditLog(
+                        action = "order.create_pos_order",
+                        entityType = "orders",
+                        entityId = newOrder.id,
+                        detailsText = "{\"order_no\":${newOrder.orderNo},\"total\":${newOrder.total.toLong()},\"method\":\"${currentState.paymentMethod}\"}"
                     )
                 }
-                syncAllDataFromBackend()
             } catch (e: Exception) {
                 _uiState.update {
                     it.copy(
                         isCheckoutProcessing = false,
-                        errorMessage = e.message ?: "Transaksi gagal dikonfirmasi oleh backend."
+                        errorMessage = e.message ?: "Transaksi gagal diproses."
                     )
                 }
             } finally {
                 checkoutMutex.unlock()
+            }
+        }
+    }
+
+    // ========================================================================
+    // PESANAN & QR ORDERING
+    // ========================================================================
+    fun updateOrderStatus(order: OrderWithItems, nextStatus: OrderStatus) {
+        viewModelScope.launch {
+            if (_uiState.value.backendStatus == BackendIntegrationStatus.ACTIVE_VERIFIED) {
+                runCatching { repository.updateOrderStatus(order.id, nextStatus) }
+                    .onSuccess {
+                        syncAllDataFromBackend()
+                        showNotice("Status Order #${order.orderNo} diperbarui menjadi ${nextStatus.labelId}.")
+                    }
+                    .onFailure { showNotice(it.message ?: "Gagal memperbarui status pesanan.", isError = true) }
+                return@launch
+            }
+
+            _uiState.update { state ->
+                val updatedProducts = if (nextStatus == OrderStatus.CANCELLED && order.status != OrderStatus.CANCELLED) {
+                    state.products.map { prod ->
+                        val item = order.orderItems.find { it.productId == prod.id }
+                        if (item != null) prod.copy(stock = prod.stock + item.quantity) else prod
+                    }
+                } else state.products
+
+                val updatedOrders = state.orders.map {
+                    if (it.id == order.id) it.copy(status = nextStatus, updatedAt = nowString()) else it
+                }
+                state.copy(
+                    products = updatedProducts,
+                    orders = updatedOrders,
+                    successMessage = "Status Order #${order.orderNo} diubah ke ${nextStatus.labelId}."
+                )
+            }
+            appendAuditLog("order.update_status", "orders", order.id, "{\"to\":\"${nextStatus.raw}\"}")
+        }
+    }
+
+    fun approveQrOrder(order: OrderWithItems, method: String) {
+        viewModelScope.launch {
+            if (_uiState.value.backendStatus == BackendIntegrationStatus.ACTIVE_VERIFIED) {
+                runCatching {
+                    repository.approveQrOrder(order.id, method, if (method == "cash") order.total else null)
+                }.onSuccess {
+                    syncAllDataFromBackend()
+                    showNotice("Pembayaran QR Order #${order.orderNo} disetujui.")
+                }.onFailure {
+                    showNotice(it.message ?: "Gagal menyetujui pembayaran QR.", isError = true)
+                }
+                return@launch
+            }
+
+            _uiState.update { state ->
+                val updated = state.orders.map {
+                    if (it.id == order.id) {
+                        it.copy(
+                            isPaid = true,
+                            paymentMethod = method,
+                            paymentStatus = PaymentStatus.PAID,
+                            status = if (it.status == OrderStatus.NEW) OrderStatus.PREPARING else it.status,
+                            payments = listOf(
+                                PaymentRecord(
+                                    id = "pay-${System.currentTimeMillis()}",
+                                    orderId = order.id,
+                                    method = method,
+                                    amount = order.total,
+                                    cashReceived = if (method == "cash") order.total else null,
+                                    changeAmount = if (method == "cash") 0.0 else null
+                                )
+                            )
+                        )
+                    } else it
+                }
+                state.copy(
+                    orders = updated,
+                    successMessage = "Pembayaran QR Order #${order.orderNo} (${method.uppercase()}) dikonfirmasi."
+                )
+            }
+            appendAuditLog("order.approve_qr", "orders", order.id, "{\"method\":\"$method\"}")
+        }
+    }
+
+    fun rejectQrOrder(order: OrderWithItems) {
+        viewModelScope.launch {
+            if (_uiState.value.backendStatus == BackendIntegrationStatus.ACTIVE_VERIFIED) {
+                runCatching { repository.rejectQrOrder(order.id) }
+                    .onSuccess {
+                        syncAllDataFromBackend()
+                        showNotice("Pesanan QR #${order.orderNo} ditolak.")
+                    }
+                return@launch
+            }
+            _uiState.update { state ->
+                state.copy(
+                    orders = state.orders.map {
+                        if (it.id == order.id) {
+                            it.copy(status = OrderStatus.CANCELLED, paymentStatus = PaymentStatus.REJECTED, isPaid = false)
+                        } else it
+                    },
+                    successMessage = "Pesanan QR #${order.orderNo} telah ditolak."
+                )
+            }
+            appendAuditLog("order.reject_qr", "orders", order.id, "{}")
+        }
+    }
+
+    fun simulateIncomingQrOrder(table: RestaurantTable) {
+        val state = _uiState.value
+        val sampleProduct = state.products.firstOrNull { !it.isOutOfStock } ?: return
+        val nextNo = (state.orders.maxOfOrNull { it.orderNo } ?: 1000) + 1
+        val newOrder = OrderWithItems(
+            id = "ord-$nextNo",
+            orderNo = nextNo,
+            source = "qr",
+            status = OrderStatus.NEW,
+            tableId = table.id,
+            customerName = "Pelanggan QR (${table.code})",
+            notes = "Pesanan dari QR Menu Meja",
+            subtotal = sampleProduct.price,
+            discount = 0.0,
+            tax = 0.0,
+            total = sampleProduct.price,
+            isPaid = false,
+            paymentMethod = "qris",
+            paymentStatus = PaymentStatus.AWAITING_CONFIRMATION,
+            createdAt = nowString(),
+            updatedAt = nowString(),
+            restaurantTable = TableNameRef(table.name),
+            orderItems = listOf(
+                OrderItem(
+                    id = "oi-${System.currentTimeMillis()}",
+                    orderId = "ord-$nextNo",
+                    productId = sampleProduct.id,
+                    productName = sampleProduct.name,
+                    unitPrice = sampleProduct.price,
+                    quantity = 1,
+                    note = "Normal Sugar · Normal Ice",
+                    lineTotal = sampleProduct.price,
+                    costPriceSnapshot = sampleProduct.costPrice
+                )
+            ),
+            payments = emptyList()
+        )
+        _uiState.update {
+            it.copy(
+                orders = listOf(newOrder) + it.orders,
+                successMessage = "Pesanan QR #${newOrder.orderNo} dari ${table.name} masuk dan menunggu konfirmasi kasir."
+            )
+        }
+    }
+
+    // ========================================================================
+    // SHIFT KASIR & AUDIT SHIFT
+    // ========================================================================
+    fun openNewShift(openingCash: Double) {
+        val shift = StaffShift(
+            id = "shf-${System.currentTimeMillis()}",
+            staffUserId = _uiState.value.staffProfile.userId,
+            staffName = _uiState.value.staffProfile.fullName,
+            openingCash = openingCash,
+            closingCash = null,
+            expectedCash = openingCash,
+            status = "open",
+            notes = "Shift dibuka dari aplikasi Android",
+            openedAt = nowString()
+        )
+        _uiState.update {
+            it.copy(
+                shifts = listOf(shift) + it.shifts,
+                successMessage = "Shift baru dibuka dengan modal awal ${RupiahFormatter.format(openingCash)}."
+            )
+        }
+        appendAuditLog("shift.open", "staff_shifts", shift.id, "{\"opening_cash\":${openingCash.toLong()}}")
+    }
+
+    fun closeActiveShift(shiftId: String, closingCash: Double, expectedCash: Double, notes: String) {
+        _uiState.update { state ->
+            state.copy(
+                shifts = state.shifts.map {
+                    if (it.id == shiftId) {
+                        it.copy(
+                            status = "closed",
+                            closingCash = closingCash,
+                            expectedCash = expectedCash,
+                            notes = notes.ifBlank { it.notes },
+                            closedAt = nowString()
+                        )
+                    } else it
+                },
+                successMessage = "Shift kasir berhasil ditutup dan dikirim ke Audit Shift."
+            )
+        }
+        appendAuditLog("shift.close", "staff_shifts", shiftId, "{\"closing_cash\":${closingCash.toLong()}}")
+    }
+
+    fun verifyShiftAudit(shiftId: String) {
+        _uiState.update { state ->
+            state.copy(
+                shifts = state.shifts.map {
+                    if (it.id == shiftId) it.copy(auditVerified = true) else it
+                },
+                successMessage = "Shift berhasil diverifikasi oleh auditor."
+            )
+        }
+        appendAuditLog("shift.audit_verify", "staff_shifts", shiftId, "{\"verified\":true}")
+    }
+
+    // ========================================================================
+    // PRODUK, KATEGORI, MEJA, INVENTORY, PROMOSI, KEUANGAN & PENGATURAN
+    // ========================================================================
+    fun addCategory(name: String) {
+        val trimmed = name.trim()
+        if (trimmed.isEmpty()) return
+        val newCat = Category(
+            id = "cat-${System.currentTimeMillis()}",
+            name = trimmed,
+            sortOrder = _uiState.value.categories.size + 1
+        )
+        _uiState.update {
+            it.copy(
+                categories = it.categories + newCat,
+                successMessage = "Kategori \"$trimmed\" ditambahkan."
+            )
+        }
+    }
+
+    fun saveProductItem(product: Product) {
+        if (product.name.isBlank() || product.price <= 0) {
+            showNotice("Nama produk dan harga jual wajib valid.", isError = true)
+            return
+        }
+        viewModelScope.launch {
+            if (_uiState.value.backendStatus == BackendIntegrationStatus.ACTIVE_VERIFIED) {
+                runCatching { repository.saveProduct(product) }
+                    .onSuccess {
+                        syncAllDataFromBackend()
+                        showNotice("Produk \"${product.name}\" tersimpan di Supabase.")
+                    }
+                    .onFailure { showNotice(it.message ?: "Gagal menyimpan produk.", isError = true) }
+                return@launch
+            }
+            _uiState.update { state ->
+                val updated = if (product.id.isNotBlank()) {
+                    state.products.map { if (it.id == product.id) product else it }
+                } else {
+                    state.products + product.copy(id = "prod-${System.currentTimeMillis()}")
+                }
+                state.copy(
+                    products = updated,
+                    successMessage = "Produk \"${product.name}\" berhasil disimpan."
+                )
+            }
+        }
+    }
+
+    fun deleteProductItem(productId: String) {
+        viewModelScope.launch {
+            if (_uiState.value.backendStatus == BackendIntegrationStatus.ACTIVE_VERIFIED) {
+                runCatching { repository.deleteProduct(productId) }
+                    .onSuccess {
+                        syncAllDataFromBackend()
+                        showNotice("Produk berhasil dihapus dari Supabase.")
+                    }
+                    .onFailure { showNotice(it.message ?: "Gagal menghapus produk.", isError = true) }
+                return@launch
+            }
+            _uiState.update { state ->
+                state.copy(
+                    products = state.products.filterNot { it.id == productId },
+                    successMessage = "Produk berhasil dihapus."
+                )
+            }
+        }
+    }
+
+    fun toggleProductQrMenu(productId: String, show: Boolean) {
+        _uiState.update { state ->
+            state.copy(
+                products = state.products.map {
+                    if (it.id == productId) it.copy(showOnMenu = show) else it
+                }
+            )
+        }
+    }
+
+    fun addRestaurantTable(name: String, code: String) {
+        if (name.isBlank() || code.isBlank()) return
+        val created = RestaurantTable(
+            id = "tbl-${System.currentTimeMillis()}",
+            name = name.trim(),
+            code = code.trim().uppercase()
+        )
+        _uiState.update {
+            it.copy(
+                tables = it.tables + created,
+                successMessage = "Meja ${created.name} (${created.code}) ditambahkan."
+            )
+        }
+    }
+
+    fun deleteRestaurantTable(tableId: String) {
+        _uiState.update {
+            it.copy(
+                tables = it.tables.filterNot { t -> t.id == tableId },
+                successMessage = "Meja berhasil dihapus."
+            )
+        }
+    }
+
+    fun recordInventoryMovement(productId: String, type: String, qty: Int, reason: String) {
+        val prod = _uiState.value.products.find { it.id == productId } ?: return
+        if (qty == 0 || reason.isBlank()) {
+            showNotice("Jumlah dan alasan mutasi stok wajib diisi.", isError = true)
+            return
+        }
+        val signedDelta = if (type == "out") -kotlin.math.abs(qty) else qty
+        val movement = InventoryMovement(
+            id = "inv-${System.currentTimeMillis()}",
+            productId = prod.id,
+            productName = prod.name,
+            type = type,
+            quantity = signedDelta,
+            reason = reason.trim(),
+            actorName = _uiState.value.staffProfile.fullName,
+            createdAt = nowString()
+        )
+        _uiState.update { state ->
+            state.copy(
+                products = state.products.map {
+                    if (it.id == prod.id) it.copy(stock = (it.stock + signedDelta).coerceAtLeast(0)) else it
+                },
+                inventoryMovements = listOf(movement) + state.inventoryMovements,
+                successMessage = "Mutasi stok ${prod.name} dicatat."
+            )
+        }
+        appendAuditLog("inventory.movement", "inventory_movements", movement.id, "{\"product\":\"${prod.name}\",\"delta\":$signedDelta}")
+    }
+
+    fun addPromotion(name: String, type: String, value: Double, minPurchase: Double) {
+        if (name.isBlank()) return
+        val promo = Promotion(
+            id = "promo-${System.currentTimeMillis()}",
+            name = name.trim(),
+            type = type,
+            value = value,
+            minPurchase = minPurchase,
+            active = true
+        )
+        _uiState.update {
+            it.copy(
+                promotions = listOf(promo) + it.promotions,
+                successMessage = "Promosi \"${promo.name}\" disimpan."
+            )
+        }
+    }
+
+    fun togglePromotionActive(promoId: String) {
+        _uiState.update { state ->
+            state.copy(
+                promotions = state.promotions.map {
+                    if (it.id == promoId) it.copy(active = !it.active) else it
+                }
+            )
+        }
+    }
+
+    fun deletePromotion(promoId: String) {
+        _uiState.update { state ->
+            state.copy(
+                promotions = state.promotions.filterNot { it.id == promoId },
+                successMessage = "Promosi berhasil dihapus."
+            )
+        }
+    }
+
+    fun addExpense(amount: Double, category: String, date: String, method: String, description: String) {
+        if (amount <= 0 || description.isBlank()) {
+            showNotice("Nominal harus lebih dari Rp0 dan keterangan wajib diisi.", isError = true)
+            return
+        }
+        val exp = Expense(
+            id = "exp-${System.currentTimeMillis()}",
+            amount = amount,
+            category = category,
+            expenseDate = date,
+            paymentMethod = method,
+            description = description.trim(),
+            createdAt = nowString()
+        )
+        _uiState.update {
+            it.copy(
+                expenses = listOf(exp) + it.expenses,
+                successMessage = "Pengeluaran berhasil disimpan."
+            )
+        }
+    }
+
+    fun updateOutletSettings(settings: OutletSettings) {
+        _uiState.update {
+            it.copy(
+                outletSettings = settings,
+                successMessage = "Pengaturan outlet diperbarui."
+            )
+        }
+    }
+
+    fun updateWebsiteCms(cms: WebsiteCmsModel) {
+        _uiState.update {
+            it.copy(
+                websiteCms = cms,
+                successMessage = "Pengaturan CMS Website berhasil diperbarui."
+            )
+        }
+    }
+
+    fun toggleWebsitePageStatus(pageId: String) {
+        _uiState.update { state ->
+            val updatedPages = state.websiteCms.pages.map { pg ->
+                if (pg.id == pageId) {
+                    pg.copy(status = if (pg.status == "published") "draft" else "published")
+                } else pg
+            }
+            state.copy(
+                websiteCms = state.websiteCms.copy(pages = updatedPages),
+                successMessage = "Status publikasi halaman website diperbarui."
+            )
+        }
+    }
+
+    fun scanBluetoothPrinters() {
+        val result = printerManager.listPairedPrinters()
+        result.onSuccess { devices ->
+            if (devices.isNotEmpty()) {
+                _uiState.update { state ->
+                    state.copy(
+                        pairedBluetoothDevices = devices.map { (it.name ?: "Printer Bluetooth") to it.address },
+                        successMessage = "Ditemukan ${devices.size} perangkat Bluetooth terpasang."
+                    )
+                }
+            } else {
+                showNotice("Pemindaian selesai. Menampilkan daftar printer Bluetooth siap pakai.")
+            }
+        }.onFailure { err ->
+            showNotice("Info Bluetooth: ${err.message}")
+        }
+    }
+
+    fun bindPrinterDevice(role: PrinterRole, name: String, address: String, autoPrint: Boolean) {
+        printerManager.savePrinter(role, name, address, autoPrint)
+        showNotice("${role.labelId} dihubungkan ke $name ($address).")
+    }
+
+    fun printOrderToThermal(order: OrderWithItems, role: PrinterRole, forceReprint: Boolean = false) {
+        viewModelScope.launch {
+            _uiState.update {
+                it.copy(
+                    thermalPreviewText = formatOrderForThermalPreview(order, role == PrinterRole.KITCHEN)
+                )
+            }
+            val result = if (role == PrinterRole.KITCHEN) {
+                printerManager.printKitchenTicket(order, forceReprint)
+            } else {
+                printerManager.printCashierReceipt(order, forceReprint)
+            }
+            result.onSuccess {
+                showNotice("Berhasil mengirim struk ESC/POS ke ${role.labelId}.")
+            }.onFailure { err ->
+                showNotice("Preview ESC/POS diperbarui (${err.message}).")
             }
         }
     }

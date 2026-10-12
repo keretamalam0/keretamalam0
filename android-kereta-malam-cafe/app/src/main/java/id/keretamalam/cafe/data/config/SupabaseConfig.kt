@@ -34,10 +34,8 @@ data class SupabaseRuntimeCredentials(
  * Mengelola konfigurasi Supabase dan sesi Auth secara terpisah dari UI menggunakan EncryptedSharedPreferences.
  *
  * PENTING:
- * - Project ID di repo `supabase/config.toml` adalah `rvaemgwtdvncfvaerhgr`.
- * - Project ID di bundle `pos.yuripratama246.workers.dev` adalah `dbazoxwhhljpgtbnletc`.
- * - Aplikasi TIDAK memilih salah satu secara asumsi. Integrasi ditandai BELUM AKTIF
- *   sampai admin/owner memverifikasi Project ID, URL, dan Publishable/Anon Key.
+ * - Target project yang dikonfirmasi pemilik untuk Kereta Malam Cafe: `dbazoxwhhljpgtbnletc`.
+ * - Integrasi tetap BELUM AKTIF sampai URL, project ID, dan Publishable/Anon Key berhasil diuji ke database secara live.
  * - DILARANG memasukkan `service_role` key atau secret backend.
  */
 object SupabaseConfigManager {
@@ -51,8 +49,7 @@ object SupabaseConfigManager {
     private const val KEY_AUTH_USER_ID = "supabase_auth_user_id"
     private const val KEY_AUTH_EMAIL = "supabase_auth_email"
 
-    const val CANDIDATE_REPO_PROJECT_ID = "rvaemgwtdvncfvaerhgr"
-    const val CANDIDATE_WORKER_PROJECT_ID = "dbazoxwhhljpgtbnletc"
+    const val CONFIRMED_PROJECT_ID = "dbazoxwhhljpgtbnletc"
 
     private fun encryptedPrefs(context: Context): SharedPreferences {
         return try {

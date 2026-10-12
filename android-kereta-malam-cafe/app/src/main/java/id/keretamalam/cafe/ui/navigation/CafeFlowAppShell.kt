@@ -208,7 +208,7 @@ fun CafeFlowAppShell(
                                         BackendIntegrationStatus.LOCAL_SANDBOX_UI ->
                                             "SIMULASI LOKAL · Bukan Database Produksi"
                                         BackendIntegrationStatus.INACTIVE_PENDING_VERIFICATION ->
-                                            "Supabase BELUM AKTIF · Verifikasi Project ID Diperlukan"
+                                            "Layanan belum tersedia"
                                     },
                                     style = MaterialTheme.typography.labelMedium,
                                     color = when (uiState.backendStatus) {

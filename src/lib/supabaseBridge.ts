@@ -25,7 +25,9 @@ export function loadVerificationConfig(): SupabaseVerificationConfig {
   try {
     const raw = localStorage.getItem(STORAGE_KEY);
     if (raw) {
-      return JSON.parse(raw);
+      const parsed = JSON.parse(raw) as SupabaseVerificationConfig;
+      // A browser-stored flag must never count as verification after a reload.
+      return { ...parsed, verifiedByUser: false };
     }
   } catch {
     // ignore storage errors

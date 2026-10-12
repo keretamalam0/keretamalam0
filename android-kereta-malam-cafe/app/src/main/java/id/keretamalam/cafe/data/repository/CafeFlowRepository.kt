@@ -1,6 +1,9 @@
 package id.keretamalam.cafe.data.repository
 
 import android.content.Context
+import java.io.IOException
+import java.net.SocketTimeoutException
+import java.net.UnknownHostException
 import id.keretamalam.cafe.data.config.SupabaseConfigManager
 import id.keretamalam.cafe.data.model.*
 import io.github.jan.supabase.SupabaseClient
@@ -16,7 +19,7 @@ import kotlinx.serialization.json.*
 import java.util.UUID
 
 class BackendNotVerifiedException(
-    message: String = "Integrasi Supabase BELUM AKTIF. Harap verifikasi Project ID (rvaemgwtdvncfvaerhgr / dbazoxwhhljpgtbnletc), URL, dan Publishable Key di Pengaturan Outlet."
+    message: String = "Integrasi Supabase belum aktif atau konfigurasinya tidak valid. Periksa Project ID, URL HTTPS, dan publishable/anon key di Pengaturan Outlet."
 ) : IllegalStateException(message)
 
 /**
@@ -40,20 +43,35 @@ class CafeFlowRepository(private val context: Context) {
     // 1. AUTENTIKASI & HAK AKSES (RBAC)
     // ========================================================================
     suspend fun signInWithEmailPassword(emailInput: String, passwordInput: String): StaffProfile {
-        val client = requireClient()
-        client.auth.signInWith(Email) {
-            email = emailInput.trim()
-            password = passwordInput
+        val client = try {
+            requireClient()
+        } catch (e: IllegalArgumentException) {
+            throw IllegalStateException(
+                e.message ?: "Konfigurasi Supabase tidak valid. Periksa URL dan Project ID di Pengaturan Outlet.",
+                e
+            )
         }
-        val profile = fetchMyStaffProfile()
-            ?: throw IllegalStateException("Profil staf tidak ditemukan untuk akun ini.")
-        logActivity(
-            action = "auth.login",
-            entityType = "auth",
-            entityId = profile.userId,
-            details = buildJsonObject { put("method", "password") }
-        )
-        return profile
+        try {
+            client.auth.signInWith(Email) {
+                email = emailInput.trim()
+                password = passwordInput
+            }
+            val profile = fetchMyStaffProfile()
+                ?: throw IllegalStateException("Login diterima, tetapi profil staf tidak ditemukan. Periksa akses akun di database.")
+            logActivity(
+                action = "auth.login",
+                entityType = "auth",
+                entityId = profile.userId,
+                details = buildJsonObject { put("method", "password") }
+            )
+            return profile
+        } catch (e: UnknownHostException) {
+            throw IllegalStateException("Tidak dapat menjangkau server Supabase. Periksa URL project dan koneksi internet.", e)
+        } catch (e: SocketTimeoutException) {
+            throw IllegalStateException("Koneksi ke Supabase timeout. Periksa internet lalu coba lagi.", e)
+        } catch (e: IOException) {
+            throw IllegalStateException("Terjadi gangguan jaringan saat menghubungi Supabase. Periksa koneksi lalu coba lagi.", e)
+        }
     }
 
     suspend fun signOut() {

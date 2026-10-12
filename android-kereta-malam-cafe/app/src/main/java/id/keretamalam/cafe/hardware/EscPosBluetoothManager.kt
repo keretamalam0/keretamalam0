@@ -87,7 +87,7 @@ class EscPosBluetoothManager(private val context: Context) {
             return Result.failure(SecurityException("Izin Bluetooth belum diberikan. Berikan izin BLUETOOTH_CONNECT & BLUETOOTH_SCAN."))
         }
         val bluetoothManager = context.getSystemService(Context.BLUETOOTH_SERVICE) as? BluetoothManager
-        val adapter: BluetoothAdapter? = bluetoothManager?.adapter
+        val adapter: BluetoothAdapter = bluetoothManager?.adapter
             ?: return Result.failure(IllegalStateException("Perangkat Android ini tidak memiliki adapter Bluetooth."))
 
         if (!adapter.isEnabled) {

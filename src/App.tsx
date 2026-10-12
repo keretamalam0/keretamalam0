@@ -4196,7 +4196,7 @@ export default function App() {
                     : 'STATUS SUPABASE: BELUM AKTIF (MENUNGGU VERIFIKASI PROJECT ID)'}
               </p>
               <p className="mt-1 text-zinc-600 dark:text-zinc-400">
-                Ditemukan dua kandidat Project ID pada referensi: <code className="font-mono font-semibold">rvaemgwtdvncfvaerhgr</code> (repo <code className="font-mono">supabase/config.toml</code>) dan <code className="font-mono font-semibold">dbazoxwhhljpgtbnletc</code> (bundle <code className="font-mono">pos.yuripratama246.workers.dev</code>). Verifikasi kredensial di Pengaturan Outlet sebelum menggunakan login produksi.
+                Login produksi hanya tersedia setelah konfigurasi backend diverifikasi oleh aplikasi. Jika layanan tidak tersedia, hubungi administrator sistem; jangan memasukkan kredensial rahasia ke layar ini.
               </p>
             </div>
 

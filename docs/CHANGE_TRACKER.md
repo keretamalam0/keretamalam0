@@ -111,7 +111,7 @@ Status meanings: **Not started** = no implementation verified for this request; 
 - [ ] Discover actual nearby Bluetooth devices (no fake device list), connect, select role, test print on supported hardware.
 
 ### Super Admin / multi-owner
-- [ ] Remove “Management Website” menu from the application.
+- [x] Remove “Management Website” menu from the web preview navigation (Android navigation still needs review).
 - [ ] Verify the intended “Alfana Alvin” account/email before assigning Super Admin; do not guess an identity.
 - [ ] Super Admin operational view limited to Owner Management.
 - [ ] Create owners and invite them by email to set password.
@@ -120,4 +120,4 @@ Status meanings: **Not started** = no implementation verified for this request; 
 - [ ] Enforce authorization and tenant isolation at database/backend level.
 
 ## Work log
-- 2026-10-12: Audited repository tree and key Android repository/ViewModel plus web Supabase bridge. No new feature from the backlog is marked complete yet. Next work should prioritize verifying schema/auth/RLS and separating seeded sandbox state from production state before high-risk destructive or multi-tenant features.
+- 2026-10-12: Audited repository tree and key Android repository/ViewModel plus web Supabase bridge. Added this tracker and removed the “Management Website” entry from the web preview navigation (commit `0e789fbf2329a538dab4e9a667026d2d69f3cbbf`). Android navigation still needs review. Next work should prioritize verifying schema/auth/RLS and separating seeded sandbox state from production state before high-risk destructive or multi-tenant features.

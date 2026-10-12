@@ -19,16 +19,6 @@ export const CANDIDATE_PROJECTS = [
     url: 'https://tywmaqjmagbausayyirn.supabase.co',
     source: 'Project Supabase yang dipilih untuk Kereta Malam Cafe',
   },
-  {
-    id: 'rvaemgwtdvncfvaerhgr',
-    url: 'https://rvaemgwtdvncfvaerhgr.supabase.co',
-    source: 'Ditemukan di supabase/config.toml pada repository github.com/yuripratama246-lang/cafe-flow',
-  },
-  {
-    id: 'dbazoxwhhljpgtbnletc',
-    url: 'https://dbazoxwhhljpgtbnletc.supabase.co',
-    source: 'Ditemukan di bundle produksi pos.yuripratama246.workers.dev',
-  },
 ] as const;
 
 export function loadVerificationConfig(): SupabaseVerificationConfig {

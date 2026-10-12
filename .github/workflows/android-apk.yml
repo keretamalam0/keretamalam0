@@ -40,6 +40,21 @@ jobs:
           sdkmanager --sdk_root="$ANDROID_HOME" "platforms;android-35" "build-tools;35.0.0" "platform-tools"
           yes | sdkmanager --sdk_root="$ANDROID_HOME" --licenses
 
+      - name: Configure Supabase credentials
+        env:
+          SUPABASE_PROJECT_ID: ${{ secrets.SUPABASE_PROJECT_ID }}
+          SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
+          SUPABASE_PUBLISHABLE_KEY: ${{ secrets.SUPABASE_PUBLISHABLE_KEY }}
+        run: |
+          test -n "$SUPABASE_PROJECT_ID" || { echo "Missing GitHub Actions secret: SUPABASE_PROJECT_ID"; exit 1; }
+          test -n "$SUPABASE_URL" || { echo "Missing GitHub Actions secret: SUPABASE_URL"; exit 1; }
+          test -n "$SUPABASE_PUBLISHABLE_KEY" || { echo "Missing GitHub Actions secret: SUPABASE_PUBLISHABLE_KEY"; exit 1; }
+          {
+            printf 'SUPABASE_PROJECT_ID=%s\n' "$SUPABASE_PROJECT_ID"
+            printf 'SUPABASE_URL=%s\n' "$SUPABASE_URL"
+            printf 'SUPABASE_PUBLISHABLE_KEY=%s\n' "$SUPABASE_PUBLISHABLE_KEY"
+          } > local.properties
+
       - name: Make Gradle wrapper executable
         run: chmod +x ./gradlew
 

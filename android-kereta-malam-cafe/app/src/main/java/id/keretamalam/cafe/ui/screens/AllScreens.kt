@@ -233,7 +233,6 @@ fun RenderModuleScreen(
             PosModuleRoute.PEGAWAI -> PegawaiComposeScreen(viewModel, uiState)
             PosModuleRoute.PENGATURAN -> PengaturanOutletComposeScreen(viewModel, uiState)
             PosModuleRoute.PRINTER -> PrinterComposeScreen(viewModel, uiState, isTabletOrWide)
-            PosModuleRoute.WEBSITE_MANAGEMENT -> WebsiteManagementComposeScreen(viewModel, uiState)
         }
     }
 

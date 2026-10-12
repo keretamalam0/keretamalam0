@@ -128,21 +128,24 @@ class CafeFlowRepository(private val context: Context) {
 
         SupabaseConfigManager.saveAuthSession(context, accessToken, userId, userEmail)
 
-        val profile = fetchMyStaffProfile()
-            ?: StaffProfile(
-                userId = userId,
-                ownerId = userId,
-                fullName = userEmail.substringBefore("@"),
-                email = userEmail,
-                role = StaffRole.CASHIER,
-                isActive = true,
-                permissions = mapOf(
-                    "dashboard" to true,
-                    "orders" to true,
-                    "payments" to true,
-                    "tables" to true
-                )
+        val profile = try {
+            fetchMyStaffProfile()
+        } catch (error: Exception) {
+            SupabaseConfigManager.clearAuthSession(context)
+            throw error
+        } ?: run {
+            SupabaseConfigManager.clearAuthSession(context)
+            throw IllegalStateException(
+                "Akun berhasil login, tetapi belum terdaftar di staff_profiles. Minta Owner menambahkan akun ini sebelum digunakan."
             )
+        }
+
+        if (!profile.isActive) {
+            SupabaseConfigManager.clearAuthSession(context)
+            throw IllegalStateException(
+                "Akun staff ini sedang nonaktif. Hubungi Owner atau Manager."
+            )
+        }
 
         runCatching {
             logActivity(

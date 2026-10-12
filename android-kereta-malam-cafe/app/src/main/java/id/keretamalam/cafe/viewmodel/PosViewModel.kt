@@ -129,7 +129,62 @@ class PosViewModel(application: Application) : AndroidViewModel(application) {
     val uiState: StateFlow<PosUiState> = _uiState.asStateFlow()
 
     init {
-        refreshBackendConfigStatus()
+        initializeBackendConnection()
+    }
+
+    /**
+     * Production credentials are supplied by the build pipeline. Verify them quietly
+     * on first launch so staff never need to configure developer infrastructure.
+     */
+    private fun initializeBackendConnection() {
+        viewModelScope.launch {
+            val creds = SupabaseConfigManager.loadCredentials(getApplication())
+            if (creds.status == BackendIntegrationStatus.ACTIVE_VERIFIED) {
+                refreshBackendConfigStatus()
+                return@launch
+            }
+
+            val expectedUrl = "https://${SupabaseConfigManager.CONFIRMED_PROJECT_ID}.supabase.co"
+            if (
+                creds.projectId != SupabaseConfigManager.CONFIRMED_PROJECT_ID ||
+                creds.supabaseUrl != expectedUrl ||
+                creds.publishableKey.isBlank()
+            ) {
+                refreshBackendConfigStatus()
+                _uiState.update {
+                    it.copy(errorMessage = "Aplikasi belum siap digunakan. Silakan hubungi penyedia aplikasi.")
+                }
+                return@launch
+            }
+
+            _uiState.update { it.copy(isLoading = true, errorMessage = null) }
+            runCatching {
+                repository.verifyDatabaseConnection(
+                    projectId = creds.projectId,
+                    supabaseUrl = creds.supabaseUrl,
+                    publishableKey = creds.publishableKey
+                )
+                SupabaseConfigManager.saveVerifiedCredentials(
+                    context = getApplication(),
+                    projectId = creds.projectId,
+                    supabaseUrl = creds.supabaseUrl,
+                    publishableKey = creds.publishableKey,
+                    publicWebMenuBaseUrl = creds.publicWebMenuBaseUrl
+                )
+            }.onSuccess {
+                refreshBackendConfigStatus()
+                _uiState.update { it.copy(isLoading = false, errorMessage = null) }
+            }.onFailure {
+                SupabaseConfigManager.deactivateIntegration(getApplication())
+                refreshBackendConfigStatus()
+                _uiState.update {
+                    it.copy(
+                        isLoading = false,
+                        errorMessage = "Layanan sementara tidak tersedia. Periksa koneksi internet lalu coba lagi."
+                    )
+                }
+            }
+        }
     }
 
     private fun nowString(): String {
@@ -403,11 +458,11 @@ class PosViewModel(application: Application) : AndroidViewModel(application) {
                     )
                 }
                 syncAllDataFromBackend()
-            }.onFailure { err ->
+            }.onFailure {
                 _uiState.update {
                     it.copy(
                         isLoading = false,
-                        errorMessage = err.message ?: "Gagal login ke Supabase Auth."
+                        errorMessage = "Email atau password salah, atau layanan sedang tidak tersedia. Coba lagi."
                     )
                 }
             }

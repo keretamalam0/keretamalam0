@@ -1,0 +1,6 @@
+{
+  "name": "Kereta Malam Cafe POS (Android Native Kotlin & Compose)",
+  "description": "Aplikasi POS Android Native (Kotlin + Jetpack Compose) untuk operasional Kereta Malam Cafe dengan arsitektur MVVM, Supabase layer, dan Dual Bluetooth ESC/POS Printer.",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}

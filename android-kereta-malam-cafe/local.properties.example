@@ -1,0 +1,24 @@
+# Salin file ini menjadi `local.properties` di root project Android Studio.
+# JANGAN commit `local.properties` ke Git dan JANGAN pernah memasukkan `service_role` key ke aplikasi Android.
+
+sdk.dir=/Users/username/Library/Android/sdk
+
+# ============================================================================
+# VERIFIKASI SUPABASE CAFE FLOW (WAJIB DIVERIFIKASI SEBELUM DIAKTIFKAN)
+# ============================================================================
+# Hasil pemeriksaan sumber:
+# 1. Repository (`supabase/config.toml` di github.com/yuripratama246-lang/cafe-flow):
+#    project_id = "rvaemgwtdvncfvaerhgr"
+#    URL: https://rvaemgwtdvncfvaerhgr.supabase.co
+#
+# 2. Bundle produksi (`pos.yuripratama246.workers.dev`):
+#    project_id = "dbazoxwhhljpgtbnletc"
+#    URL: https://dbazoxwhhljpgtbnletc.supabase.co
+#
+# Isi dengan Project ID, URL, dan Publishable/Anon Key yang sudah Anda verifikasi:
+SUPABASE_PROJECT_ID=
+SUPABASE_URL=
+SUPABASE_PUBLISHABLE_KEY=
+
+# Base URL web pelanggan untuk pembuatan QR Menu meja yang valid
+PUBLIC_WEB_MENU_BASE_URL=https://pos.yuripratama246.workers.dev

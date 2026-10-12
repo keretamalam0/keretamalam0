@@ -820,17 +820,12 @@ fun PegawaiComposeScreen(viewModel: PosViewModel, uiState: PosUiState) {
 // ============================================================================
 @Composable
 fun PengaturanOutletComposeScreen(viewModel: PosViewModel, uiState: PosUiState) {
-    var projectId by remember(uiState.currentProjectId) { mutableStateOf(uiState.currentProjectId) }
-    var supabaseUrl by remember(uiState.currentSupabaseUrl) { mutableStateOf(uiState.currentSupabaseUrl) }
-    var anonKey by remember { mutableStateOf("") }
     var webBaseUrl by remember(uiState.outletSettings.publicWebBaseUrl) {
         mutableStateOf(uiState.outletSettings.publicWebBaseUrl)
     }
     var outletName by remember(uiState.outletSettings.name) { mutableStateOf(uiState.outletSettings.name) }
     var outletAddress by remember(uiState.outletSettings.address) { mutableStateOf(uiState.outletSettings.address) }
     var outletPhone by remember(uiState.outletSettings.phone) { mutableStateOf(uiState.outletSettings.phone) }
-    var loginEmail by remember { mutableStateOf("") }
-    var loginPassword by remember { mutableStateOf("") }
 
     Column(
         modifier = Modifier
@@ -903,7 +898,7 @@ fun PengaturanOutletComposeScreen(viewModel: PosViewModel, uiState: PosUiState) 
         // Identitas Outlet
         OutlinedCard(modifier = Modifier.fillMaxWidth()) {
             Column(modifier = Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                Text("2. Identitas & Profil Outlet Kereta Malam Cafe", style = MaterialTheme.typography.titleMedium)
+                Text("1. Identitas & Profil Outlet Kereta Malam Cafe", style = MaterialTheme.typography.titleMedium)
                 OutlinedTextField(value = outletName, onValueChange = { outletName = it }, label = { Text("Nama Outlet") }, modifier = Modifier.fillMaxWidth(), singleLine = true)
                 OutlinedTextField(value = outletAddress, onValueChange = { outletAddress = it }, label = { Text("Alamat Lengkap Struk") }, modifier = Modifier.fillMaxWidth(), singleLine = true)
                 OutlinedTextField(value = outletPhone, onValueChange = { outletPhone = it }, label = { Text("Nomor Telepon / WhatsApp") }, modifier = Modifier.fillMaxWidth(), singleLine = true)
@@ -925,7 +920,7 @@ fun PengaturanOutletComposeScreen(viewModel: PosViewModel, uiState: PosUiState) 
         // Skala Tampilan / Zoom (40%, 50%, 60%, dst)
         OutlinedCard(modifier = Modifier.fillMaxWidth()) {
             Column(modifier = Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                Text("3. Pengaturan Ukuran Tampilan / Zoom Layar Android", style = MaterialTheme.typography.titleMedium)
+                Text("2. Pengaturan Ukuran Tampilan / Zoom Layar Android", style = MaterialTheme.typography.titleMedium)
                 Row(
                     modifier = Modifier
                         .fillMaxWidth()
@@ -946,7 +941,7 @@ fun PengaturanOutletComposeScreen(viewModel: PosViewModel, uiState: PosUiState) 
         // Pajak & Layanan
         OutlinedCard(modifier = Modifier.fillMaxWidth()) {
             Column(modifier = Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                Text("4. Parameter Pajak & Biaya Layanan Outlet", style = MaterialTheme.typography.titleMedium)
+                Text("3. Parameter Pajak & Biaya Layanan Outlet", style = MaterialTheme.typography.titleMedium)
                 Row(
                     modifier = Modifier.fillMaxWidth(),
                     horizontalArrangement = Arrangement.SpaceBetween,

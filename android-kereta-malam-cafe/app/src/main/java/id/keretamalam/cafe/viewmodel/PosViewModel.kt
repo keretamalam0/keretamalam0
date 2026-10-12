@@ -415,10 +415,24 @@ class PosViewModel(application: Application) : AndroidViewModel(application) {
                     )
                 }
             }.onFailure { err ->
+                // Never leave seeded sandbox records visible after a failed production sync.
+                SupabaseConfigManager.clearAuthSession(getApplication())
                 _uiState.update {
                     it.copy(
                         isLoading = false,
-                        errorMessage = err.message ?: "Gagal memuat data dari Supabase."
+                        isLoggedIn = false,
+                        cart = emptyList(),
+                        selectedTableId = null,
+                        categories = emptyList(),
+                        products = emptyList(),
+                        tables = emptyList(),
+                        promotions = emptyList(),
+                        orders = emptyList(),
+                        shifts = emptyList(),
+                        expenses = emptyList(),
+                        inventoryMovements = emptyList(),
+                        auditLogs = emptyList(),
+                        errorMessage = "Sinkronisasi Supabase gagal. Sesi dihentikan agar data simulasi tidak dianggap data produksi. " + (err.message ?: "Periksa koneksi, skema, dan izin akses.")
                     )
                 }
             }

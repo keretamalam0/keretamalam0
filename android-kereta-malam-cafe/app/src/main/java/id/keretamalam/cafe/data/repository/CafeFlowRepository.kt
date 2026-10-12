@@ -57,6 +57,37 @@ class CafeFlowRepository(private val context: Context) {
         return creds
     }
 
+    /**
+     * Tests a real PostgREST request before configuration is marked verified.
+     * The project ID and URL must identify the same standard Supabase project.
+     */
+    suspend fun verifyDatabaseConnection(
+        projectId: String,
+        supabaseUrl: String,
+        publishableKey: String
+    ) {
+        val normalizedUrl = supabaseUrl.trim().trimEnd('/')
+        val normalizedProjectId = projectId.trim()
+        require(normalizedProjectId.isNotBlank()) { "Project ID wajib diisi." }
+        require(publishableKey.isNotBlank()) { "Publishable/anon key wajib diisi." }
+        require(!publishableKey.startsWith("sb_secret_") && !publishableKey.contains("service_role")) {
+            "Jangan gunakan secret atau service_role key di aplikasi Android."
+        }
+        require(normalizedUrl == "https://$normalizedProjectId.supabase.co") {
+            "Project ID dan URL Supabase tidak cocok. Periksa kembali project yang dipilih."
+        }
+
+        executeJsonRequest(
+            method = "GET",
+            url = "$normalizedUrl/rest/v1/staff_profiles?select=id&limit=1",
+            headers = mapOf(
+                "apikey" to publishableKey.trim(),
+                "Authorization" to "Bearer ${publishableKey.trim()}",
+                "Accept" to "application/json"
+            )
+        )
+    }
+
     private fun buildHeaders(creds: SupabaseRuntimeCredentials, preferReturn: String? = null): Map<String, String> {
         val bearer = creds.accessToken.ifBlank { creds.publishableKey }
         val map = mutableMapOf(

@@ -816,7 +816,7 @@ fun PegawaiComposeScreen(viewModel: PosViewModel, uiState: PosUiState) {
 }
 
 // ============================================================================
-// 16. PENGATURAN OUTLET & VERIFIKASI SUPABASE SCREEN
+// 16. PENGATURAN OUTLET SCREEN
 // ============================================================================
 @Composable
 fun PengaturanOutletComposeScreen(viewModel: PosViewModel, uiState: PosUiState) {
@@ -833,68 +833,6 @@ fun PengaturanOutletComposeScreen(viewModel: PosViewModel, uiState: PosUiState) 
             .verticalScroll(rememberScrollState()),
         verticalArrangement = Arrangement.spacedBy(12.dp)
     ) {
-        OutlinedCard(modifier = Modifier.fillMaxWidth()) {
-            Column(modifier = Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(10.dp)) {
-                Text("1. Verifikasi Project ID & Kredensial Supabase Produksi", style = MaterialTheme.typography.titleMedium)
-                OutlinedButton(onClick = {
-                    projectId = SupabaseConfigManager.CONFIRMED_PROJECT_ID
-                    supabaseUrl = "https://${SupabaseConfigManager.CONFIRMED_PROJECT_ID}.supabase.co"
-                }) {
-                    Text("Gunakan Project Kereta Malam Cafe")
-                }
-                OutlinedTextField(value = projectId, onValueChange = { projectId = it }, label = { Text("Verified Project ID") }, modifier = Modifier.fillMaxWidth(), singleLine = true)
-                OutlinedTextField(value = supabaseUrl, onValueChange = { supabaseUrl = it }, label = { Text("Supabase Project URL") }, modifier = Modifier.fillMaxWidth(), singleLine = true)
-                OutlinedTextField(
-                    value = anonKey,
-                    onValueChange = { anonKey = it },
-                    label = { Text("Publishable / Anon Key (Jangan masukkan service_role key!)") },
-                    visualTransformation = PasswordVisualTransformation(),
-                    modifier = Modifier.fillMaxWidth(),
-                    singleLine = true
-                )
-                OutlinedTextField(
-                    value = webBaseUrl,
-                    onValueChange = { webBaseUrl = it },
-                    label = { Text("Base URL Publik QR Menu Pelanggan") },
-                    modifier = Modifier.fillMaxWidth(),
-                    singleLine = true
-                )
-                Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                    Button(onClick = {
-                        viewModel.verifyAndSaveSupabaseConfig(projectId, supabaseUrl, anonKey, webBaseUrl)
-                    }) {
-                        Text("Simpan & Aktifkan Supabase")
-                    }
-                    OutlinedButton(onClick = { viewModel.enableLocalSandboxMode() }) {
-                        Text("Mode Simulasi UI Lokal")
-                    }
-                    OutlinedButton(onClick = { viewModel.deactivateSupabaseConfig() }) {
-                        Text("Reset Status")
-                    }
-                }
-
-                HorizontalDivider()
-                Text("Login Akun Staf via Supabase Auth (signInWithEmailPassword)", fontWeight = FontWeight.SemiBold)
-                Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                    OutlinedTextField(value = loginEmail, onValueChange = { loginEmail = it }, label = { Text("Email Staf") }, modifier = Modifier.weight(1f), singleLine = true)
-                    OutlinedTextField(
-                        value = loginPassword,
-                        onValueChange = { loginPassword = it },
-                        label = { Text("Password") },
-                        visualTransformation = PasswordVisualTransformation(),
-                        modifier = Modifier.weight(1f),
-                        singleLine = true
-                    )
-                }
-                Button(onClick = {
-                    viewModel.loginWithSupabaseAuth(loginEmail, loginPassword)
-                    loginPassword = ""
-                }) {
-                    Text("Login Supabase Auth")
-                }
-            }
-        }
-
         // Identitas Outlet
         OutlinedCard(modifier = Modifier.fillMaxWidth()) {
             Column(modifier = Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {

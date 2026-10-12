@@ -18,7 +18,7 @@ import java.util.UUID
 import java.util.concurrent.TimeUnit
 
 class BackendNotVerifiedException(
-    message: String = "Integrasi Supabase BELUM AKTIF. Harap verifikasi Project ID (rvaemgwtdvncfvaerhgr / dbazoxwhhljpgtbnletc), URL, dan Publishable Key di Pengaturan Outlet atau Halaman Login."
+    message: String = "Integrasi Supabase BELUM AKTIF. Harap verifikasi Project ID dbazoxwhhljpgtbnletc, URL https://dbazoxwhhljpgtbnletc.supabase.co, dan Publishable Key di Pengaturan Outlet atau Halaman Login."
 ) : IllegalStateException(message)
 
 /**

@@ -7,13 +7,14 @@ This tracker distinguishes **verified existing behavior** from **new work reques
 ## Verified baseline / audit notes
 - [x] Android project and web preview/source are both present in this repository.
 - [x] GitHub Actions Android build workflow exists and writes Supabase configuration from GitHub Actions secrets.
-- [x] A previous Android build completed successfully (Build #11, commit `a1523bbf3810b675f4eba73219e3b915661044b4`). This is a compile result, not an end-to-end test.
+- [x] Android Build #15 succeeded for commit `58e274e1d2ee609afd21cf49cabf16c6f0e658f8` after removing a stale `WEBSITE_MANAGEMENT` reference. This proves compilation only, not end-to-end behavior.
 - [x] Login UI was previously simplified to email/password staff login.
 - [ ] Supabase login + staff profile retrieval tested against the intended production project.
 - [x] Android login no longer silently grants a fallback Cashier profile when no staff record exists; it clears the session and rejects missing/inactive staff profiles (runtime test still required).
 - [ ] Confirm which Supabase project is canonical. Source currently lists two candidates: `rvaemgwtdvncfvaerhgr` and `dbazoxwhhljpgtbnletc`.
 - [ ] Confirm production schema, RLS policies, RPCs, and Edge Functions match the Android repository calls.
 - [ ] Remove or clearly isolate seeded sandbox data from any live/production session. Current Android UI state initializes from `SandboxSeedData`; web preview state initializes from `sandboxSeed`.
+- [x] On Android backend sync failure, clear the auth session, log out, and clear operational lists/cart/table selection rather than leaving seeded data visible as if live (commit `6af016d65e4100cf178d94d4cfb8f4e6854768bc`; Build #14 failed due to a separate stale route reference, so this commit itself still needs a successful compile verification).
 
 ## Requested feature backlog
 
@@ -121,4 +122,4 @@ Status meanings: **Not started** = no implementation verified for this request; 
 - [ ] Enforce authorization and tenant isolation at database/backend level.
 
 ## Work log
-- 2026-10-12: Added tracker (commit `962d054a0e99bb5219ea782564ddebe9b8980348`). Removed “Management Website” from web navigation (commit `0e789fbf2329a538dab4e9a667026d2d69f3cbbf`) and Android navigation (commit `fcf3122b2a334f01c3540300647962722e803e9c`). Hardened Android login to reject missing/inactive staff profiles rather than silently creating a Cashier fallback (commit `cdc0e695c91eb38f8db7aa74438366ca32277f4f`). Runtime/build verification for these latest commits is pending.
+- 2026-10-12: Added tracker (commit `962d054a0e99bb5219ea782564ddebe9b8980348`). Removed “Management Website” from web navigation (commit `0e789fbf2329a538dab4e9a667026d2d69f3cbbf`) and Android navigation (commit `fcf3122b2a334f01c3540300647962722e803e9c`). Hardened Android login (commit `cdc0e695c91eb38f8db7aa74438366ca32277f4f`). Build #15 succeeded for route cleanup (commit `58e274e1d2ee609afd21cf49cabf16c6f0e658f8`). Build #14 failed because the same stale route reference was still present in `AllScreens.kt`; the subsequent route fix resolved the compile error. Runtime/Supabase production verification remains pending.

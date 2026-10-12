@@ -202,20 +202,9 @@ fun CafeFlowAppShell(
                                     overflow = TextOverflow.Ellipsis
                                 )
                                 Text(
-                                    text = when (uiState.backendStatus) {
-                                        BackendIntegrationStatus.ACTIVE_VERIFIED ->
-                                            "Supabase Terhubung (${uiState.currentProjectId})"
-                                        BackendIntegrationStatus.LOCAL_SANDBOX_UI ->
-                                            "SIMULASI LOKAL · Bukan Database Produksi"
-                                        BackendIntegrationStatus.INACTIVE_PENDING_VERIFICATION ->
-                                            "Layanan belum tersedia"
-                                    },
+                                    text = "POS & QR Ordering",
                                     style = MaterialTheme.typography.labelMedium,
-                                    color = when (uiState.backendStatus) {
-                                        BackendIntegrationStatus.ACTIVE_VERIFIED ->
-                                            MaterialTheme.colorScheme.onSurfaceVariant
-                                        else -> MaterialTheme.colorScheme.error
-                                    },
+                                    color = MaterialTheme.colorScheme.onSurfaceVariant,
                                     maxLines = 1,
                                     overflow = TextOverflow.Ellipsis
                                 )

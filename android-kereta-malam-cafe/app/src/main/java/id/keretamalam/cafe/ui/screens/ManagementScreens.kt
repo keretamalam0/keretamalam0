@@ -841,19 +841,11 @@ fun PengaturanOutletComposeScreen(viewModel: PosViewModel, uiState: PosUiState) 
         OutlinedCard(modifier = Modifier.fillMaxWidth()) {
             Column(modifier = Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(10.dp)) {
                 Text("1. Verifikasi Project ID & Kredensial Supabase Produksi", style = MaterialTheme.typography.titleMedium)
-                Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                    OutlinedButton(onClick = {
-                        projectId = SupabaseConfigManager.CANDIDATE_REPO_PROJECT_ID
-                        supabaseUrl = "https://${SupabaseConfigManager.CANDIDATE_REPO_PROJECT_ID}.supabase.co"
-                    }) {
-                        Text("Pilih Repo (${SupabaseConfigManager.CANDIDATE_REPO_PROJECT_ID})")
-                    }
-                    OutlinedButton(onClick = {
-                        projectId = SupabaseConfigManager.CANDIDATE_WORKER_PROJECT_ID
-                        supabaseUrl = "https://${SupabaseConfigManager.CANDIDATE_WORKER_PROJECT_ID}.supabase.co"
-                    }) {
-                        Text("Pilih Worker (${SupabaseConfigManager.CANDIDATE_WORKER_PROJECT_ID})")
-                    }
+                OutlinedButton(onClick = {
+                    projectId = SupabaseConfigManager.CONFIRMED_PROJECT_ID
+                    supabaseUrl = "https://${SupabaseConfigManager.CONFIRMED_PROJECT_ID}.supabase.co"
+                }) {
+                    Text("Gunakan Project Kereta Malam Cafe")
                 }
                 OutlinedTextField(value = projectId, onValueChange = { projectId = it }, label = { Text("Verified Project ID") }, modifier = Modifier.fillMaxWidth(), singleLine = true)
                 OutlinedTextField(value = supabaseUrl, onValueChange = { supabaseUrl = it }, label = { Text("Supabase Project URL") }, modifier = Modifier.fillMaxWidth(), singleLine = true)

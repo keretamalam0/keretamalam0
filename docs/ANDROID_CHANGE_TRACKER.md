@@ -29,6 +29,7 @@ Project directory: `android-kereta-malam-cafe/`
 - [x] Removed Website Management UI, local CMS state/actions, and unused CMS models from Android. [ ] Secure Super Admin separation remains pending.
 
 ## Work log
+- `30a4b9b2d30fcf31a3d31c1ab73dec06d80cf9a5`: dashboard date filtering now converts ISO timestamps to the device's local time zone before comparing calendar dates, avoiding UTC/local midnight mismatches. Build verification remains pending.
 - `bf5bd216430248d62bfb910c57cb5e845c1dab7d`: added Dashboard date presets (today, last 7 days, last 30 days, all data) and scoped paid-revenue KPIs, payment-method breakdown, and best-selling products to the selected period. Compilation and date/time-zone behavior still require verification.
 - `3cd38f63e61d5daaa1c2250bb18fcc5545ae8871`: removed unused native website CMS data models after deleting the inaccessible Website Management screen and local-only save/publish actions.
 - `ba7c0f5b68df3d843393add1ab8176a53aaece0e`: removed Website CMS state and local-only mutations from `PosViewModel`.

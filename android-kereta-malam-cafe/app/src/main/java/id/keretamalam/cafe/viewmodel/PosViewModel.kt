@@ -1545,7 +1545,13 @@ class PosViewModel(application: Application) : AndroidViewModel(application) {
         if (_uiState.value.backendStatus == BackendIntegrationStatus.ACTIVE_VERIFIED) {
             viewModelScope.launch {
                 _uiState.update { it.copy(isLoading = true, errorMessage = null, successMessage = null) }
-                runCatching { repository.updateOutletSettings(settings) }
+                val current = _uiState.value.outletSettings
+                val languageOnly = settings.copy(appLanguage = current.appLanguage) == current &&
+                    settings.appLanguage != current.appLanguage
+                runCatching {
+                    if (languageOnly) repository.updateOutletLanguage(settings.appLanguage)
+                    else repository.updateOutletSettings(settings)
+                }
                     .onSuccess {
                         _uiState.update { it.copy(outletSettings = settings, isLoading = false, successMessage = "Pengaturan outlet berhasil disimpan.") }
                     }

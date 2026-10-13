@@ -14,6 +14,11 @@ import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.delay
+import kotlinx.coroutines.isActive
+import kotlinx.coroutines.flow.collectLatest
+import kotlinx.coroutines.flow.distinctUntilChanged
+import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.sync.Mutex
 import java.text.SimpleDateFormat
 import java.util.Date
@@ -123,6 +128,7 @@ class PosViewModel(application: Application) : AndroidViewModel(application) {
     private val repository = CafeFlowRepository(application)
     val printerManager = EscPosBluetoothManager(application)
     private val checkoutMutex = Mutex()
+    private val orderRefreshMutex = Mutex()
 
     private val _uiState = MutableStateFlow(
         PosUiState(
@@ -133,6 +139,50 @@ class PosViewModel(application: Application) : AndroidViewModel(application) {
 
     init {
         initializeBackendConnection()
+
+        // QR orders are written by the web menu directly to Supabase. Keep the
+        // native cashier's order lane fresh while signed in, without reloading
+        // products, settings, reports, and the rest of the app every cycle.
+        viewModelScope.launch {
+            _uiState
+                .map { it.isLoggedIn && it.backendStatus == BackendIntegrationStatus.ACTIVE_VERIFIED }
+                .distinctUntilChanged()
+                .collectLatest { shouldPoll ->
+                    if (shouldPoll) {
+                        while (isActive) {
+                            kotlinx.coroutines.delay(3_000)
+                            refreshOrdersSilently()
+                        }
+                    }
+                }
+        }
+    }
+
+    private suspend fun refreshOrdersSilently() {
+        if (
+            !_uiState.value.isLoggedIn ||
+            _uiState.value.backendStatus != BackendIntegrationStatus.ACTIVE_VERIFIED
+        ) return
+
+        if (!orderRefreshMutex.tryLock()) return
+        try {
+            val latestOrders = repository.fetchOrders(limitCount = 500)
+            _uiState.update { current ->
+                if (
+                    current.isLoggedIn &&
+                    current.backendStatus == BackendIntegrationStatus.ACTIVE_VERIFIED
+                ) {
+                    current.copy(orders = latestOrders)
+                } else {
+                    current
+                }
+            }
+        } catch (_: Exception) {
+            // A temporary network hiccup must not log out the cashier or erase
+            // the last known orders. The next cycle retries automatically.
+        } finally {
+            orderRefreshMutex.unlock()
+        }
     }
 
     /**

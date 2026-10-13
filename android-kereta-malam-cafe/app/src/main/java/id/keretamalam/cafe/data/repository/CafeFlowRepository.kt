@@ -127,7 +127,8 @@ class CafeFlowRepository(private val context: Context) {
                         ?: obj["error_description"]?.jsonPrimitive?.contentOrNull
                         ?: raw
                 }.getOrDefault(raw.ifBlank { "HTTP ${response.code}" })
-                throw IllegalStateException("Layanan sementara tidak tersedia. Silakan coba lagi.")
+                // Keep credentials and response bodies out of the UI; retain safe diagnostics.
+                throw IllegalStateException("Permintaan Supabase gagal (HTTP " + response.code + ", " + request.url.encodedPath + ").")
             }
             raw
         }

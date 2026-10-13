@@ -533,6 +533,87 @@ class CafeFlowRepository(private val context: Context) {
         }
     }
 
+    suspend fun inviteStaff(fullName: String, email: String, role: String, permissions: Map<String, Boolean>) {
+        val creds = requireVerifiedCredentials()
+        val payload = buildJsonObject {
+            put("full_name", fullName.trim())
+            put("email", email.trim())
+            put("role", if (role == "manager") "manager" else "cashier")
+            putJsonObject("permissions") { permissions.forEach { (key, value) -> put(key, value) } }
+        }
+        val raw = executeJsonRequest(
+            method = "POST",
+            url = "${creds.supabaseUrl}/functions/v1/invite-staff",
+            headers = buildHeaders(creds),
+            bodyJson = json.encodeToString(JsonObject.serializer(), payload)
+        )
+        val response = json.parseToJsonElement(raw).jsonObject
+        if (response["ok"]?.jsonPrimitive?.booleanOrNull != true) {
+            throw IllegalStateException("Undangan gagal dikirim. Periksa email dan hak akses akun.")
+        }
+    }
+
+    suspend fun fetchPaymentMethods(): List<PaymentMethod> {
+        val creds = requireVerifiedCredentials()
+        val raw = executeJsonRequest("GET",
+            "${creds.supabaseUrl}/rest/v1/payment_methods?select=*&order=sort_order.asc,name.asc",
+            buildHeaders(creds))
+        return json.decodeFromString(raw)
+    }
+
+    suspend fun savePaymentMethod(method: PaymentMethod): PaymentMethod {
+        val creds = requireVerifiedCredentials()
+        val payload = buildJsonObject {
+            put("owner_id", creds.authenticatedUserId)
+            put("code", method.code.ifBlank { method.type.lowercase() + "-" + UUID.randomUUID().toString().take(8) })
+            put("name", method.name.trim())
+            put("type", method.type)
+            put("provider", method.provider.trim())
+            put("account_name", method.accountName.trim())
+            put("account_number", method.accountNumber.trim())
+            put("instructions", method.instructions.trim())
+            put("image_url", method.imageUrl)
+            put("is_active", method.isActive)
+            put("sort_order", method.sortOrder)
+        }
+        val url = if (method.id.isBlank()) "${creds.supabaseUrl}/rest/v1/payment_methods"
+            else "${creds.supabaseUrl}/rest/v1/payment_methods?id=eq.${URLEncoder.encode(method.id, "UTF-8")}"
+        val raw = executeJsonRequest(if (method.id.isBlank()) "POST" else "PATCH", url,
+            buildHeaders(creds, "return=representation"), json.encodeToString(JsonObject.serializer(), payload))
+        return json.decodeFromString<List<PaymentMethod>>(raw).firstOrNull()
+            ?: throw IllegalStateException("Metode pembayaran gagal disimpan.")
+    }
+
+    suspend fun deletePaymentMethod(id: String) {
+        val creds = requireVerifiedCredentials()
+        executeJsonRequest("DELETE",
+            "${creds.supabaseUrl}/rest/v1/payment_methods?id=eq.${URLEncoder.encode(id, "UTF-8")}",
+            buildHeaders(creds))
+    }
+
+    suspend fun uploadPaymentMethodImage(bytes: ByteArray, mimeType: String, fileExtension: String): String {
+        require(bytes.isNotEmpty()) { "File gambar kosong." }
+        require(bytes.size <= 8 * 1024 * 1024) { "Ukuran gambar maksimal 8 MB." }
+        val creds = requireVerifiedCredentials()
+        val ext = fileExtension.lowercase().filter { it.isLetterOrDigit() }.ifBlank { "jpg" }
+        val objectPath = "${creds.authenticatedUserId}/${UUID.randomUUID()}.$ext"
+        val encodedPath = objectPath.split("/").joinToString("/") { URLEncoder.encode(it, "UTF-8") }
+        val request = Request.Builder()
+            .url("${creds.supabaseUrl}/storage/v1/object/payment-method-images/$encodedPath")
+            .header("apikey", creds.publishableKey)
+            .header("Authorization", "Bearer ${creds.accessToken.ifBlank { creds.publishableKey }}")
+            .header("Content-Type", mimeType)
+            .header("x-upsert", "false")
+            .post(bytes.toRequestBody(mimeType.toMediaType()))
+            .build()
+        withContext(Dispatchers.IO) {
+            httpClient.newCall(request).execute().use { response ->
+                if (!response.isSuccessful) throw IllegalStateException("Gagal mengunggah gambar. Coba lagi dengan file JPG/PNG/WebP.")
+            }
+        }
+        return "${creds.supabaseUrl}/storage/v1/object/public/payment-method-images/$encodedPath"
+    }
+
     suspend fun fetchStaffShifts(): List<StaffShift> {
         val creds = requireVerifiedCredentials()
         val url = "${creds.supabaseUrl}/rest/v1/staff_shifts?select=*&order=opened_at.desc"

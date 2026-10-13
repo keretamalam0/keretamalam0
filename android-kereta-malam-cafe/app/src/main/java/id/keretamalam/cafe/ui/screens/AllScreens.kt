@@ -739,8 +739,8 @@ private fun KasirComposeScreen(
             }
 
             LazyHorizontalGrid(
-                rows = GridCells.Fixed(4),
-                modifier = Modifier.fillMaxWidth().height(390.dp),
+                rows = GridCells.Fixed(6),
+                modifier = Modifier.fillMaxWidth().height(550.dp),
                 horizontalArrangement = Arrangement.spacedBy(8.dp),
                 verticalArrangement = Arrangement.spacedBy(8.dp),
                 contentPadding = PaddingValues(end = 8.dp, bottom = 4.dp)
@@ -1107,37 +1107,60 @@ private fun KasirComposeScreen(
         }
     }
 
-    // Dialog Kustomisasi Item di Tengah Layar
+    // Dialog kustomisasi ringkas dan bisa digulir saat layar landscape.
     val targetCustom = customizingProduct
     if (targetCustom != null) {
+        val screenHeight = androidx.compose.ui.platform.LocalConfiguration.current.screenHeightDp
         Dialog(
             onDismissRequest = { customizingProduct = null },
-            properties = DialogProperties(usePlatformDefaultWidth = false)
+            properties = DialogProperties(usePlatformDefaultWidth = true)
         ) {
             Surface(
-                shape = RoundedCornerShape(16.dp),
+                shape = RoundedCornerShape(14.dp),
                 color = MaterialTheme.colorScheme.surface,
                 modifier = Modifier
-                    .fillMaxWidth(0.92f)
-                    .widthIn(max = 460.dp)
-                    .padding(16.dp)
+                    .widthIn(max = 400.dp)
+                    .heightIn(max = (screenHeight * 0.84f).dp)
             ) {
-                Column(modifier = Modifier.padding(20.dp), verticalArrangement = Arrangement.spacedBy(10.dp)) {
-                    Text("Opsi Kustomisasi · ${targetCustom.name}", style = MaterialTheme.typography.titleLarge)
-                    Text("Takaran Gula:", style = MaterialTheme.typography.labelMedium)
-                    Row(horizontalArrangement = Arrangement.spacedBy(6.dp)) {
-                        listOf("Normal Sugar", "Less Sugar", "No Sugar").forEach { s ->
-                            FilterChip(selected = customSugar == s, onClick = { customSugar = s }, label = { Text(s) })
+                Column(
+                    modifier = Modifier
+                        .padding(14.dp)
+                        .verticalScroll(rememberScrollState()),
+                    verticalArrangement = Arrangement.spacedBy(7.dp)
+                ) {
+                    Text(
+                        "Kustomisasi · ${targetCustom.name}",
+                        style = MaterialTheme.typography.titleMedium,
+                        fontWeight = FontWeight.SemiBold
+                    )
+                    Text("Gula", style = MaterialTheme.typography.labelMedium)
+                    Row(
+                        modifier = Modifier.fillMaxWidth().horizontalScroll(rememberScrollState()),
+                        horizontalArrangement = Arrangement.spacedBy(5.dp)
+                    ) {
+                        listOf("Normal Sugar", "Less Sugar", "No Sugar").forEach { option ->
+                            FilterChip(
+                                selected = customSugar == option,
+                                onClick = { customSugar = option },
+                                label = { Text(option, style = MaterialTheme.typography.labelSmall) }
+                            )
                         }
                     }
-                    Text("Takaran Es / Suhu:", style = MaterialTheme.typography.labelMedium)
-                    Row(horizontalArrangement = Arrangement.spacedBy(6.dp)) {
-                        listOf("Normal Ice", "Less Ice", "Hot / Warm").forEach { ic ->
-                            FilterChip(selected = customIce == ic, onClick = { customIce = ic }, label = { Text(ic) })
+                    Text("Es / suhu", style = MaterialTheme.typography.labelMedium)
+                    Row(
+                        modifier = Modifier.fillMaxWidth().horizontalScroll(rememberScrollState()),
+                        horizontalArrangement = Arrangement.spacedBy(5.dp)
+                    ) {
+                        listOf("Normal Ice", "Less Ice", "Hot / Warm").forEach { option ->
+                            FilterChip(
+                                selected = customIce == option,
+                                onClick = { customIce = option },
+                                label = { Text(option, style = MaterialTheme.typography.labelSmall) }
+                            )
                         }
                     }
-                    Text("Ukuran Cup & Add-on:", style = MaterialTheme.typography.labelMedium)
-                    Row(horizontalArrangement = Arrangement.spacedBy(6.dp)) {
+                    Text("Ukuran cup", style = MaterialTheme.typography.labelMedium)
+                    Row(horizontalArrangement = Arrangement.spacedBy(5.dp)) {
                         FilterChip(
                             selected = customCup == "Regular",
                             onClick = { customCup = "Regular" },
@@ -1146,30 +1169,40 @@ private fun KasirComposeScreen(
                         FilterChip(
                             selected = customCup == "Large",
                             onClick = { customCup = "Large" },
-                            label = { Text("Large (+Rp5.000)") }
+                            label = { Text("Large +Rp5rb") }
                         )
                     }
-                    Row(horizontalArrangement = Arrangement.spacedBy(6.dp)) {
+                    Row(
+                        modifier = Modifier.fillMaxWidth().horizontalScroll(rememberScrollState()),
+                        horizontalArrangement = Arrangement.spacedBy(5.dp)
+                    ) {
                         FilterChip(
                             selected = customExtraShot,
                             onClick = { customExtraShot = !customExtraShot },
-                            label = { Text("Extra Shot (+Rp6.000)") }
+                            label = { Text("Extra Shot +Rp6rb", style = MaterialTheme.typography.labelSmall) }
                         )
                         FilterChip(
                             selected = customOatMilk,
                             onClick = { customOatMilk = !customOatMilk },
-                            label = { Text("Oat Milk (+Rp8.000)") }
+                            label = { Text("Oat Milk +Rp8rb", style = MaterialTheme.typography.labelSmall) }
                         )
                     }
                     OutlinedTextField(
                         value = customNote,
                         onValueChange = { customNote = it },
-                        label = { Text("Catatan Khusus Item") },
-                        modifier = Modifier.fillMaxWidth()
+                        label = { Text("Catatan item") },
+                        modifier = Modifier.fillMaxWidth(),
+                        minLines = 1,
+                        maxLines = 2,
+                        textStyle = MaterialTheme.typography.bodySmall
                     )
-                    Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.End) {
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.End,
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
                         TextButton(onClick = { customizingProduct = null }) { Text("Batal") }
-                        Spacer(modifier = Modifier.width(8.dp))
+                        Spacer(modifier = Modifier.width(4.dp))
                         Button(onClick = {
                             val addons = buildList {
                                 if (customCup == "Large") add(ProductAddon(id = "ad-lg", name = "Large Cup", price = 5000.0))
@@ -1186,7 +1219,7 @@ private fun KasirComposeScreen(
                             )
                             customizingProduct = null
                         }) {
-                            Text("Masukkan ke Keranjang")
+                            Text("Tambah", style = MaterialTheme.typography.labelLarge)
                         }
                     }
                 }

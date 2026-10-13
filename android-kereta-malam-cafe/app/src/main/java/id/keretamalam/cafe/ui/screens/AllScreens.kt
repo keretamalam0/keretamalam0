@@ -472,7 +472,7 @@ private fun DashboardComposeScreen(
                     recent.forEach { order ->
                         Row(Modifier.fillMaxWidth().padding(vertical = 4.dp), horizontalArrangement = Arrangement.SpaceBetween, verticalAlignment = Alignment.CenterVertically) {
                             Column(Modifier.weight(1f)) {
-                                Text(order.orderNumber, fontWeight = FontWeight.SemiBold)
+                                Text("Pesanan #${order.orderNo}", fontWeight = FontWeight.SemiBold)
                                 Text(dateOf(order.createdAt)?.format(java.time.format.DateTimeFormatter.ofPattern("dd MMM, HH:mm")) ?: order.createdAt, style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
                             }
                             Column(horizontalAlignment = Alignment.End) {
@@ -1521,13 +1521,15 @@ private fun AuditShiftComposeScreen(viewModel: PosViewModel, uiState: PosUiState
                     modifier = Modifier.weight(1f),
                     title = "Total Shift",
                     value = "${uiState.shifts.size}",
-                    subtitle = "Tercatat"
+                    subtitle = "Tercatat",
+                    onClick = {}
                 )
                 DashboardKpiCard(
                     modifier = Modifier.weight(1f),
                     title = "Terverifikasi Audit",
                     value = "${uiState.shifts.count { it.auditVerified }}",
-                    subtitle = "Sesuai SOP"
+                    subtitle = "Sesuai SOP",
+                    onClick = {}
                 )
             }
         }

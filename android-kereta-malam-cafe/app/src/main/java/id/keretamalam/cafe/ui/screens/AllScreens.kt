@@ -937,7 +937,7 @@ private fun KasirComposeScreen(
                             .horizontalScroll(rememberScrollState()),
                         horizontalArrangement = Arrangement.spacedBy(6.dp)
                     ) {
-                        listOf("cash" to "Tunai", "qris" to "QRIS", "transfer" to "Transfer", "ewallet" to "E-Wallet").forEach { (code, label) ->
+                        (uiState.paymentMethods.filter { it.isActive }.map { it.code to it.name }.ifEmpty { listOf("cash" to "Tunai", "qris" to "QRIS", "transfer" to "Transfer", "ewallet" to "E-Wallet") }).forEach { (code, label) ->
                             FilterChip(
                                 selected = uiState.paymentMethod == code,
                                 onClick = { viewModel.setKasirOrderMeta(payMethod = code) },

@@ -1112,6 +1112,21 @@ class PosViewModel(application: Application) : AndroidViewModel(application) {
         }
     }
 
+    fun uploadProductPhoto(bytes: ByteArray, mimeType: String, extension: String, onUploaded: (String) -> Unit) {
+        if (_uiState.value.backendStatus != BackendIntegrationStatus.ACTIVE_VERIFIED) {
+            showNotice("Foto produk perlu koneksi Supabase aktif.", isError = true)
+            return
+        }
+        viewModelScope.launch {
+            runCatching { repository.uploadProductImage(bytes, mimeType, extension) }
+                .onSuccess { url ->
+                    onUploaded(url)
+                    showNotice("Foto produk berhasil diunggah.")
+                }
+                .onFailure { showNotice(it.message ?: "Gagal mengunggah foto produk.", isError = true) }
+        }
+    }
+
     fun saveProductItem(product: Product) {
         if (product.name.isBlank() || product.price <= 0) {
             showNotice("Nama produk dan harga jual wajib valid.", isError = true)

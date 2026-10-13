@@ -1386,20 +1386,20 @@ private fun PesananComposeScreen(
                             if (lane != "riwayat") {
                                 if (order.source == "qr" && !order.isPaid && order.status != OrderStatus.CANCELLED) {
                                     Row(horizontalArrangement = Arrangement.spacedBy(6.dp)) {
-                                        Button(onClick = { viewModel.approveQrOrder(order, "qris") }) { Text("Konfirmasi QRIS") }
-                                        OutlinedButton(onClick = { viewModel.approveQrOrder(order, "cash") }) { Text("Terima Tunai") }
+                                        Button(onClick = { viewModel.approveQrOrder(order, "qris") { lane = "diproses" } }) { Text("Konfirmasi QRIS") }
+                                        OutlinedButton(onClick = { viewModel.approveQrOrder(order, "cash") { lane = "diproses" } }) { Text("Terima Tunai") }
                                         OutlinedButton(onClick = { viewModel.rejectQrOrder(order) }) { Text("Tolak") }
                                     }
                                 }
                                 Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                                     when (order.status) {
-                                        OrderStatus.NEW -> Button(onClick = { viewModel.updateOrderStatus(order, OrderStatus.PREPARING) }, modifier = Modifier.weight(1f)) { Text("Mulai Proses") }
-                                        OrderStatus.PREPARING -> Button(onClick = { viewModel.updateOrderStatus(order, OrderStatus.READY) }, modifier = Modifier.weight(1f)) { Text("Tandai Siap") }
-                                        OrderStatus.READY -> if (order.isPaid) Button(onClick = { viewModel.updateOrderStatus(order, OrderStatus.COMPLETED) }, modifier = Modifier.weight(1f)) { Text("Selesaikan & ke Riwayat") } else Text("Konfirmasi pembayaran sebelum masuk riwayat", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.error)
+                                        OrderStatus.NEW -> Button(onClick = { viewModel.updateOrderStatus(order, OrderStatus.PREPARING) { lane = "diproses" } }, modifier = Modifier.weight(1f)) { Text("Mulai Proses") }
+                                        OrderStatus.PREPARING -> Button(onClick = { viewModel.updateOrderStatus(order, OrderStatus.READY) { lane = "siap" } }, modifier = Modifier.weight(1f)) { Text("Tandai Siap") }
+                                        OrderStatus.READY -> if (order.isPaid) Button(onClick = { viewModel.updateOrderStatus(order, OrderStatus.COMPLETED) { lane = "riwayat" } }, modifier = Modifier.weight(1f)) { Text("Selesaikan & ke Riwayat") } else Text("Konfirmasi pembayaran sebelum masuk riwayat", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.error)
                                         else -> {}
                                     }
                                     if (order.status != OrderStatus.COMPLETED && order.status != OrderStatus.CANCELLED) {
-                                        OutlinedButton(onClick = { viewModel.updateOrderStatus(order, OrderStatus.CANCELLED) }) { Text("Batalkan") }
+                                        OutlinedButton(onClick = { viewModel.updateOrderStatus(order, OrderStatus.CANCELLED) { lane = "riwayat" } }) { Text("Batalkan") }
                                     }
                                 }
                             } else {

@@ -275,18 +275,73 @@ private fun DashboardComposeScreen(
     isTabletOrWide: Boolean,
     onNavigateModule: (PosModuleRoute) -> Unit
 ) {
-    val avgOrder = if (uiState.paidOrders.isNotEmpty()) {
-        uiState.todayRevenue / uiState.paidOrders.size
-    } else 0.0
-
-    val posRevenue = uiState.paidOrders.filter { it.source == "pos" }.sumOf { it.total }
-    val qrRevenue = uiState.paidOrders.filter { it.source == "qr" }.sumOf { it.total }
-    val totalRevSafe = uiState.todayRevenue.coerceAtLeast(1.0)
+    var selectedDateRange by remember { mutableStateOf("today") }
+    var dateRangeMenuExpanded by remember { mutableStateOf(false) }
+    val today = java.time.LocalDate.now()
+    val filteredPaidOrders = filteredPaidOrders.filter { order ->
+        val orderDate = runCatching { java.time.LocalDate.parse(order.createdAt.take(10)) }.getOrNull()
+        when (selectedDateRange) {
+            "today" -> orderDate == today
+            "7days" -> orderDate != null && !orderDate.isBefore(today.minusDays(6)) && !orderDate.isAfter(today)
+            "30days" -> orderDate != null && !orderDate.isBefore(today.minusDays(29)) && !orderDate.isAfter(today)
+            else -> true
+        }
+    }
+    val filteredRevenue = filteredPaidOrders.sumOf { it.total }
+    val avgOrder = if (filteredPaidOrders.isNotEmpty()) filteredRevenue / filteredPaidOrders.size else 0.0
+    val posRevenue = filteredPaidOrders.filter { it.source == "pos" }.sumOf { it.total }
+    val qrRevenue = filteredPaidOrders.filter { it.source == "qr" }.sumOf { it.total }
+    val totalRevSafe = filteredRevenue.coerceAtLeast(1.0)
+    val dateRangeLabel = when (selectedDateRange) {
+        "today" -> "Hari ini"
+        "7days" -> "7 hari terakhir"
+        "30days" -> "30 hari terakhir"
+        else -> "Semua data"
+    }
 
     LazyColumn(
         modifier = Modifier.fillMaxSize(),
         verticalArrangement = Arrangement.spacedBy(12.dp)
     ) {
+        item {
+            OutlinedCard(modifier = Modifier.fillMaxWidth()) {
+                Row(
+                    modifier = Modifier.fillMaxWidth().padding(horizontal = 14.dp, vertical = 10.dp),
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.SpaceBetween
+                ) {
+                    Column(modifier = Modifier.weight(1f)) {
+                        Text("Periode Dashboard", style = MaterialTheme.typography.titleSmall)
+                        Text(dateRangeLabel, style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                    }
+                    Box {
+                        OutlinedButton(onClick = { dateRangeMenuExpanded = true }) {
+                            Text("Filter tanggal ▾")
+                        }
+                        DropdownMenu(
+                            expanded = dateRangeMenuExpanded,
+                            onDismissRequest = { dateRangeMenuExpanded = false }
+                        ) {
+                            listOf(
+                                "today" to "Hari ini",
+                                "7days" to "7 hari terakhir",
+                                "30days" to "30 hari terakhir",
+                                "all" to "Semua data"
+                            ).forEach { (key, label) ->
+                                DropdownMenuItem(
+                                    text = { Text(label) },
+                                    onClick = {
+                                        selectedDateRange = key
+                                        dateRangeMenuExpanded = false
+                                    }
+                                )
+                            }
+                        }
+                    }
+                }
+            }
+        }
+
         // 4 Kartu KPI Utama (4 kolom sejajar di Tablet, 2x2 di HP)
         item {
             if (isTabletOrWide) {
@@ -297,8 +352,8 @@ private fun DashboardComposeScreen(
                     DashboardKpiCard(
                         modifier = Modifier.weight(1f),
                         title = "Omzet Terkonfirmasi",
-                        value = RupiahFormatter.format(uiState.todayRevenue),
-                        subtitle = "${uiState.paidOrders.size} transaksi lunas"
+                        value = RupiahFormatter.format(filteredRevenue),
+                        subtitle = "${filteredPaidOrders.size} transaksi lunas"
                     )
                     DashboardKpiCard(
                         modifier = Modifier.weight(1f),
@@ -325,8 +380,8 @@ private fun DashboardComposeScreen(
                         DashboardKpiCard(
                             modifier = Modifier.weight(1f),
                             title = "Omzet Terkonfirmasi",
-                            value = RupiahFormatter.format(uiState.todayRevenue),
-                            subtitle = "${uiState.paidOrders.size} struk lunas"
+                            value = RupiahFormatter.format(filteredRevenue),
+                            subtitle = "${filteredPaidOrders.size} struk lunas"
                         )
                         DashboardKpiCard(
                             modifier = Modifier.weight(1f),
@@ -382,7 +437,7 @@ private fun DashboardComposeScreen(
                     HorizontalDivider(modifier = Modifier.padding(vertical = 4.dp))
                     Text("Rincian Metode Pembayaran:", style = MaterialTheme.typography.labelMedium)
                     listOf("cash" to "Tunai (Cash)", "qris" to "QRIS", "transfer" to "Transfer Bank", "ewallet" to "E-Wallet").forEach { (code, label) ->
-                        val methodRev = uiState.paidOrders.filter { (it.paymentMethod ?: "cash") == code }.sumOf { it.total }
+                        val methodRev = filteredPaidOrders.filter { (it.paymentMethod ?: "cash") == code }.sumOf { it.total }
                         val ratio = (methodRev / totalRevSafe).toFloat().coerceIn(0f, 1f)
                         Column(verticalArrangement = Arrangement.spacedBy(2.dp)) {
                             Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
@@ -406,7 +461,7 @@ private fun DashboardComposeScreen(
             OutlinedCard(modifier = Modifier.fillMaxWidth()) {
                 Column(modifier = Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
                     Text("Top 5 Produk Terlaris Hari Ini", style = MaterialTheme.typography.titleMedium)
-                    val topProducts = uiState.paidOrders
+                    val topProducts = filteredPaidOrders
                         .flatMap { it.orderItems }
                         .groupBy { it.productName }
                         .map { (name, list) -> Triple(name, list.sumOf { it.quantity }, list.sumOf { it.lineTotal }) }

@@ -27,6 +27,42 @@ enum class PermissionKey(val key: String) {
     SETTINGS("settings")
 }
 
+data class StaffPermissionItem(val key: String, val label: String, val group: String)
+
+object StaffPermissionCatalog {
+    val items = listOf(
+        StaffPermissionItem("dashboard.total_sales", "Lihat total penjualan", "Dashboard"),
+        StaffPermissionItem("dashboard.paid_orders", "Lihat jumlah pesanan lunas", "Dashboard"),
+        StaffPermissionItem("dashboard.average_order", "Lihat rata-rata transaksi", "Dashboard"),
+        StaffPermissionItem("dashboard.busy_hours", "Lihat jam tersibuk", "Dashboard"),
+        StaffPermissionItem("dashboard.quick_links", "Lihat akses cepat", "Dashboard"),
+        StaffPermissionItem("dashboard.sales_trend", "Lihat grafik tren omzet", "Dashboard"),
+        StaffPermissionItem("dashboard.hourly_activity", "Lihat aktivitas per jam", "Dashboard"),
+        StaffPermissionItem("dashboard.best_sellers", "Lihat menu terlaris dan omzetnya", "Dashboard"),
+        StaffPermissionItem("dashboard.payment_methods", "Lihat ringkasan metode pembayaran", "Dashboard"),
+        StaffPermissionItem("dashboard.outlet_status", "Lihat status outlet", "Dashboard"),
+        StaffPermissionItem("history.export_csv", "Download / ekspor CSV transaksi", "Riwayat & Data"),
+        StaffPermissionItem("history.delete", "Hapus transaksi", "Riwayat & Data"),
+        StaffPermissionItem("reports.export", "Download / ekspor laporan", "Riwayat & Data"),
+        StaffPermissionItem("products.edit", "Tambah dan edit produk", "Operasional"),
+        StaffPermissionItem("products.delete", "Hapus produk", "Operasional"),
+        StaffPermissionItem("inventory.edit", "Ubah stok dan mutasi inventori", "Operasional"),
+        StaffPermissionItem("orders.cancel", "Batalkan pesanan", "Operasional"),
+        StaffPermissionItem("payments.discount", "Gunakan diskon saat pembayaran", "Operasional"),
+        StaffPermissionItem("shift.manage", "Buka dan tutup shift kasir", "Operasional"),
+        StaffPermissionItem("staff.manage", "Kelola pegawai dan hak akses", "Administrasi"),
+        StaffPermissionItem("settings.manage", "Ubah pengaturan outlet", "Administrasi"),
+        StaffPermissionItem("audit.view", "Lihat log aktivitas dan audit", "Administrasi")
+    )
+    fun defaultsFor(role: StaffRole): Map<String, Boolean> = items.associate { item ->
+        item.key to when (role) {
+            StaffRole.OWNER, StaffRole.SUPER_ADMIN -> true
+            StaffRole.MANAGER -> item.key !in setOf("staff.manage", "settings.manage")
+            StaffRole.CASHIER -> item.key in setOf("dashboard.paid_orders", "dashboard.quick_links", "orders.cancel", "shift.manage")
+        }
+    }
+}
+
 @Serializable
 data class StaffProfile(
     @SerialName("user_id") val userId: String,
@@ -42,6 +78,11 @@ data class StaffProfile(
         // Its separate control plane must authorize its own actions server-side.
         if (!isActive || role == StaffRole.SUPER_ADMIN) return false
         return role == StaffRole.OWNER || permissions[permission.key] == true
+    }
+
+    fun canPerform(permissionKey: String): Boolean {
+        if (!isActive || role == StaffRole.SUPER_ADMIN) return false
+        return role == StaffRole.OWNER || permissions[permissionKey] == true
     }
 }
 

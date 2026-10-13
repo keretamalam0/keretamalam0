@@ -465,6 +465,16 @@ class CafeFlowRepository(private val context: Context) {
         return json.decodeFromString(raw)
     }
 
+    suspend fun verifyStaffShiftAudit(shiftId: String): StaffShift {
+        val creds = requireVerifiedCredentials()
+        require(shiftId.isNotBlank()) { "ID shift tidak valid." }
+        val encodedId = java.net.URLEncoder.encode(shiftId, "UTF-8")
+        val url = "${creds.supabaseUrl}/rest/v1/staff_shifts?id=eq.$encodedId&select=*"
+        val raw = executeJsonRequest("PATCH", url, buildHeaders(creds, "return=representation"), """{"audit_verified":true}""")
+        return json.decodeFromString<List<StaffShift>>(raw).firstOrNull()
+            ?: throw IllegalStateException("Supabase tidak mengembalikan shift yang diperbarui. Periksa izin UPDATE, RLS, dan kolom audit_verified.")
+    }
+
     suspend fun fetchExpenses(): List<Expense> {
         val creds = requireVerifiedCredentials()
         val url = "${creds.supabaseUrl}/rest/v1/expenses?select=*&order=expense_date.desc"

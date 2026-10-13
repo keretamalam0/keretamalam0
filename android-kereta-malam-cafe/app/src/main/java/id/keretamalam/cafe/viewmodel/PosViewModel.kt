@@ -307,6 +307,10 @@ class PosViewModel(application: Application) : AndroidViewModel(application) {
     }
 
     fun addStaffProfile(fullName: String, email: String, role: StaffRole) {
+        if (_uiState.value.backendStatus == BackendIntegrationStatus.ACTIVE_VERIFIED) {
+            showNotice("Penambahan staf live belum tersambung ke endpoint undangan Supabase. Tidak ada staf yang dibuat.", isError = true)
+            return
+        }
         if (fullName.isBlank() || email.isBlank()) {
             showNotice("Nama lengkap dan email pegawai wajib diisi.", isError = true)
             return
@@ -955,6 +959,10 @@ class PosViewModel(application: Application) : AndroidViewModel(application) {
     // SHIFT KASIR & AUDIT SHIFT
     // ========================================================================
     fun openNewShift(openingCash: Double) {
+        if (_uiState.value.backendStatus == BackendIntegrationStatus.ACTIVE_VERIFIED) {
+            showNotice("Pencatatan shift live belum tersambung ke penyimpanan Supabase. Shift tidak dibuat agar data tidak hanya tersimpan lokal.", isError = true)
+            return
+        }
         val shift = StaffShift(
             id = "shf-${System.currentTimeMillis()}",
             staffUserId = _uiState.value.staffProfile.userId,
@@ -976,6 +984,10 @@ class PosViewModel(application: Application) : AndroidViewModel(application) {
     }
 
     fun closeActiveShift(shiftId: String, closingCash: Double, expectedCash: Double, notes: String) {
+        if (_uiState.value.backendStatus == BackendIntegrationStatus.ACTIVE_VERIFIED) {
+            showNotice("Penutupan shift live belum tersambung ke Supabase. Data kas tidak diubah.", isError = true)
+            return
+        }
         _uiState.update { state ->
             state.copy(
                 shifts = state.shifts.map {
@@ -996,6 +1008,10 @@ class PosViewModel(application: Application) : AndroidViewModel(application) {
     }
 
     fun verifyShiftAudit(shiftId: String) {
+        if (_uiState.value.backendStatus == BackendIntegrationStatus.ACTIVE_VERIFIED) {
+            showNotice("Verifikasi audit shift live belum tersambung ke Supabase. Status audit tidak diubah.", isError = true)
+            return
+        }
         _uiState.update { state ->
             state.copy(
                 shifts = state.shifts.map {
@@ -1076,6 +1092,10 @@ class PosViewModel(application: Application) : AndroidViewModel(application) {
     }
 
     fun toggleProductQrMenu(productId: String, show: Boolean) {
+        if (_uiState.value.backendStatus == BackendIntegrationStatus.ACTIVE_VERIFIED) {
+            showNotice("Pengaturan tampil/sembunyi produk di QR belum tersambung ke Supabase. Perubahan tidak disimpan.", isError = true)
+            return
+        }
         _uiState.update { state ->
             state.copy(
                 products = state.products.map {
@@ -1086,6 +1106,10 @@ class PosViewModel(application: Application) : AndroidViewModel(application) {
     }
 
     fun addRestaurantTable(name: String, code: String) {
+        if (_uiState.value.backendStatus == BackendIntegrationStatus.ACTIVE_VERIFIED) {
+            showNotice("Penambahan meja live belum tersambung ke Supabase. Meja tidak dibuat.", isError = true)
+            return
+        }
         if (name.isBlank() || code.isBlank()) return
         val created = RestaurantTable(
             id = "tbl-${System.currentTimeMillis()}",
@@ -1101,6 +1125,10 @@ class PosViewModel(application: Application) : AndroidViewModel(application) {
     }
 
     fun deleteRestaurantTable(tableId: String) {
+        if (_uiState.value.backendStatus == BackendIntegrationStatus.ACTIVE_VERIFIED) {
+            showNotice("Penghapusan meja live belum tersambung ke Supabase. Meja tidak dihapus.", isError = true)
+            return
+        }
         _uiState.update {
             it.copy(
                 tables = it.tables.filterNot { t -> t.id == tableId },
@@ -1110,6 +1138,10 @@ class PosViewModel(application: Application) : AndroidViewModel(application) {
     }
 
     fun recordInventoryMovement(productId: String, type: String, qty: Int, reason: String) {
+        if (_uiState.value.backendStatus == BackendIntegrationStatus.ACTIVE_VERIFIED) {
+            showNotice("Mutasi stok live belum tersambung ke Supabase. Stok tidak diubah.", isError = true)
+            return
+        }
         val prod = _uiState.value.products.find { it.id == productId } ?: return
         if (qty == 0 || reason.isBlank()) {
             showNotice("Jumlah dan alasan mutasi stok wajib diisi.", isError = true)
@@ -1139,6 +1171,10 @@ class PosViewModel(application: Application) : AndroidViewModel(application) {
     }
 
     fun addPromotion(name: String, type: String, value: Double, minPurchase: Double) {
+        if (_uiState.value.backendStatus == BackendIntegrationStatus.ACTIVE_VERIFIED) {
+            showNotice("Pembuatan promosi live belum tersambung ke Supabase. Promosi tidak dibuat.", isError = true)
+            return
+        }
         if (name.isBlank()) return
         val promo = Promotion(
             id = "promo-${System.currentTimeMillis()}",
@@ -1176,6 +1212,10 @@ class PosViewModel(application: Application) : AndroidViewModel(application) {
     }
 
     fun addExpense(amount: Double, category: String, date: String, method: String, description: String) {
+        if (_uiState.value.backendStatus == BackendIntegrationStatus.ACTIVE_VERIFIED) {
+            showNotice("Pencatatan pengeluaran live belum tersambung ke Supabase. Pengeluaran tidak disimpan.", isError = true)
+            return
+        }
         if (amount <= 0 || description.isBlank()) {
             showNotice("Nominal harus lebih dari Rp0 dan keterangan wajib diisi.", isError = true)
             return
@@ -1198,6 +1238,10 @@ class PosViewModel(application: Application) : AndroidViewModel(application) {
     }
 
     fun updateOutletSettings(settings: OutletSettings) {
+        if (_uiState.value.backendStatus == BackendIntegrationStatus.ACTIVE_VERIFIED) {
+            showNotice("Penyimpanan pengaturan outlet live belum tersambung ke Supabase. Pengaturan tidak diubah.", isError = true)
+            return
+        }
         _uiState.update {
             it.copy(
                 outletSettings = settings,

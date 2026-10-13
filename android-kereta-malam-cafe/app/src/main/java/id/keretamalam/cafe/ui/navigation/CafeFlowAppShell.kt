@@ -343,7 +343,6 @@ fun CafeFlowAppShell(
                                 label = { Text("Modul") }
                             )
                         }
-                    }
                 }
             ) { innerPadding ->
                 Box(

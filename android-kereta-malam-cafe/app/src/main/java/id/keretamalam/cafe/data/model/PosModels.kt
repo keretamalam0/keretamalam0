@@ -82,6 +82,17 @@ data class ProductAddon(
 )
 
 @Serializable
+data class ProductCustomizationOption(
+    val id: String = "",
+    @SerialName("product_id") val productId: String = "",
+    @SerialName("group_key") val groupKey: String = "sugar",
+    val name: String,
+    @SerialName("price_delta") val priceDelta: Double = 0.0,
+    @SerialName("is_active") val isActive: Boolean = true,
+    @SerialName("sort_order") val sortOrder: Int = 0
+)
+
+@Serializable
 data class RestaurantTable(
     val id: String = "",
     val name: String,

@@ -468,7 +468,7 @@ export default function App() {
 
   const saveOutletSettings = async () => {
     const client = getVerifiedSupabaseClient(supabaseConfig);
-    if (!client || backendMode !== 'LIVE_SUPABASE') { showNotice('error','Koneksi belum siap. Pengaturan belum disimpan.'); return; }
+    if (!client || backendMode !== 'LIVE_SUPABASE') { showNotice('error','Pengaturan belum dapat disimpan. Periksa koneksi akun, lalu coba lagi.'); return; }
     try {
       const { data: authData } = await client.auth.getUser();
       if (!authData.user) throw new Error('Silakan masuk kembali.');
@@ -483,7 +483,7 @@ export default function App() {
 
   const savePaymentMethod = async () => {
     const client = getVerifiedSupabaseClient(supabaseConfig);
-    if (!client || backendMode !== 'LIVE_SUPABASE') { showNotice('error','Koneksi belum siap. Metode pembayaran belum disimpan.'); return; }
+    if (!client || backendMode !== 'LIVE_SUPABASE') { showNotice('error','Metode pembayaran belum dapat disimpan. Periksa koneksi akun, lalu coba lagi.'); return; }
     if (!paymentDraft.name.trim()) { showNotice('error','Nama metode pembayaran wajib diisi.'); return; }
     try {
       const { data: authData } = await client.auth.getUser();
@@ -499,7 +499,7 @@ export default function App() {
 
   const inviteStaff = async () => {
     const client = getVerifiedSupabaseClient(supabaseConfig);
-    if (!client || backendMode !== 'LIVE_SUPABASE') { showNotice('error','Koneksi belum siap. Masuk sebagai owner untuk menambahkan kasir.'); return; }
+    if (!client || backendMode !== 'LIVE_SUPABASE') { showNotice('error','Fitur tambah staf belum siap. Periksa koneksi akun atau hubungi administrator.'); return; }
     if (!staffInvite.full_name.trim() || !staffInvite.email.trim()) { showNotice('error','Nama dan email staf wajib diisi.'); return; }
     setStaffInviteLoading(true);
     try {
@@ -511,7 +511,7 @@ export default function App() {
       setStaffInviteOpen(false); setStaffInvite({full_name:'',email:'',role:'cashier'});
       await syncFromLiveSupabase();
       showNotice('success','Undangan staf berhasil dikirim ke email.');
-    } catch(err) { showNotice('error',err instanceof Error?err.message:'Undangan staf gagal dikirim.'); }
+    } catch(err) { showNotice('error',err instanceof Error?err.message:'Undangan staf gagal dikirim. Periksa alamat email dan konfigurasi undangan.'); }
     finally { setStaffInviteLoading(false); }
   };
 
@@ -740,7 +740,7 @@ export default function App() {
 
       if (backendMode === 'LIVE_SUPABASE') {
         const client = getVerifiedSupabaseClient(supabaseConfig);
-        if (!client) throw new Error('Klien Supabase belum aktif.');
+        if (!client) throw new Error('Klien Layanan belum terhubung.');
 
         const payload = {
           p_order: {
@@ -2707,7 +2707,7 @@ export default function App() {
               </div>
             </div>
             {promoModalOpen&&<div className="fixed inset-0 z-[100] flex items-center justify-center bg-black/50 p-3" onMouseDown={e=>{if(e.target===e.currentTarget)setPromoModalOpen(false);}}><div className="max-h-[92vh] w-full max-w-2xl overflow-y-auto rounded-2xl bg-white p-5 shadow-2xl dark:bg-zinc-900"><div className="flex items-center justify-between"><div><h3 className="text-lg font-bold">Buat Promosi Baru</h3><p className="text-xs text-zinc-500">Atur syarat diskon sebelum disimpan.</p></div><button type="button" onClick={()=>setPromoModalOpen(false)} className="rounded-lg px-3 py-2 text-zinc-500">✕</button></div>
-              <form className="mt-5 space-y-4" onSubmit={async e=>{e.preventDefault();if(!promoName.trim()){showNotice('error','Nama promosi wajib diisi.');return;}if(promoScope==='product'&&!promoProductId){showNotice('error','Pilih produk yang mendapat diskon.');return;}const value=Math.max(0,Number(promoValue)||0);if(value<=0||(promoType==='percentage'&&value>100)){showNotice('error','Nilai diskon harus lebih dari 0 dan persentase maksimal 100%.');return;}const payload={name:promoName.trim(),type:promoType,value,min_purchase:Math.max(0,Number(promoMinPurchase)||0),min_quantity:Math.max(1,Number(promoMinQuantity)||1),scope:promoScope,product_id:promoScope==='product'?promoProductId:null,active:true,campaign_type:promoKind,allow_customer:promoAllowCustomer,allow_cashier:promoAllowCashier};if(backendMode==='LIVE_SUPABASE'){const client=getVerifiedSupabaseClient(supabaseConfig);if(!client)return;const {data,error}=await client.from('promotions').insert(payload).select('*').single();if(error){showNotice('error',`Gagal menyimpan promosi: ${error.message}. Pastikan SQL supabase/promotions-enhancements.sql sudah dijalankan.`);return;}const created=data as Promotion;setPromotions(prev=>[created,...prev]);setPromoName('');setPromoModalOpen(false);setPromoTab('all');showNotice('success',`Promosi "${created.name}" tersimpan di Supabase.`);return;}const created:Promotion={id:`promo-${Date.now()}`,...payload};setPromotions(prev=>[created,...prev]);setPromoName('');setPromoModalOpen(false);setPromoTab('all');showNotice('success',`Promosi "${created.name}" berhasil dibuat.`);}}>
+              <form className="mt-5 space-y-4" onSubmit={async e=>{e.preventDefault();if(!promoName.trim()){showNotice('error','Nama promosi wajib diisi.');return;}if(promoScope==='product'&&!promoProductId){showNotice('error','Pilih produk yang mendapat diskon.');return;}const value=Math.max(0,Number(promoValue)||0);if(value<=0||(promoType==='percentage'&&value>100)){showNotice('error','Nilai diskon harus lebih dari 0 dan persentase maksimal 100%.');return;}const payload={name:promoName.trim(),type:promoType,value,min_purchase:Math.max(0,Number(promoMinPurchase)||0),min_quantity:Math.max(1,Number(promoMinQuantity)||1),scope:promoScope,product_id:promoScope==='product'?promoProductId:null,active:true,campaign_type:promoKind,allow_customer:promoAllowCustomer,allow_cashier:promoAllowCashier};if(backendMode==='LIVE_SUPABASE'){const client=getVerifiedSupabaseClient(supabaseConfig);if(!client)return;const {data,error}=await client.from('promotions').insert(payload).select('*').single();if(error){showNotice('error',`Promosi gagal disimpan. Periksa koneksi dan konfigurasi promosi, lalu coba lagi.`);return;}const created=data as Promotion;setPromotions(prev=>[created,...prev]);setPromoName('');setPromoModalOpen(false);setPromoTab('all');showNotice('success',`Promosi "${created.name}" berhasil disimpan.`);return;}const created:Promotion={id:`promo-${Date.now()}`,...payload};setPromotions(prev=>[created,...prev]);setPromoName('');setPromoModalOpen(false);setPromoTab('all');showNotice('success',`Promosi "${created.name}" berhasil dibuat.`);}}>
               <div><label className="mb-1 block text-xs font-medium text-zinc-500">Nama Promo</label><input required value={promoName} onChange={e=>setPromoName(e.target.value)} placeholder="Contoh: Belanja 500 ribu diskon 20 ribu" className="w-full rounded-lg border border-zinc-200 bg-zinc-50 px-3 py-2.5 text-sm dark:border-zinc-700 dark:bg-zinc-950"/></div>
               <div className="grid gap-3 sm:grid-cols-2"><div><label className="mb-1 block text-xs font-medium text-zinc-500">Jenis Promo</label><select value={promoKind} onChange={e=>setPromoKind(e.target.value as typeof promoKind)} className="w-full rounded-lg border border-zinc-200 bg-zinc-50 px-3 py-2.5 text-sm dark:border-zinc-700 dark:bg-zinc-950"><option value="promotion">Promosi / Diskon</option><option value="voucher">Voucher</option><option value="bundle">Bundel</option><option value="campaign">Campaign</option></select></div><div><label className="mb-1 block text-xs font-medium text-zinc-500">Tipe Diskon</label><select value={promoType} onChange={e=>setPromoType(e.target.value as 'percentage'|'fixed')} className="w-full rounded-lg border border-zinc-200 bg-zinc-50 px-3 py-2.5 text-sm dark:border-zinc-700 dark:bg-zinc-950"><option value="percentage">Persentase (%)</option><option value="fixed">Nominal (Rp)</option></select></div></div>
               <div className="grid gap-3 sm:grid-cols-2"><div><label className="mb-1 block text-xs font-medium text-zinc-500">Nilai Diskon {promoType==='percentage'?'(%)':'(Rp)'}</label><input required type="number" min="0" max={promoType==='percentage'?100:undefined} value={promoValue} onChange={e=>setPromoValue(e.target.value)} className="w-full rounded-lg border border-zinc-200 bg-zinc-50 px-3 py-2.5 text-sm dark:border-zinc-700 dark:bg-zinc-950"/></div><div><label className="mb-1 block text-xs font-medium text-zinc-500">Minimum Total Belanja (Rp)</label><input type="number" min="0" value={promoMinPurchase} onChange={e=>setPromoMinPurchase(e.target.value)} className="w-full rounded-lg border border-zinc-200 bg-zinc-50 px-3 py-2.5 text-sm dark:border-zinc-700 dark:bg-zinc-950"/></div></div>
@@ -3095,13 +3095,13 @@ export default function App() {
       case 'pengaturan':
         return (
           <div className="mx-auto max-w-4xl space-y-6">
-            {/* Panel Verifikasi Supabase */}
+            {/* Panel koneksi layanan */}
             <div className="rounded-xl border border-zinc-300 bg-white p-6 dark:border-zinc-800 dark:bg-zinc-900">
               <h3 className="text-base font-bold">
-                1. Verifikasi Project ID &amp; Kredensial Supabase Produksi
+                1. Koneksi Layanan Produksi
               </h3>
               <p className="mt-1 text-xs text-zinc-500">
-                Pilih Project ID yang telah Anda verifikasi (<code className="font-mono">rvaemgwtdvncfvaerhgr</code> dari repository atau <code className="font-mono">dbazoxwhhljpgtbnletc</code> dari Cloudflare Worker) lalu masukkan Publishable/Anon Key resmi.
+                Masukkan konfigurasi koneksi layanan yang disediakan administrator sistem.
               </p>
 
               <div className="mt-4 grid gap-3 sm:grid-cols-2">
@@ -3142,7 +3142,7 @@ export default function App() {
                   />
                 </div>
                 <div>
-                  <label className="block text-xs font-medium text-zinc-500">Supabase Project URL</label>
+                  <label className="block text-xs font-medium text-zinc-500">URL Layanan</label>
                   <input
                     type="url"
                     value={supabaseConfig.supabaseUrl}
@@ -3155,7 +3155,7 @@ export default function App() {
                 </div>
                 <div className="sm:col-span-2">
                   <label className="block text-xs font-medium text-zinc-500">
-                    Supabase Publishable / Anon Key (Jangan masukkan service_role key!)
+                    Kunci Akses Publik (jangan masukkan kunci rahasia administrator)
                   </label>
                   <input
                     type="password"
@@ -3196,14 +3196,14 @@ export default function App() {
                   }}
                   className="rounded-lg bg-zinc-900 px-4 py-2 text-xs font-semibold text-white dark:bg-zinc-100 dark:text-zinc-900"
                 >
-                  Verifikasi &amp; Hubungkan ke Supabase
+                  Verifikasi &amp; Hubungkan Layanan
                 </button>
               </div>
 
-              {/* Login Supabase Auth */}
+              {/* Masuk Auth */}
               <form onSubmit={handleSupabaseLogin} className="mt-6 border-t border-zinc-100 pt-4 dark:border-zinc-800">
                 <h4 className="text-xs font-bold uppercase text-zinc-500">
-                  Login Akun Staf via Supabase Auth (signInWithPassword)
+                  Login Akun Staf
                 </h4>
                 <div className="mt-2 grid gap-3 sm:grid-cols-3">
                   <input
@@ -3226,7 +3226,7 @@ export default function App() {
                     className="inline-flex items-center justify-center gap-1.5 rounded-lg border border-zinc-300 px-4 py-2 text-xs font-semibold hover:bg-zinc-100 dark:border-zinc-700 dark:hover:bg-zinc-800"
                   >
                     <LogIn className="size-3.5" />
-                    {authLoading ? 'Memverifikasi...' : 'Login Supabase'}
+                    {authLoading ? 'Memverifikasi...' : 'Masuk'}
                   </button>
                 </div>
               </form>
@@ -3558,10 +3558,10 @@ export default function App() {
           <span className="text-zinc-400">·</span>
           <span className="font-mono text-[11px] text-zinc-500">
             {backendMode === 'LIVE_SUPABASE'
-              ? `SUPABASE AKTIF (${supabaseConfig.projectId})`
+              ? `LAYANAN AKTIF (${supabaseConfig.projectId})`
               : backendMode === 'LOCAL_SANDBOX_UI'
                 ? 'MODE SIMULASI UI LOKAL (BUKAN DATA PRODUKSI)'
-                : 'SUPABASE BELUM AKTIF (MENUNGGU VERIFIKASI)'}
+                : 'LAYANAN BELUM TERHUBUNG'}
           </span>
         </div>
 
@@ -4289,10 +4289,10 @@ export default function App() {
             <div className="mt-4 rounded-xl border border-zinc-200 bg-zinc-50 p-4 text-xs dark:border-zinc-800 dark:bg-zinc-900">
               <p className="font-bold text-amber-700 dark:text-amber-400">
                 {backendMode === 'LIVE_SUPABASE'
-                  ? `STATUS SUPABASE: TERVERIFIKASI (${supabaseConfig.projectId})`
+                  ? `STATUS: TERHUBUNG (${supabaseConfig.projectId})`
                   : backendMode === 'LOCAL_SANDBOX_UI'
-                    ? 'STATUS: MODE SIMULASI LOKAL TERLABEL (SUPABASE BELUM AKTIF)'
-                    : 'STATUS SUPABASE: BELUM AKTIF (MENUNGGU VERIFIKASI PROJECT ID)'}
+                    ? 'STATUS: MODE SIMULASI LOKAL'
+                    : 'STATUS: LAYANAN BELUM TERHUBUNG'}
               </p>
               <p className="mt-1 text-zinc-600 dark:text-zinc-400">
                 Login produksi hanya tersedia setelah konfigurasi backend diverifikasi oleh aplikasi. Jika layanan tidak tersedia, hubungi administrator sistem; jangan memasukkan kredensial rahasia ke layar ini.
@@ -4300,7 +4300,7 @@ export default function App() {
             </div>
 
             <div className="mt-4 grid gap-4 md:grid-cols-2">
-              {/* Panel 1: Login Supabase Auth */}
+              {/* Panel 1: Masuk Auth */}
               <form
                 onSubmit={async (e) => {
                   await handleSupabaseLogin(e);

@@ -377,17 +377,52 @@ class PosViewModel(application: Application) : AndroidViewModel(application) {
     }
 
     fun toggleStaffPermission(userId: String, permKey: String) {
-        _uiState.update { state ->
-            val updatedList = state.staffList.map { st ->
-                if (st.userId == userId) {
-                    val current = st.permissions[permKey] == true
-                    val nextMap = st.permissions.toMutableMap().apply { put(permKey, !current) }
-                    st.copy(permissions = nextMap)
-                } else st
-            }
-            val updatedCurrent = updatedList.find { it.userId == state.staffProfile.userId } ?: state.staffProfile
-            state.copy(staffList = updatedList, staffProfile = updatedCurrent)
+        val state = _uiState.value
+        val target = state.staffList.firstOrNull { it.userId == userId } ?: return
+        if (!canManageStaff(state, target)) { showNotice("Hanya owner yang dapat mengubah hak akses staf lain.", isError = true); return }
+        val next = target.permissions.toMutableMap().apply { put(permKey, target.permissions[permKey] != true) }
+        if (state.backendStatus != BackendIntegrationStatus.ACTIVE_VERIFIED) {
+            applyLocalStaffUpdate(target.copy(permissions = next), "Hak akses diperbarui (simulasi)."); return
         }
+        viewModelScope.launch {
+            _uiState.update { it.copy(isLoading = true, errorMessage = null, successMessage = null) }
+            runCatching { repository.updateStaffProfile(userId, permissions = next) }
+                .onSuccess { saved -> _uiState.update { current -> current.copy(isLoading = false, staffList = current.staffList.map { if (it.userId == saved.userId) saved else it }, successMessage = "Hak akses ${saved.fullName} tersimpan.") } }
+                .onFailure { err -> _uiState.update { it.copy(isLoading = false, errorMessage = "Hak akses gagal disimpan: ${err.message ?: "periksa izin/RLS Supabase"}") }; syncAllDataFromBackend() }
+        }
+    }
+
+    fun setStaffActive(userId: String, active: Boolean) {
+        val state = _uiState.value
+        val target = state.staffList.firstOrNull { it.userId == userId } ?: return
+        if (!canManageStaff(state, target)) { showNotice("Hanya owner yang dapat mengubah status staf lain.", isError = true); return }
+        if (state.backendStatus != BackendIntegrationStatus.ACTIVE_VERIFIED) { applyLocalStaffUpdate(target.copy(isActive = active), if (active) "Akun staf diaktifkan (simulasi)." else "Akun staf dinonaktifkan (simulasi)."); return }
+        viewModelScope.launch {
+            _uiState.update { it.copy(isLoading = true, errorMessage = null, successMessage = null) }
+            runCatching { repository.updateStaffProfile(userId, isActive = active) }
+                .onSuccess { saved -> _uiState.update { current -> current.copy(isLoading = false, staffList = current.staffList.map { if (it.userId == saved.userId) saved else it }, successMessage = if (active) "Akun diaktifkan." else "Akun dinonaktifkan.") } }
+                .onFailure { err -> _uiState.update { it.copy(isLoading = false, errorMessage = "Status akun gagal diubah: ${err.message ?: "periksa izin/RLS Supabase"}") }; syncAllDataFromBackend() }
+        }
+    }
+
+    fun deleteStaffProfile(userId: String) {
+        val state = _uiState.value
+        val target = state.staffList.firstOrNull { it.userId == userId } ?: return
+        if (!canManageStaff(state, target)) { showNotice("Hanya owner yang dapat menghapus profil staf lain.", isError = true); return }
+        if (state.backendStatus != BackendIntegrationStatus.ACTIVE_VERIFIED) { _uiState.update { it.copy(staffList = it.staffList.filterNot { staff -> staff.userId == userId }, successMessage = "Profil dihapus dari simulasi.") }; return }
+        viewModelScope.launch {
+            _uiState.update { it.copy(isLoading = true, errorMessage = null, successMessage = null) }
+            runCatching { repository.deleteStaffProfile(userId) }
+                .onSuccess { _uiState.update { current -> current.copy(isLoading = false, staffList = current.staffList.filterNot { it.userId == userId }, successMessage = "Profil staf dihapus. User Supabase Auth tidak ikut terhapus.") }; syncAllDataFromBackend() }
+                .onFailure { err -> _uiState.update { it.copy(isLoading = false, errorMessage = "Profil gagal dihapus: ${err.message ?: "periksa izin/RLS Supabase"}") } }
+        }
+    }
+
+    private fun canManageStaff(state: PosUiState, target: StaffProfile): Boolean =
+        state.staffProfile.role == StaffRole.OWNER && state.staffProfile.isActive && target.userId != state.staffProfile.userId
+
+    private fun applyLocalStaffUpdate(updated: StaffProfile, message: String) {
+        _uiState.update { state -> state.copy(staffList = state.staffList.map { if (it.userId == updated.userId) updated else it }, successMessage = message) }
     }
 
     private fun appendAuditLog(action: String, entityType: String, entityId: String, detailsText: String) {

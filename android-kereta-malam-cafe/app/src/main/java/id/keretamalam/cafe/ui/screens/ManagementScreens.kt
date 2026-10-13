@@ -177,7 +177,7 @@ fun ProdukStokComposeScreen(viewModel: PosViewModel, uiState: PosUiState) {
                                 viewModel.saveProductAddon(ProductAddon(id = addonId, productId = selectedProductId, name = addonName.trim(), price = addonPrice.toDoubleOrNull() ?: 0.0, isActive = addonActive))
                                 addonId = ""; addonName = ""; addonPrice = "0"; addonActive = true
                             }) { Text(if (addonId.isBlank()) "Tambah Topping" else "Simpan") }
-                            if (addonId.isNotBlank()) TextButton(onClick = { addonId = ""; addonName = ""; addonPrice = "0"; addonActive = true }) { Text("Batal") }
+                            if (addonId.isNotBlank()) OutlinedButton(onClick = { addonId = ""; addonName = ""; addonPrice = "0"; addonActive = true }) { Text("Batal") }
                         }
                     }
                 }
@@ -212,7 +212,7 @@ fun ProdukStokComposeScreen(viewModel: PosViewModel, uiState: PosUiState) {
                                 viewModel.saveCustomizationOption(ProductCustomizationOption(id = optionId, productId = selectedProductId, groupKey = optionGroup, name = optionName.trim(), priceDelta = optionPrice.toDoubleOrNull() ?: 0.0, isActive = optionActive, sortOrder = order))
                                 optionId = ""; optionName = ""; optionPrice = "0"; optionActive = true
                             }) { Text(if (optionId.isBlank()) "Tambah Opsi" else "Simpan") }
-                            if (optionId.isNotBlank()) TextButton(onClick = { optionId = ""; optionName = ""; optionPrice = "0"; optionActive = true }) { Text("Batal") }
+                            if (optionId.isNotBlank()) OutlinedButton(onClick = { optionId = ""; optionName = ""; optionPrice = "0"; optionActive = true }) { Text("Batal") }
                         }
                     }
                 }
@@ -291,7 +291,7 @@ fun ProdukStokComposeScreen(viewModel: PosViewModel, uiState: PosUiState) {
                     Row(verticalAlignment = Alignment.CenterVertically) { Text("Produk aktif", Modifier.weight(1f)); Switch(checked = isActive, onCheckedChange = { isActive = it }) }
                     Row(verticalAlignment = Alignment.CenterVertically) { Text("Tampilkan di QR Menu", Modifier.weight(1f)); Switch(checked = showOnMenu, onCheckedChange = { showOnMenu = it }) }
                     Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.End) {
-                        TextButton(onClick = { editingProduct = null }) { Text("Batal") }
+                        OutlinedButton(onClick = { editingProduct = null }) { Text("Batal") }
                         Button(enabled = name.isNotBlank() && (price.toDoubleOrNull() ?: 0.0) > 0 && !uploadingImage, onClick = {
                             viewModel.saveProductItem(targetEdit.copy(name = name.trim(), description = desc.trim().ifBlank { null }, imageUrl = imageUrl.ifBlank { null }, categoryId = catId, price = price.toDoubleOrNull() ?: 0.0, costPrice = cost.toDoubleOrNull() ?: 0.0, stock = stock.toIntOrNull() ?: 0, lowStockThreshold = threshold.toIntOrNull() ?: 5, isActive = isActive, showOnMenu = showOnMenu))
                             editingProduct = null
@@ -309,7 +309,7 @@ fun ProdukStokComposeScreen(viewModel: PosViewModel, uiState: PosUiState) {
                     Text("Hapus produk?", style = MaterialTheme.typography.titleLarge)
                     Text("Yakin ingin menghapus ${targetDelete.name}?")
                     Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.End) {
-                        TextButton(onClick = { deletingProduct = null }) { Text("Batal") }
+                        OutlinedButton(onClick = { deletingProduct = null }) { Text("Batal") }
                         Button(onClick = { viewModel.deleteProductItem(targetDelete.id); deletingProduct = null }) { Text("Hapus") }
                     }
                 }
@@ -819,7 +819,7 @@ fun PegawaiComposeScreen(viewModel: PosViewModel, uiState: PosUiState) {
     val isOwner = uiState.staffProfile.role == StaffRole.OWNER && uiState.staffProfile.isActive
     val modules = listOf("dashboard" to "Dashboard", "orders" to "Kasir & Pesanan", "payments" to "Pembayaran", "products" to "Produk & Stok", "inventory" to "Inventory", "tables" to "Meja & QR Menu", "reports" to "Laporan Penjualan", "customers" to "Pelanggan", "promotions" to "Promosi & Diskon", "settings" to "Pengaturan Outlet", "export_data" to "Export / Download Data")
     val metrics = listOf("dashboard.total_sales" to "Total penjualan", "dashboard.paid_orders" to "Jumlah transaksi lunas", "dashboard.average_transaction" to "Rata-rata transaksi", "dashboard.peak_hour" to "Jam tersibuk", "dashboard.trend_chart" to "Grafik tren omzet", "dashboard.hourly_activity" to "Aktivitas per jam", "dashboard.best_sellers" to "Menu terlaris", "dashboard.quick_actions" to "Akses cepat")
-    pendingDelete?.let { target -> AlertDialog(onDismissRequest = { pendingDelete = null }, title = { Text("Hapus profil staf?") }, text = { Text("Profil ${target.fullName} dihapus dari daftar POS. User Supabase Auth tidak ikut terhapus; penghapusan permanen perlu fungsi admin server.") }, confirmButton = { Button(onClick = { viewModel.deleteStaffProfile(target.userId); pendingDelete = null }, enabled = isOwner && !uiState.isLoading) { Text("Hapus profil") } }, dismissButton = { TextButton(onClick = { pendingDelete = null }) { Text("Batal") } }) }
+    pendingDelete?.let { target -> AlertDialog(onDismissRequest = { pendingDelete = null }, title = { Text("Hapus profil staf?") }, text = { Text("Profil ${target.fullName} dihapus dari daftar POS. User Supabase Auth tidak ikut terhapus; penghapusan permanen perlu fungsi admin server.") }, confirmButton = { Button(onClick = { viewModel.deleteStaffProfile(target.userId); pendingDelete = null }, enabled = isOwner && !uiState.isLoading) { Text("Hapus profil") } }, dismissButton = { OutlinedButton(onClick = { pendingDelete = null }) { Text("Batal") } }) }
     LazyColumn(Modifier.fillMaxSize(), verticalArrangement = Arrangement.spacedBy(10.dp)) {
         item {
             OutlinedCard(Modifier.fillMaxWidth()) { Column(Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
@@ -847,7 +847,7 @@ fun PegawaiComposeScreen(viewModel: PosViewModel, uiState: PosUiState) {
                             Text(when { working -> "● Sedang bekerja"; st.isActive -> "● Akun aktif · tidak sedang shift"; else -> "● Nonaktif" }, Modifier.padding(horizontal = 9.dp, vertical = 5.dp), color = when { working -> androidx.compose.ui.graphics.Color(0xFF166534); st.isActive -> MaterialTheme.colorScheme.onSecondaryContainer; else -> MaterialTheme.colorScheme.onErrorContainer }, style = MaterialTheme.typography.labelSmall)
                         }
                     }
-                    if (uiState.backendStatus == BackendIntegrationStatus.LOCAL_SANDBOX_UI) TextButton(onClick = { viewModel.switchActiveStaffProfile(st) }, enabled = !isCurrent && st.isActive) { Text(if (isCurrent) "Profil ini" else "Uji profil") }
+                    if (uiState.backendStatus == BackendIntegrationStatus.LOCAL_SANDBOX_UI) OutlinedButton(onClick = { viewModel.switchActiveStaffProfile(st) }, enabled = !isCurrent && st.isActive) { Text(if (isCurrent) "Profil ini" else "Uji profil") }
                 }
                 if (!isCurrent && isOwner) Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                     OutlinedButton(onClick = { viewModel.setStaffActive(st.userId, !st.isActive) }, modifier = Modifier.weight(1f), enabled = !uiState.isLoading) { Text(if (st.isActive) "Nonaktifkan" else "Aktifkan") }
@@ -1064,7 +1064,7 @@ fun PengaturanOutletComposeScreen(viewModel: PosViewModel, uiState: PosUiState) 
                             Text(if (method.isActive) "Aktif" else "Nonaktif", style = MaterialTheme.typography.labelSmall)
                         }
                         Column(horizontalAlignment = Alignment.End) {
-                            TextButton(onClick = {
+                            OutlinedButton(onClick = {
                                 editingPaymentId = method.id
                                 paymentName = method.name
                                 paymentType = method.type
@@ -1075,7 +1075,7 @@ fun PengaturanOutletComposeScreen(viewModel: PosViewModel, uiState: PosUiState) 
                                 paymentImageUrl = method.imageUrl
                                 showPaymentForm = true
                             }) { Text("Edit") }
-                            TextButton(onClick = { viewModel.deletePaymentMethod(method.id) }) { Text("Hapus") }
+                            OutlinedButton(onClick = { viewModel.deletePaymentMethod(method.id) }) { Text("Hapus") }
                         }
                     }
                     HorizontalDivider()

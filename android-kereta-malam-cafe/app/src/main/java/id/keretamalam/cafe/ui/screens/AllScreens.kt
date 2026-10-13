@@ -493,6 +493,7 @@ private fun DashboardComposeScreen(
             }
         }
         item {
+            if (uiState.staffProfile.canPerform("dashboard.recent_transactions")) {
             OutlinedCard(Modifier.fillMaxWidth()) {
                 Column(Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
                     Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween, verticalAlignment = Alignment.CenterVertically) {
@@ -1505,8 +1506,14 @@ private fun HistoryComposeScreen(viewModel: PosViewModel, uiState: PosUiState) {
                 Text("Kosongkan tanggal untuk melihat semua transaksi.", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
             }
             Column(horizontalAlignment = Alignment.End, verticalArrangement = Arrangement.spacedBy(4.dp)) {
-                Button(onClick = { csvLauncher.launch("history-transaksi-kereta-malam.csv") }) { Text("Ekspor CSV") }
-                OutlinedButton(onClick = { confirmDeleteAll = true }, colors = ButtonDefaults.outlinedButtonColors(contentColor = MaterialTheme.colorScheme.error)) { Text("Hapus Semua Data") }
+                if (uiState.staffProfile.canPerform("history.export_csv")) {
+                    Button(onClick = { csvLauncher.launch("history-transaksi-kereta-malam.csv") }) { Text("Ekspor CSV") }
+                } else {
+                    OutlinedButton(onClick = {}, enabled = false) { Text("Ekspor dinonaktifkan") }
+                }
+                if (uiState.staffProfile.canPerform("history.delete")) {
+                    OutlinedButton(onClick = { confirmDeleteAll = true }, colors = ButtonDefaults.outlinedButtonColors(contentColor = MaterialTheme.colorScheme.error)) { Text("Hapus Semua Data") }
+                }
             }
         }
 
@@ -1524,11 +1531,13 @@ private fun HistoryComposeScreen(viewModel: PosViewModel, uiState: PosUiState) {
         }
         Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween, verticalAlignment = Alignment.CenterVertically) {
             Text("${selectedIds.size} transaksi dipilih", style = MaterialTheme.typography.bodyMedium)
-            Button(
-                onClick = { confirmDeleteSelected = true },
-                enabled = selectedIds.isNotEmpty(),
-                colors = ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.error)
-            ) { Text("Hapus Terpilih") }
+            if (uiState.staffProfile.canPerform("history.delete")) {
+                Button(
+                    onClick = { confirmDeleteSelected = true },
+                    enabled = selectedIds.isNotEmpty(),
+                    colors = ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.error)
+                ) { Text("Hapus Terpilih") }
+            }
         }
 
         LazyColumn(modifier = Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(8.dp)) {
@@ -1556,6 +1565,7 @@ private fun HistoryComposeScreen(viewModel: PosViewModel, uiState: PosUiState) {
                         }
                     }
                 }
+            }
             }
         }
     }

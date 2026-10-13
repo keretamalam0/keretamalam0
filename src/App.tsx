@@ -209,6 +209,13 @@ export default function App() {
   );
   const [auditLogs, setAuditLogs] = useState<AuditLog[]>(INITIAL_AUDIT_LOGS);
   const [outletSettings, setOutletSettings] = useState<OutletSettings>(INITIAL_OUTLET_SETTINGS);
+  const [paymentMethods, setPaymentMethods] = useState<Array<{id:string;code:string;name:string;type:string;provider:string|null;account_name:string|null;account_number:string|null;instructions:string|null;image_url:string|null;is_active:boolean;sort_order:number}>>([]);
+  const [paymentModalOpen, setPaymentModalOpen] = useState(false);
+  const [paymentDraft, setPaymentDraft] = useState({name:'',type:'cash',provider:'',account_name:'',account_number:'',instructions:'',image_url:''});
+  const [staffInviteOpen, setStaffInviteOpen] = useState(false);
+  const [staffInvite, setStaffInvite] = useState({full_name:'',email:'',role:'cashier'});
+  const [staffInviteLoading, setStaffInviteLoading] = useState(false);
+  const [appLanguage, setAppLanguage] = useState<'id'|'en'|'zh'|'th'|'vi'>(() => (localStorage.getItem('km_app_language') as 'id'|'en'|'zh'|'th'|'vi') || 'id');
   const [websiteCms, setWebsiteCms] = useState<WebsiteCmsData>(INITIAL_WEBSITE_CMS);
 
   // Kasir Cart & Checkout State

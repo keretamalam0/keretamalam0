@@ -465,11 +465,18 @@ class PosViewModel(application: Application) : AndroidViewModel(application) {
                     )
                 }
                 syncAllDataFromBackend()
-            }.onFailure {
+            }.onFailure { error ->
+                val safeDiagnostic = error.message
+                    ?.takeIf {
+                        it.startsWith("Permintaan Supabase gagal (HTTP ") ||
+                            it.startsWith("Akun berhasil login, tetapi belum terdaftar") ||
+                            it.startsWith("Akun staff ini sedang nonaktif")
+                    }
                 _uiState.update {
                     it.copy(
                         isLoading = false,
-                        errorMessage = "Email atau password salah, atau layanan sedang tidak tersedia. Coba lagi."
+                        errorMessage = safeDiagnostic
+                            ?: "Login gagal. Periksa email/password dan koneksi internet, lalu coba lagi."
                     )
                 }
             }

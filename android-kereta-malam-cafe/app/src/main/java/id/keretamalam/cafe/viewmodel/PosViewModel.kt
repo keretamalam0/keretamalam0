@@ -1324,14 +1324,20 @@ class PosViewModel(application: Application) : AndroidViewModel(application) {
 
     fun updateOutletSettings(settings: OutletSettings) {
         if (_uiState.value.backendStatus == BackendIntegrationStatus.ACTIVE_VERIFIED) {
-            showNotice("Pengaturan outlet belum dapat disimpan. Periksa koneksi akun, lalu coba lagi.", isError = true)
+            viewModelScope.launch {
+                _uiState.update { it.copy(isLoading = true, errorMessage = null, successMessage = null) }
+                runCatching { repository.updateOutletSettings(settings) }
+                    .onSuccess {
+                        _uiState.update { it.copy(outletSettings = settings, isLoading = false, successMessage = "Pengaturan outlet berhasil disimpan.") }
+                    }
+                    .onFailure { error ->
+                        _uiState.update { it.copy(isLoading = false, errorMessage = error.message ?: "Pengaturan outlet gagal disimpan.") }
+                    }
+            }
             return
         }
         _uiState.update {
-            it.copy(
-                outletSettings = settings,
-                successMessage = "Pengaturan outlet diperbarui."
-            )
+            it.copy(outletSettings = settings, successMessage = "Pengaturan outlet diperbarui.")
         }
     }
 

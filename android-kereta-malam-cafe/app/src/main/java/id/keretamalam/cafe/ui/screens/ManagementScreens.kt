@@ -74,7 +74,7 @@ fun ProdukStokComposeScreen(viewModel: PosViewModel, uiState: PosUiState) {
         Text("Produk & Stok", style = MaterialTheme.typography.headlineSmall, fontWeight = FontWeight.Bold)
         Text("Atur produk, kategori, topping, dan pilihan minuman.", style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
         Row(Modifier.fillMaxWidth().horizontalScroll(rememberScrollState()), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-            listOf("PRODUK" to "Semua Produk", "KATEGORI" to "Kelola Kategori", "TOPPING" to "Topping", "CUSTOM" to "Kustomisasi Minuman").forEach { (key, label) ->
+            listOf("PRODUK" to "Produk", "KATEGORI" to "Kelola Kategori").forEach { (key, label) ->
                 FilterChip(selected = section == key, onClick = { section = key }, label = { Text(label) })
             }
         }
@@ -125,7 +125,8 @@ fun ProdukStokComposeScreen(viewModel: PosViewModel, uiState: PosUiState) {
                                 }
                                 Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
                                     OutlinedButton(onClick = { editingProduct = p }) { Text("Edit") }
-                                    OutlinedButton(onClick = { selectedProductId = p.id; section = "TOPPING" }) { Text("Topping") }
+                                    TextButton(onClick = { selectedProductId = p.id; section = "TOPPING" }) { Text("Topping") }
+                                    TextButton(onClick = { selectedProductId = p.id; section = "CUSTOM" }) { Text("Kustomisasi") }
                                     TextButton(onClick = { deletingProduct = p }) { Text("Hapus") }
                                 }
                             }
@@ -258,6 +259,11 @@ fun ProdukStokComposeScreen(viewModel: PosViewModel, uiState: PosUiState) {
             Surface(shape = RoundedCornerShape(16.dp), color = MaterialTheme.colorScheme.surface, modifier = Modifier.fillMaxWidth(0.94f).widthIn(max = 520.dp).padding(12.dp)) {
                 Column(Modifier.padding(16.dp).verticalScroll(rememberScrollState()), verticalArrangement = Arrangement.spacedBy(10.dp)) {
                     Text(if (targetEdit.id.isBlank()) "Tambah Produk" else "Edit Produk", style = MaterialTheme.typography.titleLarge, fontWeight = FontWeight.Bold)
+                    Text(
+                        "Foto, detail, harga, kategori, stok, dan status diatur di sini. Setelah disimpan, topping serta opsi gula/es bisa diatur dari tombol pada kartu produk.",
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                    )
                     OutlinedTextField(value = name, onValueChange = { name = it }, label = { Text("Nama produk") }, modifier = Modifier.fillMaxWidth(), singleLine = true)
                     OutlinedTextField(value = desc, onValueChange = { desc = it }, label = { Text("Deskripsi") }, modifier = Modifier.fillMaxWidth(), maxLines = 2)
                     Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(10.dp)) {

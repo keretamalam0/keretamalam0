@@ -625,7 +625,8 @@ class PosViewModel(application: Application) : AndroidViewModel(application) {
                         shifts = shifts,
                         expenses = expenses,
                         auditLogs = logs,
-                        successMessage = "Sinkronisasi data Supabase berhasil."
+                        // Routine syncs are silent; only actionable errors are surfaced.
+                        successMessage = null
                     )
                 }
             }.onFailure { err ->
@@ -976,13 +977,13 @@ class PosViewModel(application: Application) : AndroidViewModel(application) {
         }
     }
 
-    fun updateOrderStatus(order: OrderWithItems, nextStatus: OrderStatus) {
+    fun updateOrderStatus(order: OrderWithItems, nextStatus: OrderStatus, onSuccess: (() -> Unit)? = null) {
         viewModelScope.launch {
             if (_uiState.value.backendStatus == BackendIntegrationStatus.ACTIVE_VERIFIED) {
                 runCatching { repository.updateOrderStatus(order.id, nextStatus) }
                     .onSuccess {
-                        syncAllDataFromBackend()
-                        showNotice("Status Order #${order.orderNo} diperbarui menjadi ${nextStatus.labelId}.")
+                        refreshOrdersSilently()
+                        onSuccess?.invoke()
                     }
                     .onFailure { showNotice(it.message ?: "Gagal memperbarui status pesanan.", isError = true) }
                 return@launch
@@ -1006,17 +1007,18 @@ class PosViewModel(application: Application) : AndroidViewModel(application) {
                 )
             }
             appendAuditLog("order.update_status", "orders", order.id, "{\"to\":\"${nextStatus.raw}\"}")
+            onSuccess?.invoke()
         }
     }
 
-    fun approveQrOrder(order: OrderWithItems, method: String) {
+    fun approveQrOrder(order: OrderWithItems, method: String, onSuccess: (() -> Unit)? = null) {
         viewModelScope.launch {
             if (_uiState.value.backendStatus == BackendIntegrationStatus.ACTIVE_VERIFIED) {
                 runCatching {
                     repository.approveQrOrder(order.id, method, if (method == "cash") order.total else null)
                 }.onSuccess {
-                    syncAllDataFromBackend()
-                    showNotice("Pembayaran QR Order #${order.orderNo} disetujui.")
+                    refreshOrdersSilently()
+                    onSuccess?.invoke()
                 }.onFailure {
                     showNotice(it.message ?: "Gagal menyetujui pembayaran QR.", isError = true)
                 }
@@ -1050,6 +1052,7 @@ class PosViewModel(application: Application) : AndroidViewModel(application) {
                 )
             }
             appendAuditLog("order.approve_qr", "orders", order.id, "{\"method\":\"$method\"}")
+            onSuccess?.invoke()
         }
     }
 

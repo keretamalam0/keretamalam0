@@ -124,10 +124,10 @@ fun ProdukStokComposeScreen(viewModel: PosViewModel, uiState: PosUiState) {
                                     }
                                 }
                                 Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
-                                    OutlinedButton(onClick = { editingProduct = p }) { Text("Edit") }
-                                    TextButton(onClick = { selectedProductId = p.id; section = "TOPPING" }) { Text("Topping") }
-                                    TextButton(onClick = { selectedProductId = p.id; section = "CUSTOM" }) { Text("Kustomisasi") }
-                                    TextButton(onClick = { deletingProduct = p }) { Text("Hapus") }
+                                    OutlinedButton(onClick = { editingProduct = p }, modifier = Modifier.height(34.dp), contentPadding = PaddingValues(horizontal = 8.dp, vertical = 0.dp)) { Text("Edit", style = MaterialTheme.typography.labelMedium) }
+                                    OutlinedButton(onClick = { selectedProductId = p.id; section = "TOPPING" }, modifier = Modifier.height(34.dp), contentPadding = PaddingValues(horizontal = 8.dp, vertical = 0.dp)) { Text("Topping", style = MaterialTheme.typography.labelMedium) }
+                                    OutlinedButton(onClick = { selectedProductId = p.id; section = "CUSTOM" }, modifier = Modifier.height(34.dp), contentPadding = PaddingValues(horizontal = 8.dp, vertical = 0.dp)) { Text("Kustomisasi", style = MaterialTheme.typography.labelMedium) }
+                                    OutlinedButton(onClick = { deletingProduct = p }, modifier = Modifier.height(34.dp), contentPadding = PaddingValues(horizontal = 8.dp, vertical = 0.dp), colors = ButtonDefaults.outlinedButtonColors(contentColor = MaterialTheme.colorScheme.error)) { Text("Hapus", style = MaterialTheme.typography.labelMedium) }
                                 }
                             }
                         }
@@ -186,8 +186,8 @@ fun ProdukStokComposeScreen(viewModel: PosViewModel, uiState: PosUiState) {
                         OutlinedCard { Row(Modifier.fillMaxWidth().padding(10.dp), verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(6.dp)) {
                             Column(Modifier.weight(1f)) { Text(addon.name, fontWeight = FontWeight.SemiBold); Text(RupiahFormatter.format(addon.price), style = MaterialTheme.typography.bodySmall) }
                             Switch(checked = addon.isActive, onCheckedChange = { viewModel.saveProductAddon(addon.copy(isActive = it)) })
-                            TextButton(onClick = { addonId = addon.id; addonName = addon.name; addonPrice = addon.price.toLong().toString(); addonActive = addon.isActive }) { Text("Edit") }
-                            TextButton(onClick = { viewModel.deleteProductAddon(addon.id) }) { Text("Hapus") }
+                            OutlinedButton(onClick = { addonId = addon.id; addonName = addon.name; addonPrice = addon.price.toLong().toString(); addonActive = addon.isActive }, modifier = Modifier.height(32.dp), contentPadding = PaddingValues(horizontal = 7.dp, vertical = 0.dp)) { Text("Edit", style = MaterialTheme.typography.labelSmall) }
+                            OutlinedButton(onClick = { viewModel.deleteProductAddon(addon.id) }, modifier = Modifier.height(32.dp), contentPadding = PaddingValues(horizontal = 7.dp, vertical = 0.dp), colors = ButtonDefaults.outlinedButtonColors(contentColor = MaterialTheme.colorScheme.error)) { Text("Hapus", style = MaterialTheme.typography.labelSmall) }
                         } }
                     }
                 }
@@ -222,8 +222,8 @@ fun ProdukStokComposeScreen(viewModel: PosViewModel, uiState: PosUiState) {
                         OutlinedCard { Row(Modifier.fillMaxWidth().padding(10.dp), verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(6.dp)) {
                             Column(Modifier.weight(1f)) { Text(option.name, fontWeight = FontWeight.SemiBold); Text("$groupLabel · +${RupiahFormatter.format(option.priceDelta)}", style = MaterialTheme.typography.bodySmall) }
                             Switch(checked = option.isActive, onCheckedChange = { viewModel.saveCustomizationOption(option.copy(isActive = it)) })
-                            TextButton(onClick = { optionId = option.id; selectedProductId = option.productId; optionGroup = option.groupKey; optionName = option.name; optionPrice = option.priceDelta.toLong().toString(); optionActive = option.isActive }) { Text("Edit") }
-                            TextButton(onClick = { viewModel.deleteCustomizationOption(option.id) }) { Text("Hapus") }
+                            OutlinedButton(onClick = { optionId = option.id; selectedProductId = option.productId; optionGroup = option.groupKey; optionName = option.name; optionPrice = option.priceDelta.toLong().toString(); optionActive = option.isActive }, modifier = Modifier.height(32.dp), contentPadding = PaddingValues(horizontal = 7.dp, vertical = 0.dp)) { Text("Edit", style = MaterialTheme.typography.labelSmall) }
+                            OutlinedButton(onClick = { viewModel.deleteCustomizationOption(option.id) }, modifier = Modifier.height(32.dp), contentPadding = PaddingValues(horizontal = 7.dp, vertical = 0.dp), colors = ButtonDefaults.outlinedButtonColors(contentColor = MaterialTheme.colorScheme.error)) { Text("Hapus", style = MaterialTheme.typography.labelSmall) }
                         } }
                     }
                 }

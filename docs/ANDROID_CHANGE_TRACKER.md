@@ -6,8 +6,8 @@ Project directory: `android-kereta-malam-cafe/`
 ## Status
 - [x] GitHub account connection can list the `keretamalam0` account.
 - [x] Read access verified on `MainActivity.kt`.
-- [ ] Write access verified by this tracker commit.
-- [ ] Android Gradle build run and result recorded.
+- [x] Write access verified by tracker commit `465013ee0bd552d5122f0c5ec7a46a9689504142`.
+- [ ] Android Gradle build run and result recorded (not run from this connector session yet).
 - [ ] Device-level verification recorded.
 
 ## Requested feature batches
@@ -27,6 +27,9 @@ Project directory: `android-kereta-malam-cafe/`
 - [ ] Payment methods and QRIS/bank/e-wallet configuration
 - [ ] Bluetooth printer discovery and receipt printing
 - [ ] Remove Website Management from Android; secure Super Admin separation
+
+## Work log
+- `2376c4db330190ff6d69d28a6cfe842138d28da1`: removed hardcoded fake Bluetooth printer entries from `PosViewModel`; an empty real scan now gives an actionable pairing message. This is a small correctness fix, not full printer validation.
 
 ## Safety notes
 - Native Kotlin project only; do not edit the separate `keretacafe` web repo for Android work.

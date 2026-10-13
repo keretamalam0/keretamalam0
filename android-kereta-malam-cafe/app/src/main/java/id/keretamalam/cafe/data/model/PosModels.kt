@@ -58,7 +58,7 @@ object StaffPermissionCatalog {
     fun defaultsFor(role: StaffRole): Map<String, Boolean> = items.associate { item ->
         item.key to when (role) {
             StaffRole.OWNER, StaffRole.SUPER_ADMIN -> true
-            StaffRole.MANAGER -> item.key !in setOf("staff.manage", "settings.manage")
+            StaffRole.MANAGER -> item.key !in setOf("staff.manage", "settings.manage", "history.delete", "products.delete")
             StaffRole.CASHIER -> item.key in setOf("dashboard.paid_orders", "dashboard.quick_links", "orders.cancel", "shift.manage")
         }
     }

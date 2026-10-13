@@ -1567,7 +1567,6 @@ private fun HistoryComposeScreen(viewModel: PosViewModel, uiState: PosUiState) {
                     }
                 }
             }
-            }
         }
     }
 }

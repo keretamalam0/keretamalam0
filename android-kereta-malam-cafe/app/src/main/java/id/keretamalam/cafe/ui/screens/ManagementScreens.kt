@@ -797,6 +797,22 @@ fun PegawaiComposeScreen(viewModel: PosViewModel, uiState: PosUiState) {
     var newName by remember { mutableStateOf("") }
     var newEmail by remember { mutableStateOf("") }
     var newRole by remember { mutableStateOf(StaffRole.CASHIER) }
+    var expandedPermissionsFor by remember { mutableStateOf<String?>(null) }
+    var pendingDelete by remember { mutableStateOf<StaffProfile?>(null) }
+
+    pendingDelete?.let { target ->
+        AlertDialog(
+            onDismissRequest = { pendingDelete = null },
+            title = { Text("Hapus pegawai?") },
+            text = { Text("Profil akses ${target.fullName} akan dihapus dari POS. Akun ini tidak bisa lagi masuk sebagai staf karena profilnya tidak ditemukan. Riwayat transaksi lama tidak ikut dihapus.") },
+            confirmButton = {
+                TextButton(onClick = { pendingDelete = null; viewModel.deleteStaffProfile(target.userId) }) {
+                    Text("Hapus Pegawai", color = MaterialTheme.colorScheme.error)
+                }
+            },
+            dismissButton = { TextButton(onClick = { pendingDelete = null }) { Text("Batal") } }
+        )
+    }
 
     LazyColumn(
         modifier = Modifier.fillMaxSize(),
@@ -805,60 +821,136 @@ fun PegawaiComposeScreen(viewModel: PosViewModel, uiState: PosUiState) {
         item {
             OutlinedCard(modifier = Modifier.fillMaxWidth()) {
                 Column(modifier = Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                    Text("Tambah Pegawai / Akun Staf Baru", style = MaterialTheme.typography.titleMedium)
+                    Text("Tambah Pegawai / Akun Staf Baru", style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold)
+                    Text("Undangan akun dikirim melalui email. Hak akses awal bisa disesuaikan setelah staf terdaftar.", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
                     Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                         OutlinedTextField(value = newName, onValueChange = { newName = it }, label = { Text("Nama Lengkap") }, modifier = Modifier.weight(1f), singleLine = true)
                         OutlinedTextField(value = newEmail, onValueChange = { newEmail = it }, label = { Text("Email Staf") }, modifier = Modifier.weight(1f), singleLine = true)
                     }
                     Row(horizontalArrangement = Arrangement.spacedBy(6.dp)) {
-                        listOf(StaffRole.OWNER, StaffRole.MANAGER, StaffRole.CASHIER).forEach { r ->
+                        listOf(StaffRole.MANAGER, StaffRole.CASHIER).forEach { r ->
                             FilterChip(selected = newRole == r, onClick = { newRole = r }, label = { Text(r.labelId) })
                         }
                     }
-                    Button(onClick = {
-                        viewModel.addStaffProfile(newName, newEmail, newRole)
-                        newName = ""
-                        newEmail = ""
-                    }) { Text("+ Tambah Staf") }
+                    Button(
+                        enabled = newName.isNotBlank() && newEmail.contains("@") && !uiState.isLoading,
+                        onClick = {
+                            viewModel.addStaffProfile(newName.trim(), newEmail.trim(), newRole)
+                            newName = ""
+                            newEmail = ""
+                        }
+                    ) { Text("+ Undang Staf") }
+                }
+            }
+        }
+
+        item {
+            OutlinedCard(Modifier.fillMaxWidth()) {
+                Column(Modifier.padding(12.dp), verticalArrangement = Arrangement.spacedBy(4.dp)) {
+                    Text("Status Pegawai", fontWeight = FontWeight.Bold)
+                    Text("Titik hijau menandakan akun aktif. Label “Sedang kerja” hanya muncul jika pegawai punya shift yang masih terbuka.", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                    Text("Hak akses berlaku per akun. Owner tetap memiliki akses penuh; akun yang sedang dipakai tidak bisa dinonaktifkan atau dihapus dari layar ini.", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
                 }
             }
         }
 
         items(uiState.staffList, key = { it.userId }) { st ->
             val isCurrent = st.userId == uiState.staffProfile.userId
+            val isPrivileged = st.role == StaffRole.OWNER || st.role == StaffRole.SUPER_ADMIN
+            val shiftIsOpen = uiState.shifts.any { it.staffUserId == st.userId && it.status.equals("open", true) }
+            val expanded = expandedPermissionsFor == st.userId
             OutlinedCard(modifier = Modifier.fillMaxWidth()) {
-                Column(modifier = Modifier.padding(14.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                Column(modifier = Modifier.padding(14.dp), verticalArrangement = Arrangement.spacedBy(10.dp)) {
                     Row(
                         modifier = Modifier.fillMaxWidth(),
-                        horizontalArrangement = Arrangement.SpaceBetween,
+                        horizontalArrangement = Arrangement.spacedBy(10.dp),
                         verticalAlignment = Alignment.CenterVertically
                     ) {
-                        Column(modifier = Modifier.weight(1f)) {
+                        Surface(
+                            modifier = Modifier.size(12.dp),
+                            shape = RoundedCornerShape(50),
+                            color = if (st.isActive) androidx.compose.ui.graphics.Color(0xFF16A34A) else androidx.compose.ui.graphics.Color(0xFF9CA3AF)
+                        ) {}
+                        Column(modifier = Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(3.dp)) {
                             Text(st.fullName, fontWeight = FontWeight.Bold)
-                            Text("Role: ${st.role.labelId} · ${st.email}")
+                            Text("Role: ${st.role.labelId} · ${st.email}", style = MaterialTheme.typography.bodySmall)
+                            Row(horizontalArrangement = Arrangement.spacedBy(6.dp), verticalAlignment = Alignment.CenterVertically) {
+                                Text(
+                                    if (st.isActive) "Akun aktif" else "Nonaktif",
+                                    color = if (st.isActive) androidx.compose.ui.graphics.Color(0xFF16A34A) else MaterialTheme.colorScheme.error,
+                                    style = MaterialTheme.typography.labelMedium,
+                                    fontWeight = FontWeight.Bold
+                                )
+                                if (st.isActive) {
+                                    Text("·", color = MaterialTheme.colorScheme.onSurfaceVariant)
+                                    Text(
+                                        if (shiftIsOpen) "Sedang kerja" else "Belum mulai shift",
+                                        color = if (shiftIsOpen) androidx.compose.ui.graphics.Color(0xFF16A34A) else MaterialTheme.colorScheme.onSurfaceVariant,
+                                        style = MaterialTheme.typography.labelMedium
+                                    )
+                                }
+                            }
                         }
-                        Button(
-                            enabled = !isCurrent && uiState.backendStatus == BackendIntegrationStatus.LOCAL_SANDBOX_UI,
-                            onClick = { viewModel.switchActiveStaffProfile(st) }
-                        ) {
-                            Text(if (isCurrent) "Sedang Aktif" else "Gunakan Profil")
+                        if (isCurrent) {
+                            Text("Akun ini", style = MaterialTheme.typography.labelMedium, color = MaterialTheme.colorScheme.primary)
+                        } else if (!isPrivileged) {
+                            Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                                Switch(checked = st.isActive, onCheckedChange = { viewModel.setStaffActive(st.userId, it) }, enabled = !uiState.isLoading)
+                                Text(if (st.isActive) "Aktif" else "Nonaktif", style = MaterialTheme.typography.labelSmall)
+                            }
                         }
                     }
 
-                    Text("Hak Akses Modul (RBAC):", style = MaterialTheme.typography.labelMedium)
-                    Row(
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .horizontalScroll(rememberScrollState()),
-                        horizontalArrangement = Arrangement.spacedBy(6.dp)
-                    ) {
-                        PermissionKey.entries.forEach { perm ->
-                            val allowed = st.canAccess(perm)
-                            FilterChip(
-                                selected = allowed,
-                                onClick = { viewModel.toggleStaffPermission(st.userId, perm.key) },
-                                label = { Text(perm.key) }
-                            )
+                    Row(horizontalArrangement = Arrangement.spacedBy(8.dp), verticalAlignment = Alignment.CenterVertically) {
+                        OutlinedButton(onClick = { expandedPermissionsFor = if (expanded) null else st.userId }) {
+                            Text(if (expanded) "Tutup Hak Akses" else "Atur Hak Akses")
+                        }
+                        if (!isCurrent && !isPrivileged) {
+                            TextButton(onClick = { pendingDelete = st }, enabled = !uiState.isLoading) {
+                                Text("Hapus", color = MaterialTheme.colorScheme.error)
+                            }
+                        }
+                    }
+
+                    if (expanded) {
+                        HorizontalDivider()
+                        Text("Akses Menu", style = MaterialTheme.typography.titleSmall, fontWeight = FontWeight.Bold)
+                        Text("Matikan menu yang tidak boleh dilihat oleh pegawai ini.", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                        Column(verticalArrangement = Arrangement.spacedBy(2.dp)) {
+                            PermissionKey.entries.forEach { perm ->
+                                Row(
+                                    modifier = Modifier.fillMaxWidth(),
+                                    verticalAlignment = Alignment.CenterVertically,
+                                    horizontalArrangement = Arrangement.SpaceBetween
+                                ) {
+                                    Text(perm.key.replaceFirstChar { it.uppercase() }, modifier = Modifier.weight(1f))
+                                    Switch(
+                                        checked = st.permissions[perm.key] == true,
+                                        onCheckedChange = { viewModel.toggleStaffPermission(st.userId, perm.key) },
+                                        enabled = !isPrivileged && !uiState.isLoading
+                                    )
+                                }
+                            }
+                        }
+                        HorizontalDivider()
+                        Text("Hak Akses Detail", style = MaterialTheme.typography.titleSmall, fontWeight = FontWeight.Bold)
+                        Text("Atur metrik dashboard, download, penghapusan, dan tindakan operasional secara terpisah.", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                        StaffPermissionCatalog.items.groupBy { it.group }.forEach { (group, items) ->
+                            Text(group, style = MaterialTheme.typography.labelLarge, color = MaterialTheme.colorScheme.primary, fontWeight = FontWeight.Bold, modifier = Modifier.padding(top = 6.dp))
+                            items.forEach { permission ->
+                                Row(
+                                    modifier = Modifier.fillMaxWidth(),
+                                    verticalAlignment = Alignment.CenterVertically,
+                                    horizontalArrangement = Arrangement.spacedBy(8.dp)
+                                ) {
+                                    Text(permission.label, modifier = Modifier.weight(1f), style = MaterialTheme.typography.bodyMedium)
+                                    Switch(
+                                        checked = st.permissions[permission.key] == true,
+                                        onCheckedChange = { viewModel.toggleStaffPermission(st.userId, permission.key) },
+                                        enabled = !isPrivileged && !uiState.isLoading
+                                    )
+                                }
+                            }
                         }
                     }
                 }

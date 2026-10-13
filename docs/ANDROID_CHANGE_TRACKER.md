@@ -7,7 +7,7 @@ Project directory: `android-kereta-malam-cafe/`
 - [x] GitHub account connection can list the `keretamalam0` account.
 - [x] Read access verified on `MainActivity.kt`.
 - [x] Write access verified by tracker commit `465013ee0bd552d5122f0c5ec7a46a9689504142`.
-- [ ] Android Gradle build run and result recorded (not run from this connector session yet).
+- [ ] Android Gradle build verified by GitHub Actions (workflow added in `857052dd6ef318cb8b69bde173ff2cfe3c8da41b`; run result must be checked after GitHub executes it).
 - [ ] Device-level verification recorded.
 
 ## Requested feature batches
@@ -29,6 +29,7 @@ Project directory: `android-kereta-malam-cafe/`
 - [ ] Remove Website Management from Android; secure Super Admin separation
 
 ## Work log
+- `857052dd6ef318cb8b69bde173ff2cfe3c8da41b`: added `.github/workflows/android-native-build.yml` to build `assembleDebug` with JDK 17 on Android project changes/manual dispatch and upload the APK as a 14-day artifact. Build outcome is not yet verified; do not treat workflow creation as a passing build.
 - `1d464676fa72305aae336c5616d95f9cc8efbc8b`: added live-backend guards to 11 operations that previously updated only in-memory state (staff creation, shifts/audit, product QR visibility, table add/delete, inventory movement, promotions, expenses, outlet settings). In live mode these now fail clearly rather than falsely implying persistence. These features remain pending real Supabase write implementations.
 - `ab5503c5ee9c1bd8670d88bbd5cf3b11efcc3e0f`: removed the fake QR-order simulation button from the native table/QR screen.
 - `ab5503c5ee9c1bd8670d88bbd5cf3b11efcc3e0f`: removed the fake QR-order simulation button from the native table/QR screen.

@@ -1160,149 +1160,95 @@ private fun PesananComposeScreen(
     uiState: PosUiState,
     isTabletOrWide: Boolean
 ) {
-    var statusFilter by remember { mutableStateOf<OrderStatus?>(null) }
+    var lane by remember { mutableStateOf("baru") }
     var sourceFilter by remember { mutableStateOf("ALL") }
     var search by remember { mutableStateOf("") }
-
-    val filtered = remember(uiState.orders, statusFilter, sourceFilter, search) {
-        uiState.orders.filter { o ->
-            (statusFilter == null || o.status == statusFilter) &&
-                (sourceFilter == "ALL" || o.source.equals(sourceFilter, ignoreCase = true)) &&
-                (search.isBlank() || o.orderNo.toString().contains(search) || (o.customerName ?: "").contains(search, true))
-        }
+    val lanes = listOf("baru" to "Baru", "diproses" to "Diproses", "siap" to "Siap", "riwayat" to "Riwayat")
+    fun inLane(o: OrderWithItems, key: String): Boolean = when (key) {
+        "baru" -> o.status == OrderStatus.NEW
+        "diproses" -> o.status == OrderStatus.PREPARING
+        "siap" -> o.status == OrderStatus.READY
+        else -> o.status == OrderStatus.COMPLETED || o.status == OrderStatus.CANCELLED
     }
-
-    Column(modifier = Modifier.fillMaxSize(), verticalArrangement = Arrangement.spacedBy(10.dp)) {
-        Row(
-            modifier = Modifier.fillMaxWidth(),
-            horizontalArrangement = Arrangement.spacedBy(8.dp),
-            verticalAlignment = Alignment.CenterVertically
-        ) {
-            OutlinedTextField(
-                value = search,
-                onValueChange = { search = it },
-                label = { Text("Cari #No Order atau Nama Pelanggan...") },
-                modifier = Modifier.weight(1f),
-                singleLine = true
-            )
-            if (isTabletOrWide) {
-                listOf("ALL" to "Semua Kanal", "pos" to "POS Kasir", "qr" to "QR Meja").forEach { (code, label) ->
-                    FilterChip(
-                        selected = sourceFilter == code,
-                        onClick = { sourceFilter = code },
-                        label = { Text(label) }
-                    )
+    val filtered = uiState.orders.filter { o ->
+        inLane(o, lane) && (sourceFilter == "ALL" || o.source.equals(sourceFilter, true)) &&
+            (search.isBlank() || o.orderNo.toString().contains(search) || (o.customerName ?: "").contains(search, true))
+    }
+    Column(Modifier.fillMaxSize(), verticalArrangement = Arrangement.spacedBy(10.dp)) {
+        Row(Modifier.fillMaxWidth().horizontalScroll(rememberScrollState()), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+            lanes.forEach { (key, label) ->
+                val count = uiState.orders.count { inLane(it, key) }
+                FilterChip(selected = lane == key, onClick = { lane = key }, label = { Text("$label ($count)") })
+            }
+        }
+        Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp), verticalAlignment = Alignment.CenterVertically) {
+            OutlinedTextField(value = search, onValueChange = { search = it }, label = { Text("Cari nomor order / pelanggan") }, modifier = Modifier.weight(1f), singleLine = true)
+            var sourceOpen by remember { mutableStateOf(false) }
+            Box {
+                TextButton(onClick = { sourceOpen = true }) { Text(if (sourceFilter == "ALL") "Semua kanal ▾" else "$sourceFilter ▾") }
+                DropdownMenu(expanded = sourceOpen, onDismissRequest = { sourceOpen = false }) {
+                    listOf("ALL" to "Semua kanal", "pos" to "POS Kasir", "qr" to "QR Meja").forEach { (code, label) ->
+                        DropdownMenuItem(text = { Text(label) }, onClick = { sourceFilter = code; sourceOpen = false })
+                    }
                 }
             }
         }
-        Row(
-            modifier = Modifier
-                .fillMaxWidth()
-                .horizontalScroll(rememberScrollState()),
-            horizontalArrangement = Arrangement.spacedBy(6.dp)
-        ) {
-            FilterChip(
-                selected = statusFilter == null,
-                onClick = { statusFilter = null },
-                label = { Text("Semua Status (${uiState.orders.size})") }
-            )
-            OrderStatus.entries.forEach { st ->
-                FilterChip(
-                    selected = statusFilter == st,
-                    onClick = { statusFilter = st },
-                    label = { Text(st.labelId) }
-                )
+        if (filtered.isEmpty()) {
+            Box(Modifier.weight(1f).fillMaxWidth(), contentAlignment = Alignment.Center) {
+                Text(when (lane) { "baru" -> "Belum ada pesanan baru"; "diproses" -> "Belum ada pesanan diproses"; "siap" -> "Belum ada pesanan siap"; else -> "Riwayat pesanan masih kosong" })
             }
-        }
-
-        LazyColumn(
-            modifier = Modifier.weight(1f),
-            verticalArrangement = Arrangement.spacedBy(10.dp)
-        ) {
-            items(filtered, key = { it.id }) { order ->
-                OutlinedCard(modifier = Modifier.fillMaxWidth()) {
-                    Column(modifier = Modifier.padding(14.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                        Row(
-                            modifier = Modifier.fillMaxWidth(),
-                            horizontalArrangement = Arrangement.SpaceBetween
-                        ) {
-                            Column {
-                                Text("Order #${order.orderNo} (${order.source.uppercase()})", fontWeight = FontWeight.Bold)
-                                Text(
-                                    text = "${order.restaurantTable?.name ?: "Takeaway"} · ${order.customerName ?: "Walk-in"} · ${order.createdAt}",
-                                    style = MaterialTheme.typography.bodyMedium
-                                )
-                            }
-                            Column(horizontalAlignment = Alignment.End) {
-                                Text(order.status.labelId, fontWeight = FontWeight.Bold)
-                                Text(
-                                    text = if (order.isPaid) "Lunas (${(order.paymentMethod ?: "cash").uppercase()})" else "Menunggu Konfirmasi",
-                                    style = MaterialTheme.typography.labelMedium
-                                )
-                            }
-                        }
-
-                        HorizontalDivider()
-                        order.orderItems.forEach { item ->
-                            Row(
-                                modifier = Modifier.fillMaxWidth(),
-                                horizontalArrangement = Arrangement.SpaceBetween
-                            ) {
-                                Text("${item.quantity}x ${item.productName}${if (!item.note.isNullOrBlank()) " (${item.note})" else ""}")
-                                Text(RupiahFormatter.format(item.lineTotal))
-                            }
-                        }
-                        HorizontalDivider()
-
-                        Row(
-                            modifier = Modifier.fillMaxWidth(),
-                            horizontalArrangement = Arrangement.SpaceBetween,
-                            verticalAlignment = Alignment.CenterVertically
-                        ) {
-                            Text("Total: ${RupiahFormatter.format(order.total)}", fontWeight = FontWeight.Bold)
-                            Row(horizontalArrangement = Arrangement.spacedBy(6.dp)) {
-                                OutlinedButton(onClick = {
-                                    viewModel.printOrderToThermal(order, PrinterRole.KITCHEN)
-                                }) { Text("Cetak Dapur") }
-                                OutlinedButton(onClick = {
-                                    viewModel.openReceiptDialog(order)
-                                }) { Text("Struk") }
-                            }
-                        }
-
-                        // Konfirmasi Pembayaran QR
-                        if (order.source == "qr" && !order.isPaid && order.status != OrderStatus.CANCELLED) {
-                            Row(horizontalArrangement = Arrangement.spacedBy(6.dp)) {
-                                Button(onClick = { viewModel.approveQrOrder(order, "qris") }) {
-                                    Text("Setujui QRIS")
+        } else {
+            LazyColumn(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(10.dp)) {
+                items(filtered, key = { it.id }) { order ->
+                    OutlinedCard(Modifier.fillMaxWidth()) {
+                        Column(Modifier.padding(14.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                            Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
+                                Column(Modifier.weight(1f)) {
+                                    Text("Order #${order.orderNo}", fontWeight = FontWeight.Bold)
+                                    Text("${order.source.uppercase()} · ${order.restaurantTable?.name ?: "Takeaway"} · ${order.customerName ?: "Walk-in"}", style = MaterialTheme.typography.bodyMedium)
+                                    Text(order.createdAt, style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
                                 }
-                                OutlinedButton(onClick = { viewModel.approveQrOrder(order, "cash") }) {
-                                    Text("Terima Tunai")
-                                }
-                                OutlinedButton(onClick = { viewModel.rejectQrOrder(order) }) {
-                                    Text("Tolak")
+                                Column(horizontalAlignment = Alignment.End) {
+                                    Text(order.status.labelId, fontWeight = FontWeight.Bold)
+                                    Text(if (order.isPaid) "LUNAS" else "BELUM LUNAS", color = if (order.isPaid) Color(0xFF15803D) else MaterialTheme.colorScheme.error)
                                 }
                             }
-                        }
-
-                        // Tombol Alur Status Pesanan
-                        Row(horizontalArrangement = Arrangement.spacedBy(6.dp)) {
-                            when (order.status) {
-                                OrderStatus.NEW -> Button(onClick = { viewModel.updateOrderStatus(order, OrderStatus.PREPARING) }) {
-                                    Text("Proses ke Dapur")
+                            HorizontalDivider()
+                            order.orderItems.forEach { item ->
+                                Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
+                                    Text("${item.quantity}× ${item.productName}", modifier = Modifier.weight(1f))
+                                    Text(RupiahFormatter.format(item.lineTotal))
                                 }
-                                OrderStatus.PREPARING -> Button(onClick = { viewModel.updateOrderStatus(order, OrderStatus.READY) }) {
-                                    Text("Tandai Siap Saji")
-                                }
-                                OrderStatus.READY -> Button(onClick = { viewModel.updateOrderStatus(order, OrderStatus.COMPLETED) }) {
-                                    Text("Selesaikan Order")
-                                }
-                                else -> {}
                             }
-                            if (order.status != OrderStatus.COMPLETED && order.status != OrderStatus.CANCELLED) {
-                                OutlinedButton(onClick = { viewModel.updateOrderStatus(order, OrderStatus.CANCELLED) }) {
-                                    Text("Batalkan")
+                            HorizontalDivider()
+                            Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween, verticalAlignment = Alignment.CenterVertically) {
+                                Text("Total: ${RupiahFormatter.format(order.total)}", fontWeight = FontWeight.Bold)
+                                Row(horizontalArrangement = Arrangement.spacedBy(6.dp)) {
+                                    OutlinedButton(onClick = { viewModel.printOrderToThermal(order, PrinterRole.KITCHEN) }) { Text("Cetak") }
+                                    OutlinedButton(onClick = { viewModel.openReceiptDialog(order) }) { Text("Struk") }
                                 }
+                            }
+                            if (lane != "riwayat") {
+                                if (order.source == "qr" && !order.isPaid && order.status != OrderStatus.CANCELLED) {
+                                    Row(horizontalArrangement = Arrangement.spacedBy(6.dp)) {
+                                        Button(onClick = { viewModel.approveQrOrder(order, "qris") }) { Text("Konfirmasi QRIS") }
+                                        OutlinedButton(onClick = { viewModel.approveQrOrder(order, "cash") }) { Text("Terima Tunai") }
+                                        OutlinedButton(onClick = { viewModel.rejectQrOrder(order) }) { Text("Tolak") }
+                                    }
+                                }
+                                Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                                    when (order.status) {
+                                        OrderStatus.NEW -> Button(onClick = { viewModel.updateOrderStatus(order, OrderStatus.PREPARING) }, modifier = Modifier.weight(1f)) { Text("Mulai Proses") }
+                                        OrderStatus.PREPARING -> Button(onClick = { viewModel.updateOrderStatus(order, OrderStatus.READY) }, modifier = Modifier.weight(1f)) { Text("Tandai Siap") }
+                                        OrderStatus.READY -> if (order.isPaid) Button(onClick = { viewModel.updateOrderStatus(order, OrderStatus.COMPLETED) }, modifier = Modifier.weight(1f)) { Text("Selesaikan & ke Riwayat") } else Text("Konfirmasi pembayaran sebelum masuk riwayat", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.error)
+                                        else -> {}
+                                    }
+                                    if (order.status != OrderStatus.COMPLETED && order.status != OrderStatus.CANCELLED) {
+                                        OutlinedButton(onClick = { viewModel.updateOrderStatus(order, OrderStatus.CANCELLED) }) { Text("Batalkan") }
+                                    }
+                                }
+                            } else {
+                                Text(if (order.status == OrderStatus.CANCELLED) "Pesanan dibatalkan" else if (order.isPaid) "Pembayaran selesai" else "Belum lunas", style = MaterialTheme.typography.bodySmall)
                             }
                         }
                     }
@@ -1311,7 +1257,6 @@ private fun PesananComposeScreen(
         }
     }
 }
-
 // ============================================================================
 // 5. HISTORY TRANSAKSI SCREEN
 // ============================================================================

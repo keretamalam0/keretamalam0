@@ -57,11 +57,8 @@ data class PosUiState(
     val cashReceivedInput: String = "",
     val receiptDialogOrder: OrderWithItems? = null,
     val thermalPreviewText: String = "",
-    val pairedBluetoothDevices: List<Pair<String, String>> = listOf(
-        "RPP02N-Thermal-Kasir" to "DC:0D:30:A1:44:12",
-        "Epson-TM-P20-Dapur" to "00:01:90:C4:88:7B",
-        "VSC-MP-58C-Bar" to "86:67:7A:19:03:E5"
-    )
+    // Jangan tampilkan perangkat printer contoh/fiktif. Daftar diisi setelah scan Bluetooth nyata.
+    val pairedBluetoothDevices: List<Pair<String, String>> = emptyList()
 ) {
     val subtotal: Double
         get() = cart.sumOf { it.lineTotal }
@@ -1243,7 +1240,7 @@ class PosViewModel(application: Application) : AndroidViewModel(application) {
                     )
                 }
             } else {
-                showNotice("Pemindaian selesai. Menampilkan daftar printer Bluetooth siap pakai.")
+                showNotice("Tidak ada printer Bluetooth terpasang yang terdeteksi. Pair printer lewat pengaturan Bluetooth Android, lalu coba pindai lagi.", isError = true)
             }
         }.onFailure { err ->
             showNotice("Info Bluetooth: ${err.message}")

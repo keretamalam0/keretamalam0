@@ -415,6 +415,8 @@ export default function App() {
         }))
       );
       setTables((tblRes.data ?? []) as RestaurantTable[]);
+      // Use a real Supabase UUID for POS table selection; sandbox IDs like `tbl-1` are not database IDs.
+      if (tblRes.data?.length) setSelectedTableId(String(tblRes.data[0].id));
       if (!ordRes.error && ordRes.data) {
         setOrders(ordRes.data as unknown as OrderWithItems[]);
       }
@@ -666,7 +668,7 @@ export default function App() {
             idempotency_key: idempotencyKey,
             source: 'pos',
             status: 'preparing',
-            table_id: tableObj ? tableObj.id : null,
+            table_id: tableObj && /^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(tableObj.id) ? tableObj.id : null,
             promotion_id: selectedPromo?.id ?? null,
             customer_name: customerName.trim() || 'Walk-in Customer',
             notes: orderNotes.trim() || null,

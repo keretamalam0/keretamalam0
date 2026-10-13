@@ -1,6 +1,7 @@
 package id.keretamalam.cafe.ui.navigation
 
 import androidx.compose.foundation.background
+import androidx.compose.ui.graphics.Brush
 import androidx.compose.foundation.border
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.rememberScrollState
@@ -81,7 +82,10 @@ fun CafeFlowAppShell(
     val scope = rememberCoroutineScope()
 
     BoxWithConstraints(modifier = Modifier.fillMaxSize()) {
-        val isTabletOrWide = maxWidth >= 840.dp
+        // Landscape phone has a wide width but short height: keep the collapsible drawer
+        // and bottom navigation instead of forcing a permanent sidebar.
+        val isLandscapePhone = maxWidth > maxHeight && maxHeight < 600.dp
+        val isTabletOrWide = maxWidth >= 840.dp && !isLandscapePhone
 
         // Jika belum login, tampilkan Halaman Login Native penuh (adaptif HP & Tablet)
         if (!uiState.isLoggedIn) {
@@ -293,7 +297,23 @@ fun CafeFlowAppShell(
                 Box(
                     modifier = Modifier
                         .fillMaxSize()
-                        .background(MaterialTheme.colorScheme.background)
+                        .background(
+                            Brush.linearGradient(
+                                colors = if (uiState.darkTheme) {
+                                    listOf(
+                                        androidx.compose.ui.graphics.Color(0xFF09090B),
+                                        androidx.compose.ui.graphics.Color(0xFF151922),
+                                        androidx.compose.ui.graphics.Color(0xFF101418)
+                                    )
+                                } else {
+                                    listOf(
+                                        androidx.compose.ui.graphics.Color(0xFFF0F3F8),
+                                        androidx.compose.ui.graphics.Color(0xFFE8EEF5),
+                                        androidx.compose.ui.graphics.Color(0xFFF4F6FA)
+                                    )
+                                }
+                            )
+                        )
                         .padding(innerPadding)
                 ) {
                     RenderModuleScreen(

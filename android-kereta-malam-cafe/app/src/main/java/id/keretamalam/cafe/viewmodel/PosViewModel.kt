@@ -296,11 +296,18 @@ class PosViewModel(application: Application) : AndroidViewModel(application) {
     }
 
     fun switchActiveStaffProfile(profile: StaffProfile) {
+        if (_uiState.value.backendStatus != BackendIntegrationStatus.LOCAL_SANDBOX_UI) {
+            showNotice(
+                "Akun staf tidak bisa diganti lewat pemilihan profil. Keluar lalu masuk dengan email dan password staf yang sesuai.",
+                isError = true
+            )
+            return
+        }
         _uiState.update {
             it.copy(
                 staffProfile = profile,
                 isLoggedIn = true,
-                successMessage = "Beralih ke profil akses: ${profile.fullName} (${profile.role.labelId})"
+                successMessage = "Beralih ke profil simulasi lokal: ${profile.fullName} (${profile.role.labelId})"
             )
         }
     }

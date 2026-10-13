@@ -170,7 +170,10 @@ data class Promotion(
     val scope: String = "order", // "order" | "product"
     @SerialName("product_id") val productId: String? = null,
     val active: Boolean = true,
-    @SerialName("created_at") val createdAt: String? = null
+    @SerialName("created_at") val createdAt: String? = null,
+    @SerialName("campaign_type") val campaignType: String = "promotion",
+    @SerialName("allow_customer") val allowCustomer: Boolean = true,
+    @SerialName("allow_cashier") val allowCashier: Boolean = true
 )
 
 @Serializable

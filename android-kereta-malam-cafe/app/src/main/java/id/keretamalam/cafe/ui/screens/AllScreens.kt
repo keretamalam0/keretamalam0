@@ -1661,6 +1661,12 @@ private fun ShiftKasirComposeScreen(viewModel: PosViewModel, uiState: PosUiState
 // ============================================================================
 @Composable
 private fun AuditShiftComposeScreen(viewModel: PosViewModel, uiState: PosUiState) {
+    if (!uiState.staffProfile.canPerform("audit.view")) {
+        Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
+            Text("Akses Audit Shift dinonaktifkan untuk akun ini.", color = MaterialTheme.colorScheme.onSurfaceVariant)
+        }
+        return
+    }
     var filter by remember { mutableStateOf("SEMUA") }
     var search by remember { mutableStateOf("") }
     var selectedShift by remember { mutableStateOf<StaffShift?>(null) }

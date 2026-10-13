@@ -2655,10 +2655,14 @@ export default function App() {
                   <div className="flex items-center gap-2">
                     <button
                       type="button"
-                      onClick={() =>
+                      onClick={() => {
+                        if (backendMode === 'LIVE_SUPABASE') {
+                          showNotice('error', 'Ubah status promosi belum terhubung ke Supabase. Tidak ada perubahan disimpan.');
+                          return;
+                        }
                         setPromotions((prev) =>
                           prev.map((x) => (x.id === p.id ? { ...x, active: !x.active } : x))
-                        )
+                        );
                       }
                       className={`rounded-lg px-3 py-1 text-xs font-semibold ${
                         p.active
@@ -2767,6 +2771,10 @@ export default function App() {
                       const amt = Number(expenseAmount);
                       if (!Number.isFinite(amt) || amt <= 0 || !expenseDesc.trim()) {
                         showNotice('error', 'Nominal harus lebih dari Rp0 dan keterangan wajib diisi.');
+                        return;
+                      }
+                      if (backendMode === 'LIVE_SUPABASE') {
+                        showNotice('error', 'Pencatatan pengeluaran belum terhubung ke Supabase. Tidak ada perubahan disimpan.');
                         return;
                       }
                       const created: Expense = {
@@ -3468,7 +3476,13 @@ export default function App() {
               </div>
               <button
                 type="button"
-                onClick={() => showNotice('success', 'Pengaturan CMS Website berhasil diperbarui.')}
+                onClick={() => {
+                  if (backendMode === 'LIVE_SUPABASE') {
+                    showNotice('error', 'Simpan CMS Website belum terhubung ke Supabase. Tidak ada perubahan disimpan.');
+                    return;
+                  }
+                  showNotice('success', 'Pengaturan CMS Website berhasil diperbarui.');
+                }}
                 className="mt-4 rounded-lg bg-zinc-900 px-4 py-2 text-xs font-semibold text-white dark:bg-zinc-100 dark:text-zinc-900"
               >
                 Simpan Perubahan Website

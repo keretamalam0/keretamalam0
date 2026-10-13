@@ -376,7 +376,7 @@ export default function App() {
     if (!client) {
       showNotice(
         'error',
-        'Kredensial Supabase belum lengkap atau belum diverifikasi. Silakan periksa Pengaturan Outlet.'
+        'Koneksi layanan belum siap. Periksa konfigurasi koneksi di Pengaturan Outlet.'
       );
       return;
     }
@@ -425,11 +425,11 @@ export default function App() {
       }
 
       setBackendMode('LIVE_SUPABASE');
-      showNotice('success', `Berhasil sinkronisasi dengan Supabase (${cfg.projectId}).`);
+      showNotice('success', `Data berhasil disinkronkan.`);
     } catch (err) {
       showNotice(
         'error',
-        `Gagal memuat dari Supabase: ${err instanceof Error ? err.message : 'Periksa URL, Anon Key, atau RLS'}`
+        `Data gagal dimuat. Periksa koneksi dan hak akses, lalu coba lagi.`
       );
     } finally {
       setIsSyncingBackend(false);
@@ -440,7 +440,7 @@ export default function App() {
     e.preventDefault();
     const client = getVerifiedSupabaseClient(supabaseConfig);
     if (!client) {
-      showNotice('error', 'Aktifkan dan simpan konfigurasi Supabase terlebih dahulu.');
+      showNotice('error', 'Selesaikan konfigurasi koneksi terlebih dahulu.');
       return;
     }
     setAuthLoading(true);
@@ -460,7 +460,7 @@ export default function App() {
           setCurrentStaff(profileData as StaffProfile);
         }
         setAuthPassword('');
-        showNotice('success', `Login Supabase berhasil sebagai ${data.user.email}`);
+        showNotice('success', `Berhasil masuk sebagai ${data.user.email}`);
         await syncFromLiveSupabase(supabaseConfig);
       }
     } catch (err) {
@@ -3678,14 +3678,16 @@ export default function App() {
 
             {/* Feedback Notification Toast */}
             {feedback && (
-              <div className="mx-4 mt-4 flex items-center justify-between rounded-xl border border-zinc-300 bg-zinc-900 px-4 py-3 text-xs font-medium text-white shadow-md md:mx-6 dark:border-zinc-700 dark:bg-zinc-100 dark:text-zinc-900">
-                <div className="flex items-center gap-2">
-                  <CheckCircle2 className="size-4 shrink-0" />
-                  <span>{feedback.message}</span>
+              <div className="fixed inset-0 z-[100] flex items-center justify-center bg-black/35 p-4 backdrop-blur-[2px]" role="dialog" aria-modal="true" aria-label="Notifikasi">
+                <div className="flex w-full max-w-md items-center justify-between gap-4 rounded-2xl border border-zinc-200 bg-white px-5 py-4 text-sm font-medium text-zinc-900 shadow-2xl dark:border-zinc-700 dark:bg-zinc-900 dark:text-zinc-100">
+                  <div className="flex min-w-0 items-center gap-3">
+                    <CheckCircle2 className="size-5 shrink-0" />
+                    <span>{feedback.message}</span>
+                  </div>
+                  <button type="button" aria-label="Tutup notifikasi" onClick={() => setFeedback(null)} className="grid size-9 shrink-0 place-items-center rounded-full hover:bg-zinc-100 dark:hover:bg-zinc-800">
+                    <X className="size-4" />
+                  </button>
                 </div>
-                <button type="button" onClick={() => setFeedback(null)}>
-                  <X className="size-4" />
-                </button>
               </div>
             )}
 
@@ -4225,7 +4227,7 @@ export default function App() {
                   disabled={authLoading}
                   className="w-full rounded-xl bg-zinc-900 py-2.5 text-xs font-bold text-white hover:bg-zinc-800 dark:bg-zinc-100 dark:text-zinc-900"
                 >
-                  {authLoading ? 'Memverifikasi...' : 'Masuk dengan Supabase Auth'}
+                  {authLoading ? 'Memverifikasi...' : 'Masuk'}
                 </button>
               </form>
 

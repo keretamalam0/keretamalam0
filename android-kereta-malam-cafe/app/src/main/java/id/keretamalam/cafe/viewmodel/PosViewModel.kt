@@ -15,7 +15,6 @@ import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.delay
-import kotlinx.coroutines.isActive
 import kotlinx.coroutines.flow.collectLatest
 import kotlinx.coroutines.flow.distinctUntilChanged
 import kotlinx.coroutines.flow.map
@@ -149,7 +148,7 @@ class PosViewModel(application: Application) : AndroidViewModel(application) {
                 .distinctUntilChanged()
                 .collectLatest { shouldPoll ->
                     if (shouldPoll) {
-                        while (isActive) {
+                        while (true) {
                             kotlinx.coroutines.delay(3_000)
                             refreshOrdersSilently()
                         }

@@ -53,7 +53,7 @@ jobs:
           test -n "$SUPABASE_PUBLISHABLE_KEY" || { echo "Missing GitHub Actions secret: SUPABASE_PUBLISHABLE_KEY"; exit 1; }
           EXPECTED_PROJECT_ID="dbazoxwhhljpgtbnletc"
           EXPECTED_SUPABASE_URL="https://dbazoxwhhljpgtbnletc.supabase.co"
-          NORMALIZED_SUPABASE_URL="$(printf '%s' "$SUPABASE_URL" | sed -E 's#^(https?://[^/]+)\.$#\1#')"
+          NORMALIZED_SUPABASE_URL="${SUPABASE_URL%/}"
           if [ "$SUPABASE_PROJECT_ID" != "$EXPECTED_PROJECT_ID" ]; then
             echo "Wrong Supabase project secret; refusing to build APK."
             exit 1

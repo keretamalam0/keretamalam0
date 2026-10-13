@@ -42,147 +42,194 @@ import id.keretamalam.cafe.viewmodel.PosViewModel
 // ============================================================================
 // 9. PRODUK & STOK SCREEN
 // ============================================================================
+
 @Composable
 fun ProdukStokComposeScreen(viewModel: PosViewModel, uiState: PosUiState) {
+    var section by remember { mutableStateOf("PRODUK") }
     var stockFilter by remember { mutableStateOf("ALL") }
     var searchQuery by remember { mutableStateOf("") }
     var newCategoryName by remember { mutableStateOf("") }
     var editingProduct by remember { mutableStateOf<Product?>(null) }
     var deletingProduct by remember { mutableStateOf<Product?>(null) }
+    var selectedProductId by remember(uiState.products) { mutableStateOf(uiState.products.firstOrNull()?.id.orEmpty()) }
+    var addonId by remember { mutableStateOf("") }
+    var addonName by remember { mutableStateOf("") }
+    var addonPrice by remember { mutableStateOf("0") }
+    var addonActive by remember { mutableStateOf(true) }
+    var optionId by remember { mutableStateOf("") }
+    var optionGroup by remember { mutableStateOf("sugar") }
+    var optionName by remember { mutableStateOf("") }
+    var optionPrice by remember { mutableStateOf("0") }
+    var optionActive by remember { mutableStateOf(true) }
 
     val displayed = remember(uiState.products, stockFilter, searchQuery) {
-        uiState.products.filter {
-            val matchStock = when (stockFilter) {
-                "LOW" -> it.isLowStock
-                "OUT" -> it.isOutOfStock
-                else -> true
-            }
-            val matchSearch = searchQuery.isBlank() || it.name.contains(searchQuery, ignoreCase = true)
-            matchStock && matchSearch
+        uiState.products.filter { p ->
+            val stockMatch = when (stockFilter) { "LOW" -> p.isLowStock; "OUT" -> p.isOutOfStock; else -> true }
+            stockMatch && (searchQuery.isBlank() || p.name.contains(searchQuery, ignoreCase = true))
         }
     }
+    val selectedProduct = uiState.products.firstOrNull { it.id == selectedProductId }
 
-    Column(modifier = Modifier.fillMaxSize(), verticalArrangement = Arrangement.spacedBy(10.dp)) {
-        Row(
-            modifier = Modifier
-                .fillMaxWidth()
-                .horizontalScroll(rememberScrollState()),
-            horizontalArrangement = Arrangement.spacedBy(8.dp),
-            verticalAlignment = Alignment.CenterVertically
-        ) {
-            FilterChip(selected = stockFilter == "ALL", onClick = { stockFilter = "ALL" }, label = { Text("Semua (${uiState.products.size})") })
-            FilterChip(selected = stockFilter == "LOW", onClick = { stockFilter = "LOW" }, label = { Text("Stok Menipis (${uiState.products.count { it.isLowStock }})") })
-            FilterChip(selected = stockFilter == "OUT", onClick = { stockFilter = "OUT" }, label = { Text("Habis (${uiState.products.count { it.isOutOfStock }})") })
-            Button(onClick = {
-                editingProduct = Product(
-                    id = "",
-                    name = "",
-                    price = 25000.0,
-                    costPrice = 10000.0,
-                    categoryId = uiState.categories.firstOrNull()?.id,
-                    stock = 20,
-                    lowStockThreshold = 5
-                )
-            }) {
-                Text("+ Tambah Produk")
+    Column(Modifier.fillMaxSize(), verticalArrangement = Arrangement.spacedBy(10.dp)) {
+        Text("Produk & Stok", style = MaterialTheme.typography.headlineSmall, fontWeight = FontWeight.Bold)
+        Text("Atur produk, kategori, topping, dan pilihan minuman.", style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
+        Row(Modifier.fillMaxWidth().horizontalScroll(rememberScrollState()), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+            listOf("PRODUK" to "Semua Produk", "KATEGORI" to "Kelola Kategori", "TOPPING" to "Topping", "CUSTOM" to "Kustomisasi Minuman").forEach { (key, label) ->
+                FilterChip(selected = section == key, onClick = { section = key }, label = { Text(label) })
             }
         }
 
-        Row(
-            modifier = Modifier.fillMaxWidth(),
-            horizontalArrangement = Arrangement.spacedBy(8.dp),
-            verticalAlignment = Alignment.CenterVertically
-        ) {
-            OutlinedTextField(
-                value = searchQuery,
-                onValueChange = { searchQuery = it },
-                label = { Text("Cari Nama Produk...") },
-                modifier = Modifier.weight(1f),
-                singleLine = true
-            )
-            OutlinedTextField(
-                value = newCategoryName,
-                onValueChange = { newCategoryName = it },
-                label = { Text("Kategori Baru") },
-                modifier = Modifier.weight(0.9f),
-                singleLine = true
-            )
-            OutlinedButton(onClick = {
-                viewModel.addCategory(newCategoryName)
-                newCategoryName = ""
-            }) {
-                Text("+ Kategori")
-            }
-        }
-
-        LazyColumn(
-            modifier = Modifier.weight(1f),
-            verticalArrangement = Arrangement.spacedBy(8.dp)
-        ) {
-            items(displayed, key = { it.id }) { prod ->
-                val catName = uiState.categories.find { it.id == prod.categoryId }?.name ?: "Umum"
-                OutlinedCard(modifier = Modifier.fillMaxWidth()) {
-                    Row(
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .padding(14.dp),
-                        horizontalArrangement = Arrangement.SpaceBetween,
-                        verticalAlignment = Alignment.CenterVertically
-                    ) {
-                        Box(
-                            modifier = Modifier.size(76.dp),
-                            contentAlignment = Alignment.Center
-                        ) {
-                            Surface(
-                                modifier = Modifier.fillMaxSize(),
-                                shape = RoundedCornerShape(8.dp),
-                                color = MaterialTheme.colorScheme.surfaceVariant
-                            ) {
-                                Box(contentAlignment = Alignment.Center) {
-                                    Text("FOTO", style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+        when (section) {
+            "PRODUK" -> {
+                Row(Modifier.fillMaxWidth().horizontalScroll(rememberScrollState()), horizontalArrangement = Arrangement.spacedBy(8.dp), verticalAlignment = Alignment.CenterVertically) {
+                    FilterChip(selected = stockFilter == "ALL", onClick = { stockFilter = "ALL" }, label = { Text("Semua (${uiState.products.size})") })
+                    FilterChip(selected = stockFilter == "LOW", onClick = { stockFilter = "LOW" }, label = { Text("Menipis (${uiState.products.count { it.isLowStock }})") })
+                    FilterChip(selected = stockFilter == "OUT", onClick = { stockFilter = "OUT" }, label = { Text("Habis (${uiState.products.count { it.isOutOfStock }})") })
+                    Button(onClick = { editingProduct = Product(id = "", name = "", price = 0.0, costPrice = 0.0, categoryId = uiState.categories.firstOrNull()?.id, stock = 0, lowStockThreshold = 5) }) { Text("+ Tambah Produk") }
+                }
+                OutlinedTextField(value = searchQuery, onValueChange = { searchQuery = it }, label = { Text("Cari nama produk") }, modifier = Modifier.fillMaxWidth(), singleLine = true)
+                LazyColumn(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                    items(displayed, key = { it.id }) { p ->
+                        val category = uiState.categories.firstOrNull { it.id == p.categoryId }?.name ?: "Tanpa kategori"
+                        OutlinedCard(Modifier.fillMaxWidth()) {
+                            Row(Modifier.fillMaxWidth().padding(12.dp), horizontalArrangement = Arrangement.spacedBy(10.dp), verticalAlignment = Alignment.CenterVertically) {
+                                Box(Modifier.size(72.dp), contentAlignment = Alignment.Center) {
+                                    Surface(Modifier.fillMaxSize(), shape = RoundedCornerShape(8.dp), color = MaterialTheme.colorScheme.surfaceVariant) {
+                                        Box(contentAlignment = Alignment.Center) { Text("FOTO", style = MaterialTheme.typography.labelSmall) }
+                                    }
+                                    if (!p.imageUrl.isNullOrBlank()) AsyncImage(model = p.imageUrl, contentDescription = "Foto ${p.name}", modifier = Modifier.fillMaxSize(), contentScale = androidx.compose.ui.layout.ContentScale.Crop)
+                                }
+                                Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(2.dp)) {
+                                    Text(p.name, fontWeight = FontWeight.Bold)
+                                    Text(category, style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                                    Text(RupiahFormatter.format(p.price), fontWeight = FontWeight.SemiBold)
+                                    Text("Stok ${p.stock} · Ambang ${p.lowStockThreshold}", style = MaterialTheme.typography.bodySmall)
+                                    Row(verticalAlignment = Alignment.CenterVertically) {
+                                        Text("Aktif", style = MaterialTheme.typography.labelSmall)
+                                        Switch(checked = p.isActive, onCheckedChange = { viewModel.toggleProductActive(p.id, it) })
+                                        Text("QR", style = MaterialTheme.typography.labelSmall)
+                                        Switch(checked = p.showOnMenu, onCheckedChange = { viewModel.toggleProductQrMenu(p.id, it) })
+                                    }
+                                }
+                                Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
+                                    OutlinedButton(onClick = { editingProduct = p }) { Text("Edit") }
+                                    OutlinedButton(onClick = { selectedProductId = p.id; section = "TOPPING" }) { Text("Topping") }
+                                    TextButton(onClick = { deletingProduct = p }) { Text("Hapus") }
                                 }
                             }
-                            if (!prod.imageUrl.isNullOrBlank()) {
-                                AsyncImage(
-                                    model = prod.imageUrl,
-                                    contentDescription = "Foto ${prod.name}",
-                                    modifier = Modifier.fillMaxSize(),
-                                    contentScale = androidx.compose.ui.layout.ContentScale.Crop
-                                )
+                        }
+                    }
+                    if (displayed.isEmpty()) item { Text("Belum ada produk. Tekan + Tambah Produk untuk mulai.", modifier = Modifier.padding(16.dp)) }
+                }
+            }
+            "KATEGORI" -> {
+                OutlinedCard(Modifier.fillMaxWidth()) {
+                    Column(Modifier.padding(14.dp), verticalArrangement = Arrangement.spacedBy(10.dp)) {
+                        Text("Tambah kategori", style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.SemiBold)
+                        Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                            OutlinedTextField(value = newCategoryName, onValueChange = { newCategoryName = it }, label = { Text("Nama kategori") }, modifier = Modifier.weight(1f), singleLine = true)
+                            Button(enabled = newCategoryName.isNotBlank(), onClick = { viewModel.addCategory(newCategoryName); newCategoryName = "" }) { Text("Tambah") }
+                        }
+                        Text("Kategori cepat", style = MaterialTheme.typography.labelLarge)
+                        Row(Modifier.fillMaxWidth().horizontalScroll(rememberScrollState()), horizontalArrangement = Arrangement.spacedBy(6.dp)) {
+                            listOf("Coffee", "Non Coffee", "Makanan", "Snack", "Juice", "Alkohol").forEach { name ->
+                                val exists = uiState.categories.any { it.name.equals(name, true) }
+                                FilterChip(selected = exists, enabled = !exists, onClick = { viewModel.addCategory(name) }, label = { Text(if (exists) "$name ✓" else "+ $name") })
                             }
                         }
-                        Column(modifier = Modifier.weight(1f)) {
-                            Text("${prod.name} ($catName)", fontWeight = FontWeight.Bold)
-                            Text(
-                                text = "Jual: ${RupiahFormatter.format(prod.price)} · HPP: ${RupiahFormatter.format(prod.costPrice ?: 0.0)} · Stok: ${prod.stock}",
-                                style = MaterialTheme.typography.bodyMedium
-                            )
+                    }
+                }
+                LazyColumn(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                    items(uiState.categories, key = { it.id }) { cat ->
+                        OutlinedCard { Row(Modifier.fillMaxWidth().padding(14.dp), horizontalArrangement = Arrangement.SpaceBetween, verticalAlignment = Alignment.CenterVertically) {
+                            Text(cat.name, fontWeight = FontWeight.SemiBold)
+                            Text("${uiState.products.count { it.categoryId == cat.id }} produk", style = MaterialTheme.typography.bodySmall)
+                        } }
+                    }
+                }
+            }
+            "TOPPING" -> {
+                OutlinedCard(Modifier.fillMaxWidth()) {
+                    Column(Modifier.padding(14.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                        Text(if (addonId.isBlank()) "Tambah topping" else "Edit topping", style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.SemiBold)
+                        Text("Topping aktif tersedia untuk dipilih pelanggan pada produk terkait.", style = MaterialTheme.typography.bodySmall)
+                        Row(Modifier.fillMaxWidth().horizontalScroll(rememberScrollState()), horizontalArrangement = Arrangement.spacedBy(6.dp)) {
+                            uiState.products.forEach { p -> FilterChip(selected = selectedProductId == p.id, onClick = { selectedProductId = p.id }, label = { Text(p.name) }) }
                         }
-                        Row(horizontalArrangement = Arrangement.spacedBy(6.dp), verticalAlignment = Alignment.CenterVertically) {
-                            Checkbox(
-                                checked = prod.showOnMenu,
-                                onCheckedChange = { viewModel.toggleProductQrMenu(prod.id, it) }
-                            )
-                            OutlinedButton(onClick = { editingProduct = prod }) { Text("Edit") }
-                            OutlinedButton(onClick = { deletingProduct = prod }) { Text("Hapus") }
+                        OutlinedTextField(value = addonName, onValueChange = { addonName = it }, label = { Text("Nama topping") }, modifier = Modifier.fillMaxWidth(), singleLine = true)
+                        OutlinedTextField(value = addonPrice, onValueChange = { addonPrice = it.filter(Char::isDigit) }, label = { Text("Harga tambahan (Rp)") }, modifier = Modifier.fillMaxWidth(), singleLine = true)
+                        Row(verticalAlignment = Alignment.CenterVertically) { Text("Aktif / tampil ke pelanggan", Modifier.weight(1f)); Switch(checked = addonActive, onCheckedChange = { addonActive = it }) }
+                        Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                            Button(enabled = selectedProduct != null && addonName.isNotBlank(), onClick = {
+                                viewModel.saveProductAddon(ProductAddon(id = addonId, productId = selectedProductId, name = addonName.trim(), price = addonPrice.toDoubleOrNull() ?: 0.0, isActive = addonActive))
+                                addonId = ""; addonName = ""; addonPrice = "0"; addonActive = true
+                            }) { Text(if (addonId.isBlank()) "Tambah Topping" else "Simpan") }
+                            if (addonId.isNotBlank()) TextButton(onClick = { addonId = ""; addonName = ""; addonPrice = "0"; addonActive = true }) { Text("Batal") }
                         }
+                    }
+                }
+                LazyColumn(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                    items(uiState.productAddons.filter { it.productId == selectedProductId }, key = { it.id }) { addon ->
+                        OutlinedCard { Row(Modifier.fillMaxWidth().padding(10.dp), verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(6.dp)) {
+                            Column(Modifier.weight(1f)) { Text(addon.name, fontWeight = FontWeight.SemiBold); Text(RupiahFormatter.format(addon.price), style = MaterialTheme.typography.bodySmall) }
+                            Switch(checked = addon.isActive, onCheckedChange = { viewModel.saveProductAddon(addon.copy(isActive = it)) })
+                            TextButton(onClick = { addonId = addon.id; addonName = addon.name; addonPrice = addon.price.toLong().toString(); addonActive = addon.isActive }) { Text("Edit") }
+                            TextButton(onClick = { viewModel.deleteProductAddon(addon.id) }) { Text("Hapus") }
+                        } }
+                    }
+                }
+            }
+            else -> {
+                OutlinedCard(Modifier.fillMaxWidth()) {
+                    Column(Modifier.padding(14.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                        Text(if (optionId.isBlank()) "Opsi kustomisasi minuman" else "Edit opsi kustomisasi", style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.SemiBold)
+                        Text("Opsi aktif tersedia pada pilihan pelanggan di QR Menu.", style = MaterialTheme.typography.bodySmall)
+                        Row(Modifier.fillMaxWidth().horizontalScroll(rememberScrollState()), horizontalArrangement = Arrangement.spacedBy(6.dp)) {
+                            uiState.products.forEach { p -> FilterChip(selected = selectedProductId == p.id, onClick = { selectedProductId = p.id }, label = { Text(p.name) }) }
+                        }
+                        Row(Modifier.fillMaxWidth().horizontalScroll(rememberScrollState()), horizontalArrangement = Arrangement.spacedBy(6.dp)) {
+                            listOf("sugar" to "Gula", "ice" to "Es", "size" to "Ukuran").forEach { (key, label) -> FilterChip(selected = optionGroup == key, onClick = { optionGroup = key }, label = { Text(label) }) }
+                        }
+                        OutlinedTextField(value = optionName, onValueChange = { optionName = it }, label = { Text("Nama pilihan") }, modifier = Modifier.fillMaxWidth(), singleLine = true)
+                        OutlinedTextField(value = optionPrice, onValueChange = { optionPrice = it.filter(Char::isDigit) }, label = { Text("Tambahan harga (Rp)") }, modifier = Modifier.fillMaxWidth(), singleLine = true)
+                        Row(verticalAlignment = Alignment.CenterVertically) { Text("Aktif / tersedia di QR", Modifier.weight(1f)); Switch(checked = optionActive, onCheckedChange = { optionActive = it }) }
+                        Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                            Button(enabled = selectedProduct != null && optionName.isNotBlank(), onClick = {
+                                val order = uiState.customizationOptions.count { it.productId == selectedProductId && it.groupKey == optionGroup }
+                                viewModel.saveCustomizationOption(ProductCustomizationOption(id = optionId, productId = selectedProductId, groupKey = optionGroup, name = optionName.trim(), priceDelta = optionPrice.toDoubleOrNull() ?: 0.0, isActive = optionActive, sortOrder = order))
+                                optionId = ""; optionName = ""; optionPrice = "0"; optionActive = true
+                            }) { Text(if (optionId.isBlank()) "Tambah Opsi" else "Simpan") }
+                            if (optionId.isNotBlank()) TextButton(onClick = { optionId = ""; optionName = ""; optionPrice = "0"; optionActive = true }) { Text("Batal") }
+                        }
+                    }
+                }
+                LazyColumn(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                    items(uiState.customizationOptions.filter { it.productId == selectedProductId }, key = { it.id }) { option ->
+                        val groupLabel = when (option.groupKey) { "sugar" -> "Gula"; "ice" -> "Es"; else -> "Ukuran" }
+                        OutlinedCard { Row(Modifier.fillMaxWidth().padding(10.dp), verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(6.dp)) {
+                            Column(Modifier.weight(1f)) { Text(option.name, fontWeight = FontWeight.SemiBold); Text("$groupLabel · +${RupiahFormatter.format(option.priceDelta)}", style = MaterialTheme.typography.bodySmall) }
+                            Switch(checked = option.isActive, onCheckedChange = { viewModel.saveCustomizationOption(option.copy(isActive = it)) })
+                            TextButton(onClick = { optionId = option.id; selectedProductId = option.productId; optionGroup = option.groupKey; optionName = option.name; optionPrice = option.priceDelta.toLong().toString(); optionActive = option.isActive }) { Text("Edit") }
+                            TextButton(onClick = { viewModel.deleteCustomizationOption(option.id) }) { Text("Hapus") }
+                        } }
                     }
                 }
             }
         }
     }
 
-    // Dialog Tambah / Edit Produk
     val targetEdit = editingProduct
     if (targetEdit != null) {
         var name by remember(targetEdit) { mutableStateOf(targetEdit.name) }
         var desc by remember(targetEdit) { mutableStateOf(targetEdit.description.orEmpty()) }
-        var price by remember(targetEdit) { mutableStateOf(targetEdit.price.toLong().toString()) }
+        var price by remember(targetEdit) { mutableStateOf(if (targetEdit.price > 0) targetEdit.price.toLong().toString() else "") }
         var cost by remember(targetEdit) { mutableStateOf((targetEdit.costPrice ?: 0.0).toLong().toString()) }
         var stock by remember(targetEdit) { mutableStateOf(targetEdit.stock.toString()) }
         var threshold by remember(targetEdit) { mutableStateOf(targetEdit.lowStockThreshold.toString()) }
         var catId by remember(targetEdit) { mutableStateOf(targetEdit.categoryId ?: uiState.categories.firstOrNull()?.id) }
         var imageUrl by remember(targetEdit) { mutableStateOf(targetEdit.imageUrl.orEmpty()) }
+        var isActive by remember(targetEdit) { mutableStateOf(targetEdit.isActive) }
+        var showOnMenu by remember(targetEdit) { mutableStateOf(targetEdit.showOnMenu) }
         var uploadingImage by remember { mutableStateOf(false) }
         val context = LocalContext.current
         val imagePicker = rememberLauncherForActivityResult(ActivityResultContracts.GetContent()) { uri: Uri? ->
@@ -191,105 +238,61 @@ fun ProdukStokComposeScreen(viewModel: PosViewModel, uiState: PosUiState) {
                 val mime = context.contentResolver.getType(uri) ?: "image/jpeg"
                 val ext = when (mime.lowercase()) { "image/png" -> "png"; "image/webp" -> "webp"; else -> "jpg" }
                 val bytes = runCatching { context.contentResolver.openInputStream(uri)?.use { it.readBytes() } }.getOrNull()
-                if (bytes == null) {
-                    uploadingImage = false
-                } else {
-                    viewModel.uploadProductPhoto(bytes, mime, ext) { uploadedUrl ->
-                        imageUrl = uploadedUrl
-                        uploadingImage = false
-                    }
-                }
+                if (bytes == null) uploadingImage = false
+                else viewModel.uploadProductPhoto(bytes, mime, ext) { url -> imageUrl = url; uploadingImage = false }
             }
         }
-
-        Dialog(
-            onDismissRequest = { editingProduct = null },
-            properties = DialogProperties(usePlatformDefaultWidth = false)
-        ) {
-            Surface(
-                shape = RoundedCornerShape(16.dp),
-                color = MaterialTheme.colorScheme.surface,
-                modifier = Modifier
-                    .fillMaxWidth(0.92f)
-                    .widthIn(max = 460.dp)
-                    .padding(16.dp)
-            ) {
-                Column(modifier = Modifier.padding(20.dp), verticalArrangement = Arrangement.spacedBy(10.dp)) {
-                    Text(if (targetEdit.id.isBlank()) "Tambah Produk Baru" else "Edit Produk", style = MaterialTheme.typography.titleLarge)
-                    OutlinedTextField(value = name, onValueChange = { name = it }, label = { Text("Nama Produk") }, modifier = Modifier.fillMaxWidth(), singleLine = true)
-                    OutlinedTextField(value = desc, onValueChange = { desc = it }, label = { Text("Deskripsi Singkat") }, modifier = Modifier.fillMaxWidth(), singleLine = true)
+        Dialog(onDismissRequest = { editingProduct = null }, properties = DialogProperties(usePlatformDefaultWidth = false)) {
+            Surface(shape = RoundedCornerShape(16.dp), color = MaterialTheme.colorScheme.surface, modifier = Modifier.fillMaxWidth(0.94f).widthIn(max = 520.dp).padding(12.dp)) {
+                Column(Modifier.padding(16.dp).verticalScroll(rememberScrollState()), verticalArrangement = Arrangement.spacedBy(10.dp)) {
+                    Text(if (targetEdit.id.isBlank()) "Tambah Produk" else "Edit Produk", style = MaterialTheme.typography.titleLarge, fontWeight = FontWeight.Bold)
+                    OutlinedTextField(value = name, onValueChange = { name = it }, label = { Text("Nama produk") }, modifier = Modifier.fillMaxWidth(), singleLine = true)
+                    OutlinedTextField(value = desc, onValueChange = { desc = it }, label = { Text("Deskripsi") }, modifier = Modifier.fillMaxWidth(), maxLines = 2)
                     Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(10.dp)) {
-                        if (imageUrl.isNotBlank()) {
-                            AsyncImage(model = imageUrl, contentDescription = "Foto produk", modifier = Modifier.size(76.dp))
+                        Box(Modifier.size(78.dp), contentAlignment = Alignment.Center) {
+                            Surface(Modifier.fillMaxSize(), shape = RoundedCornerShape(8.dp), color = MaterialTheme.colorScheme.surfaceVariant) { Box(contentAlignment = Alignment.Center) { Text("FOTO", style = MaterialTheme.typography.labelSmall) } }
+                            if (imageUrl.isNotBlank()) AsyncImage(model = imageUrl, contentDescription = "Foto produk", modifier = Modifier.fillMaxSize(), contentScale = androidx.compose.ui.layout.ContentScale.Crop)
                         }
-                        Column(modifier = Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(4.dp)) {
-                            OutlinedButton(onClick = { imagePicker.launch("image/*") }, enabled = !uploadingImage) {
-                                Text(if (uploadingImage) "Mengunggah foto..." else if (imageUrl.isBlank()) "Pilih Foto dari Galeri" else "Ganti Foto")
-                            }
-                            Text(if (imageUrl.isBlank()) "Foto tersimpan di Supabase dan dipakai di menu online." else "Foto produk sudah dipilih.", style = MaterialTheme.typography.bodySmall)
+                        Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(4.dp)) {
+                            OutlinedButton(onClick = { imagePicker.launch("image/*") }, enabled = !uploadingImage) { Text(if (uploadingImage) "Mengunggah..." else if (imageUrl.isBlank()) "Upload foto" else "Ganti foto") }
+                            Text("Foto maksimal 8 MB.", style = MaterialTheme.typography.bodySmall)
                         }
                     }
-                    Row(
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .horizontalScroll(rememberScrollState()),
-                        horizontalArrangement = Arrangement.spacedBy(6.dp)
-                    ) {
-                        uiState.categories.forEach { c ->
-                            FilterChip(
-                                selected = catId == c.id,
-                                onClick = { catId = c.id },
-                                label = { Text(c.name) }
-                            )
-                        }
+                    Text("Kategori", style = MaterialTheme.typography.labelLarge)
+                    Row(Modifier.fillMaxWidth().horizontalScroll(rememberScrollState()), horizontalArrangement = Arrangement.spacedBy(6.dp)) {
+                        uiState.categories.forEach { cat -> FilterChip(selected = catId == cat.id, onClick = { catId = cat.id }, label = { Text(cat.name) }) }
                     }
                     Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                        OutlinedTextField(value = price, onValueChange = { price = it }, label = { Text("Harga Jual (Rp)") }, modifier = Modifier.weight(1f), singleLine = true)
-                        OutlinedTextField(value = cost, onValueChange = { cost = it }, label = { Text("Modal / HPP (Rp)") }, modifier = Modifier.weight(1f), singleLine = true)
+                        OutlinedTextField(value = price, onValueChange = { price = it.filter(Char::isDigit) }, label = { Text("Harga jual (Rp)") }, modifier = Modifier.weight(1f), singleLine = true)
+                        OutlinedTextField(value = cost, onValueChange = { cost = it.filter(Char::isDigit) }, label = { Text("Modal / HPP (Rp)") }, modifier = Modifier.weight(1f), singleLine = true)
                     }
                     Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                        OutlinedTextField(value = stock, onValueChange = { stock = it }, label = { Text("Stok") }, modifier = Modifier.weight(1f), singleLine = true)
-                        OutlinedTextField(value = threshold, onValueChange = { threshold = it }, label = { Text("Batas Minimum") }, modifier = Modifier.weight(1f), singleLine = true)
+                        OutlinedTextField(value = stock, onValueChange = { stock = it.filter(Char::isDigit) }, label = { Text("Stok awal") }, modifier = Modifier.weight(1f), singleLine = true)
+                        OutlinedTextField(value = threshold, onValueChange = { threshold = it.filter(Char::isDigit) }, label = { Text("Ambang menipis") }, modifier = Modifier.weight(1f), singleLine = true)
                     }
-                    Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.End) {
+                    Row(verticalAlignment = Alignment.CenterVertically) { Text("Produk aktif", Modifier.weight(1f)); Switch(checked = isActive, onCheckedChange = { isActive = it }) }
+                    Row(verticalAlignment = Alignment.CenterVertically) { Text("Tampilkan di QR Menu", Modifier.weight(1f)); Switch(checked = showOnMenu, onCheckedChange = { showOnMenu = it }) }
+                    Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.End) {
                         TextButton(onClick = { editingProduct = null }) { Text("Batal") }
-                        Spacer(modifier = Modifier.width(8.dp))
-                        Button(onClick = {
-                            viewModel.saveProductItem(
-                                targetEdit.copy(
-                                    name = name.trim(),
-                                    description = desc.trim().ifBlank { null },
-                                    imageUrl = imageUrl.ifBlank { null },
-                                    categoryId = catId,
-                                    price = price.toDoubleOrNull() ?: 0.0,
-                                    costPrice = cost.toDoubleOrNull() ?: 0.0,
-                                    stock = stock.toIntOrNull() ?: 0,
-                                    lowStockThreshold = threshold.toIntOrNull() ?: 5
-                                )
-                            )
+                        Button(enabled = name.isNotBlank() && (price.toDoubleOrNull() ?: 0.0) > 0 && !uploadingImage, onClick = {
+                            viewModel.saveProductItem(targetEdit.copy(name = name.trim(), description = desc.trim().ifBlank { null }, imageUrl = imageUrl.ifBlank { null }, categoryId = catId, price = price.toDoubleOrNull() ?: 0.0, costPrice = cost.toDoubleOrNull() ?: 0.0, stock = stock.toIntOrNull() ?: 0, lowStockThreshold = threshold.toIntOrNull() ?: 5, isActive = isActive, showOnMenu = showOnMenu))
                             editingProduct = null
-                        }) { Text("Simpan") }
+                        }) { Text("Simpan Produk") }
                     }
                 }
             }
         }
     }
-
-    // Dialog Konfirmasi Hapus Produk
     val targetDelete = deletingProduct
     if (targetDelete != null) {
         Dialog(onDismissRequest = { deletingProduct = null }) {
             Surface(shape = RoundedCornerShape(16.dp), color = MaterialTheme.colorScheme.surface) {
-                Column(modifier = Modifier.padding(20.dp), verticalArrangement = Arrangement.spacedBy(10.dp)) {
-                    Text("Konfirmasi Hapus Produk", style = MaterialTheme.typography.titleLarge)
-                    Text("Apakah Anda yakin ingin menghapus ${targetDelete.name}?")
-                    Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.End) {
+                Column(Modifier.padding(20.dp), verticalArrangement = Arrangement.spacedBy(10.dp)) {
+                    Text("Hapus produk?", style = MaterialTheme.typography.titleLarge)
+                    Text("Yakin ingin menghapus ${targetDelete.name}?")
+                    Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.End) {
                         TextButton(onClick = { deletingProduct = null }) { Text("Batal") }
-                        Spacer(modifier = Modifier.width(8.dp))
-                        Button(onClick = {
-                            viewModel.deleteProductItem(targetDelete.id)
-                            deletingProduct = null
-                        }) { Text("Ya, Hapus") }
+                        Button(onClick = { viewModel.deleteProductItem(targetDelete.id); deletingProduct = null }) { Text("Hapus") }
                     }
                 }
             }

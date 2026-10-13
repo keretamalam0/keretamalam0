@@ -177,7 +177,6 @@ data class Promotion(
 )
 
 @Serializable
-@Serializable
 data class PaymentMethod(
     val id: String = "",
     @SerialName("owner_id") val ownerId: String? = null,
@@ -195,6 +194,7 @@ data class PaymentMethod(
     @SerialName("updated_at") val updatedAt: String? = null
 )
 
+@Serializable
 data class OutletSettings(
     @SerialName("owner_id") val ownerId: String? = null,
     val name: String = "Kereta Malam Cafe",

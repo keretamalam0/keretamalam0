@@ -742,27 +742,30 @@ private fun KasirComposeScreen(
                 }
             }
 
-            LazyRow(
-                modifier = Modifier.fillMaxWidth().height(218.dp),
-                horizontalArrangement = Arrangement.spacedBy(10.dp),
+            LazyHorizontalGrid(
+                rows = GridCells.Fixed(4),
+                modifier = Modifier.fillMaxWidth().height(390.dp),
+                horizontalArrangement = Arrangement.spacedBy(8.dp),
+                verticalArrangement = Arrangement.spacedBy(8.dp),
                 contentPadding = PaddingValues(end = 8.dp, bottom = 4.dp)
             ) {
                 items(filteredProducts, key = { it.id }) { product ->
                     OutlinedCard(
-                        modifier = Modifier.width(156.dp).fillMaxHeight(),
-                        shape = RoundedCornerShape(12.dp)
+                        modifier = Modifier.width(178.dp).height(90.dp),
+                        shape = RoundedCornerShape(10.dp)
                     ) {
-                        Column(
-                            modifier = Modifier.fillMaxSize().padding(8.dp),
-                            verticalArrangement = Arrangement.spacedBy(5.dp)
+                        Row(
+                            modifier = Modifier.fillMaxSize().padding(6.dp),
+                            horizontalArrangement = Arrangement.spacedBy(7.dp),
+                            verticalAlignment = Alignment.CenterVertically
                         ) {
                             Box(
-                                modifier = Modifier.fillMaxWidth().height(92.dp),
+                                modifier = Modifier.size(58.dp),
                                 contentAlignment = Alignment.Center
                             ) {
                                 Surface(
                                     modifier = Modifier.fillMaxSize(),
-                                    shape = RoundedCornerShape(8.dp),
+                                    shape = RoundedCornerShape(7.dp),
                                     color = MaterialTheme.colorScheme.surfaceVariant
                                 ) {
                                     Box(contentAlignment = Alignment.Center) {
@@ -770,7 +773,7 @@ private fun KasirComposeScreen(
                                             imageVector = Icons.Outlined.Inventory2,
                                             contentDescription = "Foto belum tersedia",
                                             tint = MaterialTheme.colorScheme.onSurfaceVariant,
-                                            modifier = Modifier.size(30.dp)
+                                            modifier = Modifier.size(22.dp)
                                         )
                                     }
                                 }
@@ -783,60 +786,58 @@ private fun KasirComposeScreen(
                                     )
                                 }
                             }
-                            Text(
-                                text = product.name,
-                                style = MaterialTheme.typography.titleSmall,
-                                fontWeight = FontWeight.SemiBold,
-                                maxLines = 2,
-                                minLines = 1
-                            )
-                            Text(
-                                text = RupiahFormatter.format(product.price),
-                                style = MaterialTheme.typography.labelLarge,
-                                fontWeight = FontWeight.Bold,
-                                maxLines = 1
-                            )
-                            Text(
-                                text = when {
-                                    product.isOutOfStock -> "HABIS"
-                                    product.isLowStock -> "Stok menipis: ${product.stock}"
-                                    else -> "Stok: ${product.stock}"
-                                },
-                                style = MaterialTheme.typography.labelSmall,
-                                color = if (product.isOutOfStock || product.isLowStock)
-                                    MaterialTheme.colorScheme.error
-                                else MaterialTheme.colorScheme.onSurfaceVariant,
-                                maxLines = 1
-                            )
-                            Spacer(modifier = Modifier.weight(1f))
-                            Row(
-                                modifier = Modifier.fillMaxWidth(),
-                                horizontalArrangement = Arrangement.spacedBy(4.dp),
-                                verticalAlignment = Alignment.CenterVertically
+                            Column(
+                                modifier = Modifier.weight(1f).fillMaxHeight(),
+                                verticalArrangement = Arrangement.spacedBy(2.dp)
                             ) {
-                                OutlinedButton(
-                                    onClick = {
-                                        customizingProduct = product
-                                        customSugar = "Normal Sugar"
-                                        customIce = "Normal Ice"
-                                        customCup = "Regular"
-                                        customExtraShot = false
-                                        customOatMilk = false
-                                        customNote = ""
+                                Text(
+                                    text = product.name,
+                                    style = MaterialTheme.typography.labelLarge,
+                                    fontWeight = FontWeight.SemiBold,
+                                    maxLines = 1
+                                )
+                                Text(
+                                    text = RupiahFormatter.format(product.price),
+                                    style = MaterialTheme.typography.labelMedium,
+                                    fontWeight = FontWeight.Bold,
+                                    maxLines = 1
+                                )
+                                Text(
+                                    text = when {
+                                        product.isOutOfStock -> "HABIS"
+                                        product.isLowStock -> "Stok tipis: ${product.stock}"
+                                        else -> "Stok: ${product.stock}"
                                     },
-                                    enabled = !product.isOutOfStock,
-                                    modifier = Modifier.weight(1f),
-                                    contentPadding = PaddingValues(horizontal = 4.dp, vertical = 0.dp)
+                                    style = MaterialTheme.typography.labelSmall,
+                                    color = if (product.isOutOfStock || product.isLowStock)
+                                        MaterialTheme.colorScheme.error
+                                    else MaterialTheme.colorScheme.onSurfaceVariant,
+                                    maxLines = 1
+                                )
+                                Spacer(modifier = Modifier.weight(1f))
+                                Row(
+                                    horizontalArrangement = Arrangement.spacedBy(4.dp),
+                                    verticalAlignment = Alignment.CenterVertically
                                 ) {
-                                    Text("Opsi", style = MaterialTheme.typography.labelSmall)
-                                }
-                                Button(
-                                    onClick = { viewModel.addToCart(product) },
-                                    enabled = !product.isOutOfStock,
-                                    modifier = Modifier.weight(1f),
-                                    contentPadding = PaddingValues(horizontal = 4.dp, vertical = 0.dp)
-                                ) {
-                                    Text("+", style = MaterialTheme.typography.titleMedium)
+                                    TextButton(
+                                        onClick = {
+                                            customizingProduct = product
+                                            customSugar = "Normal Sugar"
+                                            customIce = "Normal Ice"
+                                            customCup = "Regular"
+                                            customExtraShot = false
+                                            customOatMilk = false
+                                            customNote = ""
+                                        },
+                                        enabled = !product.isOutOfStock,
+                                        contentPadding = PaddingValues(horizontal = 3.dp, vertical = 0.dp)
+                                    ) { Text("Opsi", style = MaterialTheme.typography.labelSmall) }
+                                    Button(
+                                        onClick = { viewModel.addToCart(product) },
+                                        enabled = !product.isOutOfStock,
+                                        contentPadding = PaddingValues(horizontal = 8.dp, vertical = 0.dp),
+                                        modifier = Modifier.height(30.dp)
+                                    ) { Text("+") }
                                 }
                             }
                         }
@@ -1197,29 +1198,47 @@ private fun KasirComposeScreen(
         }
     }
 
-    // Dialog Konfirmasi Transaksi Final di Tengah Layar
+    // Dialog checkout ringkas, tidak memenuhi layar dan aman di landscape.
     if (showConfirmCheckoutDialog) {
+        val screenHeight = androidx.compose.ui.platform.LocalConfiguration.current.screenHeightDp
         Dialog(
             onDismissRequest = { if (!uiState.isCheckoutProcessing) showConfirmCheckoutDialog = false },
-            properties = DialogProperties(usePlatformDefaultWidth = false)
+            properties = DialogProperties(usePlatformDefaultWidth = true)
         ) {
             Surface(
-                shape = RoundedCornerShape(16.dp),
+                shape = RoundedCornerShape(14.dp),
                 color = MaterialTheme.colorScheme.surface,
                 modifier = Modifier
-                    .fillMaxWidth(0.92f)
-                    .widthIn(max = 440.dp)
-                    .padding(16.dp)
+                    .widthIn(max = 360.dp)
+                    .heightIn(max = (screenHeight * 0.82f).dp)
             ) {
-                Column(modifier = Modifier.padding(20.dp), verticalArrangement = Arrangement.spacedBy(10.dp)) {
-                    Text("Konfirmasi Transaksi Final", style = MaterialTheme.typography.titleLarge)
-                    Text("Pastikan metode pembayaran dan nominal sudah sesuai. Tombol dilindungi dari penekanan ganda (idempotency lock).")
-                    Text("Meja: ${uiState.tables.find { it.id == uiState.selectedTableId }?.name ?: "Takeaway"}")
-                    Text("Metode: ${uiState.paymentMethod.uppercase()}")
-                    Text("Total Akhir: ${RupiahFormatter.format(uiState.grandTotal)}", fontWeight = FontWeight.Bold)
-                    Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.End) {
-                        TextButton(onClick = { showConfirmCheckoutDialog = false }) { Text("Batal") }
-                        Spacer(modifier = Modifier.width(8.dp))
+                Column(
+                    modifier = Modifier
+                        .padding(16.dp)
+                        .verticalScroll(rememberScrollState()),
+                    verticalArrangement = Arrangement.spacedBy(8.dp)
+                ) {
+                    Text("Konfirmasi pembayaran", style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.SemiBold)
+                    Text(
+                        text = "${uiState.tables.find { it.id == uiState.selectedTableId }?.name ?: "Takeaway"} · ${uiState.paymentMethod.uppercase()}",
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                    )
+                    Text(
+                        text = RupiahFormatter.format(uiState.grandTotal),
+                        style = MaterialTheme.typography.headlineSmall,
+                        fontWeight = FontWeight.Bold
+                    )
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.End,
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        TextButton(
+                            onClick = { showConfirmCheckoutDialog = false },
+                            enabled = !uiState.isCheckoutProcessing
+                        ) { Text("Batal") }
+                        Spacer(modifier = Modifier.width(4.dp))
                         Button(
                             enabled = !uiState.isCheckoutProcessing,
                             onClick = {
@@ -1227,7 +1246,7 @@ private fun KasirComposeScreen(
                                 viewModel.submitPosCheckout()
                             }
                         ) {
-                            Text("Konfirmasi & Simpan Transaksi")
+                            Text(if (uiState.isCheckoutProcessing) "Memproses…" else "Bayar")
                         }
                     }
                 }

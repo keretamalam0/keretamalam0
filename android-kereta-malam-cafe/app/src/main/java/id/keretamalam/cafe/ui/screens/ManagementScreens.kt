@@ -29,6 +29,7 @@ import androidx.compose.ui.window.Dialog
 import androidx.compose.ui.window.DialogProperties
 import com.google.zxing.BarcodeFormat
 import com.google.zxing.qrcode.QRCodeWriter
+import id.keretamalam.cafe.data.config.BackendIntegrationStatus
 import id.keretamalam.cafe.data.config.SupabaseConfigManager
 import id.keretamalam.cafe.data.model.*
 import id.keretamalam.cafe.hardware.PrinterRole
@@ -779,7 +780,7 @@ fun PegawaiComposeScreen(viewModel: PosViewModel, uiState: PosUiState) {
                             Text("Role: ${st.role.labelId} · ${st.email}")
                         }
                         Button(
-                            enabled = !isCurrent,
+                            enabled = !isCurrent && uiState.backendStatus == BackendIntegrationStatus.LOCAL_SANDBOX_UI,
                             onClick = { viewModel.switchActiveStaffProfile(st) }
                         ) {
                             Text(if (isCurrent) "Sedang Aktif" else "Gunakan Profil")

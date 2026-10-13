@@ -177,6 +177,24 @@ data class Promotion(
 )
 
 @Serializable
+@Serializable
+data class PaymentMethod(
+    val id: String = "",
+    @SerialName("owner_id") val ownerId: String? = null,
+    val code: String = "",
+    val name: String = "",
+    val type: String = "qris",
+    val provider: String = "",
+    @SerialName("account_name") val accountName: String = "",
+    @SerialName("account_number") val accountNumber: String = "",
+    val instructions: String = "",
+    @SerialName("image_url") val imageUrl: String? = null,
+    @SerialName("is_active") val isActive: Boolean = true,
+    @SerialName("sort_order") val sortOrder: Int = 0,
+    @SerialName("created_at") val createdAt: String? = null,
+    @SerialName("updated_at") val updatedAt: String? = null
+)
+
 data class OutletSettings(
     @SerialName("owner_id") val ownerId: String? = null,
     val name: String = "Kereta Malam Cafe",

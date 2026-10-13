@@ -837,7 +837,7 @@ class PosViewModel(application: Application) : AndroidViewModel(application) {
             _uiState.update { state ->
                 state.copy(orders = state.orders.filterNot { it.id in orderIds })
             }
-            appendAuditLog("order.delete", "orders", null, "{\"count\":${orderIds.size}}")
+            appendAuditLog("order.delete", "orders", "bulk", "{\"count\":${orderIds.size}}")
             showNotice("${orderIds.size} transaksi dihapus dari data lokal.")
         }
     }
@@ -855,7 +855,7 @@ class PosViewModel(application: Application) : AndroidViewModel(application) {
             }
             val count = _uiState.value.orders.size
             _uiState.update { it.copy(orders = emptyList()) }
-            appendAuditLog("order.delete_all", "orders", null, "{\"count\":$count}")
+            appendAuditLog("order.delete_all", "orders", "all", "{\"count\":$count}")
             showNotice("Semua transaksi lokal dihapus.")
         }
     }

@@ -112,6 +112,10 @@ export interface Promotion {
   scope: 'order' | 'product';
   product_id: string | null;
   active: boolean;
+  campaign_type?: 'promotion' | 'voucher' | 'bundle' | 'campaign';
+  eligible_for?: 'all' | 'product';
+  allow_customer?: boolean;
+  allow_cashier?: boolean;
 }
 
 export interface OutletSettings {

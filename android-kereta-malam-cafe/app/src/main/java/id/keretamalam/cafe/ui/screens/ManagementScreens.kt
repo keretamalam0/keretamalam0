@@ -1,9 +1,11 @@
 package id.keretamalam.cafe.ui.screens
 
+import android.net.Uri
 import android.graphics.Bitmap
 import android.graphics.Color as AndroidColor
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
+import coil.compose.AsyncImage
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.layout.*
@@ -158,6 +160,25 @@ fun ProdukStokComposeScreen(viewModel: PosViewModel, uiState: PosUiState) {
         var stock by remember(targetEdit) { mutableStateOf(targetEdit.stock.toString()) }
         var threshold by remember(targetEdit) { mutableStateOf(targetEdit.lowStockThreshold.toString()) }
         var catId by remember(targetEdit) { mutableStateOf(targetEdit.categoryId ?: uiState.categories.firstOrNull()?.id) }
+        var imageUrl by remember(targetEdit) { mutableStateOf(targetEdit.imageUrl.orEmpty()) }
+        var uploadingImage by remember { mutableStateOf(false) }
+        val context = LocalContext.current
+        val imagePicker = rememberLauncherForActivityResult(ActivityResultContracts.GetContent()) { uri: Uri? ->
+            if (uri != null) {
+                uploadingImage = true
+                val mime = context.contentResolver.getType(uri) ?: "image/jpeg"
+                val ext = when (mime.lowercase()) { "image/png" -> "png"; "image/webp" -> "webp"; else -> "jpg" }
+                val bytes = runCatching { context.contentResolver.openInputStream(uri)?.use { it.readBytes() } }.getOrNull()
+                if (bytes == null) {
+                    uploadingImage = false
+                } else {
+                    viewModel.uploadProductPhoto(bytes, mime, ext) { uploadedUrl ->
+                        imageUrl = uploadedUrl
+                        uploadingImage = false
+                    }
+                }
+            }
+        }
 
         Dialog(
             onDismissRequest = { editingProduct = null },
@@ -175,6 +196,17 @@ fun ProdukStokComposeScreen(viewModel: PosViewModel, uiState: PosUiState) {
                     Text(if (targetEdit.id.isBlank()) "Tambah Produk Baru" else "Edit Produk", style = MaterialTheme.typography.titleLarge)
                     OutlinedTextField(value = name, onValueChange = { name = it }, label = { Text("Nama Produk") }, modifier = Modifier.fillMaxWidth(), singleLine = true)
                     OutlinedTextField(value = desc, onValueChange = { desc = it }, label = { Text("Deskripsi Singkat") }, modifier = Modifier.fillMaxWidth(), singleLine = true)
+                    Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(10.dp)) {
+                        if (imageUrl.isNotBlank()) {
+                            AsyncImage(model = imageUrl, contentDescription = "Foto produk", modifier = Modifier.size(76.dp))
+                        }
+                        Column(modifier = Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(4.dp)) {
+                            OutlinedButton(onClick = { imagePicker.launch("image/*") }, enabled = !uploadingImage) {
+                                Text(if (uploadingImage) "Mengunggah foto..." else if (imageUrl.isBlank()) "Pilih Foto dari Galeri" else "Ganti Foto")
+                            }
+                            Text(if (imageUrl.isBlank()) "Foto tersimpan di Supabase dan dipakai di menu online." else "Foto produk sudah dipilih.", style = MaterialTheme.typography.bodySmall)
+                        }
+                    }
                     Row(
                         modifier = Modifier
                             .fillMaxWidth()
@@ -205,6 +237,7 @@ fun ProdukStokComposeScreen(viewModel: PosViewModel, uiState: PosUiState) {
                                 targetEdit.copy(
                                     name = name.trim(),
                                     description = desc.trim().ifBlank { null },
+                                    imageUrl = imageUrl.ifBlank { null },
                                     categoryId = catId,
                                     price = price.toDoubleOrNull() ?: 0.0,
                                     costPrice = cost.toDoubleOrNull() ?: 0.0,

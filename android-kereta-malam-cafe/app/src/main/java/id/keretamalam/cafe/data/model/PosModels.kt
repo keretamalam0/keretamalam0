@@ -41,6 +41,7 @@ object StaffPermissionCatalog {
         StaffPermissionItem("dashboard.best_sellers", "Lihat menu terlaris dan omzetnya", "Dashboard"),
         StaffPermissionItem("dashboard.payment_methods", "Lihat ringkasan metode pembayaran", "Dashboard"),
         StaffPermissionItem("dashboard.outlet_status", "Lihat status outlet", "Dashboard"),
+        StaffPermissionItem("dashboard.recent_transactions", "Lihat daftar transaksi terbaru", "Dashboard"),
         StaffPermissionItem("history.export_csv", "Download / ekspor CSV transaksi", "Riwayat & Data"),
         StaffPermissionItem("history.delete", "Hapus transaksi", "Riwayat & Data"),
         StaffPermissionItem("reports.export", "Download / ekspor laporan", "Riwayat & Data"),

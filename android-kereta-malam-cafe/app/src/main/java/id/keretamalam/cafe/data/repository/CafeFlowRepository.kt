@@ -122,13 +122,21 @@ class CafeFlowRepository(private val context: Context) {
             if (!response.isSuccessful) {
                 val errMsg = runCatching {
                     val obj = json.parseToJsonElement(raw).jsonObject
-                    obj["msg"]?.jsonPrimitive?.contentOrNull
+                    obj["error_description"]?.jsonPrimitive?.contentOrNull
+                        ?: obj["msg"]?.jsonPrimitive?.contentOrNull
                         ?: obj["message"]?.jsonPrimitive?.contentOrNull
-                        ?: obj["error_description"]?.jsonPrimitive?.contentOrNull
-                        ?: raw
-                }.getOrDefault(raw.ifBlank { "HTTP ${response.code}" })
-                // Keep credentials and response bodies out of the UI; retain safe diagnostics.
-                throw IllegalStateException("Permintaan Supabase gagal (HTTP " + response.code + ", " + response.request.url.encodedPath + ").")
+                        ?: obj["error"]?.jsonPrimitive?.contentOrNull
+                        ?: obj["code"]?.jsonPrimitive?.contentOrNull
+                        ?: "Respons error tidak menyertakan detail."
+                }.getOrDefault("Respons error tidak dapat dibaca.")
+                    .replace("\n", " ")
+                    .replace("\r", " ")
+                    .replace("\t", " ")
+                    .take(160)
+                // Show only short server diagnostics; never expose request headers, keys, or password.
+                throw IllegalStateException(
+                    "Permintaan Supabase gagal (HTTP ${response.code}, ${response.request.url.encodedPath}): $errMsg"
+                )
             }
             raw
         }

@@ -203,7 +203,7 @@ data class StaffShift(
     @SerialName("expected_cash") val expectedCash: Double? = null,
     val status: String = "open", // "open" | "closed"
     val notes: String? = null,
-    val auditVerified: Boolean = false,
+    @SerialName("audit_verified") val auditVerified: Boolean = false,
     @SerialName("opened_at") val openedAt: String = "",
     @SerialName("closed_at") val closedAt: String? = null
 )

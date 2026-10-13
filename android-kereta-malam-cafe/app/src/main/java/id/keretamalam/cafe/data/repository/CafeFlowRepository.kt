@@ -220,7 +220,9 @@ class CafeFlowRepository(private val context: Context) {
 
     suspend fun fetchStaffProfiles(): List<StaffProfile> {
         val creds = requireVerifiedCredentials()
-        val ownerId = URLEncoder.encode(creds.authenticatedUserId, "UTF-8")
+        val currentProfile = fetchMyStaffProfile()
+        val outletOwnerId = currentProfile?.ownerId?.takeIf { it.isNotBlank() } ?: creds.authenticatedUserId
+        val ownerId = URLEncoder.encode(outletOwnerId, "UTF-8")
         val raw = executeJsonRequest("GET",
             "${creds.supabaseUrl}/rest/v1/staff_profiles?select=user_id,owner_id,full_name,role,is_active,permissions&owner_id=eq.$ownerId&order=created_at.asc",
             buildHeaders(creds))

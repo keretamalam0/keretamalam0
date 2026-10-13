@@ -925,7 +925,7 @@ fun PegawaiComposeScreen(viewModel: PosViewModel, uiState: PosUiState) {
                                 ) {
                                     Text(perm.key.replaceFirstChar { it.uppercase() }, modifier = Modifier.weight(1f))
                                     Switch(
-                                        checked = st.canAccess(perm),
+                                        checked = st.role == StaffRole.OWNER || st.permissions[perm.key] == true,
                                         onCheckedChange = { viewModel.toggleStaffPermission(st.userId, perm.key) },
                                         enabled = !isPrivileged && uiState.staffProfile.canPerform("staff.manage") && !uiState.isLoading
                                     )

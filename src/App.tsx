@@ -250,6 +250,8 @@ export default function App() {
 
   // Produk Modal & Delete Confirm State
   const [editingProduct, setEditingProduct] = useState<Product | null>(null);
+  const [productImageFile, setProductImageFile] = useState<File | null>(null);
+  const [isSavingProduct, setIsSavingProduct] = useState(false);
   const [isProductModalOpen, setIsProductModalOpen] = useState(false);
   const [deletingProduct, setDeletingProduct] = useState<Product | null>(null);
   const [newCategoryName, setNewCategoryName] = useState('');

@@ -38,10 +38,10 @@ data class StaffProfile(
     val permissions: Map<String, Boolean> = emptyMap()
 ) {
     fun canAccess(permission: PermissionKey): Boolean {
-        if (!isActive) return false
-        return role == StaffRole.SUPER_ADMIN ||
-            role == StaffRole.OWNER ||
-            permissions[permission.key] == true
+        // Global Super Admin is intentionally not an operational POS role.
+        // Its separate control plane must authorize its own actions server-side.
+        if (!isActive || role == StaffRole.SUPER_ADMIN) return false
+        return role == StaffRole.OWNER || permissions[permission.key] == true
     }
 }
 

@@ -37,11 +37,17 @@ data class StaffProfile(
     @SerialName("is_active") val isActive: Boolean = true,
     val permissions: Map<String, Boolean> = emptyMap()
 ) {
-    fun canAccess(permission: PermissionKey): Boolean {
-        // Global Super Admin is intentionally not an operational POS role.
-        // Its separate control plane must authorize its own actions server-side.
+    fun canAccess(permission: PermissionKey): Boolean = canAccessKey(permission.key)
+
+    fun canAccessKey(key: String): Boolean {
         if (!isActive || role == StaffRole.SUPER_ADMIN) return false
-        return role == StaffRole.OWNER || permissions[permission.key] == true
+        if (role == StaffRole.OWNER) return true
+        return permissions[key] == true
+    }
+
+    fun canAccessDashboardMetric(key: String): Boolean {
+        if (!canAccess(PermissionKey.DASHBOARD)) return false
+        return if (permissions.containsKey(key)) canAccessKey(key) else true
     }
 }
 

@@ -324,11 +324,13 @@ class PosViewModel(application: Application) : AndroidViewModel(application) {
             showNotice("Nama lengkap dan email pegawai wajib diisi.", isError = true)
             return
         }
-        val defaultPerms = when (role) {
-            StaffRole.SUPER_ADMIN, StaffRole.OWNER -> PermissionKey.entries.associate { it.key to true }
-            StaffRole.MANAGER -> PermissionKey.entries.associate { it.key to (it != PermissionKey.SETTINGS) }
-            StaffRole.CASHIER -> mapOf("dashboard" to true, "orders" to true, "payments" to true, "tables" to true, "customers" to true, "products" to false, "inventory" to false, "reports" to false, "promotions" to false, "settings" to false)
-        }
+        val defaultPerms = PermissionKey.entries.associate { perm ->
+            perm.key to when (role) {
+                StaffRole.SUPER_ADMIN, StaffRole.OWNER -> true
+                StaffRole.MANAGER -> perm != PermissionKey.SETTINGS
+                StaffRole.CASHIER -> perm in setOf(PermissionKey.DASHBOARD, PermissionKey.ORDERS, PermissionKey.PAYMENTS, PermissionKey.TABLES, PermissionKey.CUSTOMERS)
+            }
+        } + StaffPermissionCatalog.defaultsFor(role)
         if (_uiState.value.backendStatus == BackendIntegrationStatus.ACTIVE_VERIFIED) {
             viewModelScope.launch {
                 _uiState.update { it.copy(isLoading = true, errorMessage = null, successMessage = null) }
@@ -377,17 +379,82 @@ class PosViewModel(application: Application) : AndroidViewModel(application) {
     }
 
     fun toggleStaffPermission(userId: String, permKey: String) {
-        _uiState.update { state ->
-            val updatedList = state.staffList.map { st ->
-                if (st.userId == userId) {
-                    val current = st.permissions[permKey] == true
-                    val nextMap = st.permissions.toMutableMap().apply { put(permKey, !current) }
-                    st.copy(permissions = nextMap)
-                } else st
-            }
-            val updatedCurrent = updatedList.find { it.userId == state.staffProfile.userId } ?: state.staffProfile
-            state.copy(staffList = updatedList, staffProfile = updatedCurrent)
+        val state = _uiState.value
+        val target = state.staffList.firstOrNull { it.userId == userId } ?: return
+        if (target.role == StaffRole.OWNER || target.role == StaffRole.SUPER_ADMIN) {
+            showNotice("Hak akses Owner / Super Admin tidak bisa dibatasi dari profil staf biasa.", isError = true)
+            return
         }
+        if (state.backendStatus == BackendIntegrationStatus.ACTIVE_VERIFIED) {
+            val nextPermissions = target.permissions.toMutableMap().apply {
+                put(permKey, !(target.permissions[permKey] == true))
+            }
+            val updated = target.copy(permissions = nextPermissions)
+            viewModelScope.launch {
+                _uiState.update { it.copy(isLoading = true, errorMessage = null, successMessage = null) }
+                runCatching { repository.updateStaffProfile(updated) }
+                    .onSuccess { saved ->
+                        _uiState.update { current ->
+                            val list = current.staffList.map { if (it.userId == saved.userId) saved else it }
+                            current.copy(isLoading = false, staffList = list, staffProfile = list.firstOrNull { it.userId == current.staffProfile.userId } ?: current.staffProfile,
+                                successMessage = "Hak akses ${saved.fullName} berhasil disimpan.")
+                        }
+                    }
+                    .onFailure { err ->
+                        _uiState.update { it.copy(isLoading = false, errorMessage = "Hak akses gagal disimpan: ${err.message ?: "periksa izin RLS"}") }
+                    }
+            }
+            return
+        }
+        _uiState.update { current ->
+            val list = current.staffList.map { st ->
+                if (st.userId == userId) st.copy(permissions = st.permissions.toMutableMap().apply { put(permKey, !(st.permissions[permKey] == true)) }) else st
+            }
+            current.copy(staffList = list, staffProfile = list.firstOrNull { it.userId == current.staffProfile.userId } ?: current.staffProfile)
+        }
+        showNotice("Hak akses diperbarui dalam mode simulasi.")
+    }
+
+    fun setStaffActive(userId: String, active: Boolean) {
+        val state = _uiState.value
+        val target = state.staffList.firstOrNull { it.userId == userId } ?: return
+        if (target.userId == state.staffProfile.userId) {
+            showNotice("Akun yang sedang dipakai tidak bisa dinonaktifkan.", isError = true)
+            return
+        }
+        if (state.backendStatus == BackendIntegrationStatus.ACTIVE_VERIFIED) {
+            viewModelScope.launch {
+                _uiState.update { it.copy(isLoading = true, errorMessage = null, successMessage = null) }
+                runCatching { repository.updateStaffProfile(target.copy(isActive = active)) }
+                    .onSuccess { saved ->
+                        _uiState.update { current -> current.copy(isLoading = false, staffList = current.staffList.map { if (it.userId == saved.userId) saved else it }, successMessage = if (active) "Akun ${saved.fullName} diaktifkan." else "Akun ${saved.fullName} dinonaktifkan.") }
+                    }
+                    .onFailure { err -> _uiState.update { it.copy(isLoading = false, errorMessage = "Status akun gagal disimpan: ${err.message ?: "periksa izin RLS"}") } }
+            }
+            return
+        }
+        _uiState.update { current -> current.copy(staffList = current.staffList.map { if (it.userId == userId) it.copy(isActive = active) else it }, successMessage = if (active) "Akun staf diaktifkan (simulasi)." else "Akun staf dinonaktifkan (simulasi).") }
+    }
+
+    fun deleteStaffProfile(userId: String) {
+        val state = _uiState.value
+        val target = state.staffList.firstOrNull { it.userId == userId } ?: return
+        if (target.userId == state.staffProfile.userId || target.role == StaffRole.OWNER || target.role == StaffRole.SUPER_ADMIN) {
+            showNotice("Akun yang sedang dipakai atau akun Owner/Super Admin tidak bisa dihapus dari sini.", isError = true)
+            return
+        }
+        if (state.backendStatus == BackendIntegrationStatus.ACTIVE_VERIFIED) {
+            viewModelScope.launch {
+                _uiState.update { it.copy(isLoading = true, errorMessage = null, successMessage = null) }
+                runCatching { repository.deleteStaffProfile(userId) }
+                    .onSuccess {
+                        _uiState.update { current -> current.copy(isLoading = false, staffList = current.staffList.filterNot { it.userId == userId }, successMessage = "Profil akses ${target.fullName} dihapus. Akun tidak lagi dikenali sebagai staf POS.") }
+                    }
+                    .onFailure { err -> _uiState.update { it.copy(isLoading = false, errorMessage = "Pegawai gagal dihapus: ${err.message ?: "periksa izin DELETE/RLS"}") } }
+            }
+            return
+        }
+        _uiState.update { current -> current.copy(staffList = current.staffList.filterNot { it.userId == userId }, successMessage = "Pegawai dihapus dari simulasi.") }
     }
 
     private fun appendAuditLog(action: String, entityType: String, entityId: String, detailsText: String) {

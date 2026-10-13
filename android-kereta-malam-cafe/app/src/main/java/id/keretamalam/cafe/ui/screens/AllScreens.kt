@@ -2,6 +2,7 @@ package id.keretamalam.cafe.ui.screens
 
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
+import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.horizontalScroll
@@ -14,6 +15,7 @@ import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontFamily
@@ -270,257 +272,215 @@ fun RenderModuleScreen(
 // 1. DASHBOARD SCREEN (ADAPTIVE PHONE & TABLET + GRAFIK VISUAL)
 // ============================================================================
 @Composable
+
 private fun DashboardComposeScreen(
     uiState: PosUiState,
     isTabletOrWide: Boolean,
     onNavigateModule: (PosModuleRoute) -> Unit
 ) {
-    var selectedDateRange by remember { mutableStateOf("today") }
-    var dateRangeMenuExpanded by remember { mutableStateOf(false) }
+    var range by remember { mutableStateOf("today") }
+    var menuOpen by remember { mutableStateOf(false) }
     val today = java.time.LocalDate.now()
-    val filteredPaidOrders = uiState.paidOrders.filter { order ->
-        val orderDate = runCatching {
-            val instant = runCatching { java.time.Instant.parse(order.createdAt) }
-                .getOrElse { java.time.OffsetDateTime.parse(order.createdAt).toInstant() }
-            instant.atZone(java.time.ZoneId.systemDefault()).toLocalDate()
-        }.getOrNull()
-        when (selectedDateRange) {
-            "today" -> orderDate == today
-            "7days" -> orderDate != null && !orderDate.isBefore(today.minusDays(6)) && !orderDate.isAfter(today)
-            "30days" -> orderDate != null && !orderDate.isBefore(today.minusDays(29)) && !orderDate.isAfter(today)
+    fun dateOf(raw: String): java.time.ZonedDateTime? = runCatching {
+        runCatching { java.time.Instant.parse(raw).atZone(java.time.ZoneId.systemDefault()) }
+            .getOrElse { java.time.OffsetDateTime.parse(raw).atZoneSameInstant(java.time.ZoneId.systemDefault()) }
+    }.getOrNull()
+    val orders = uiState.orders.filter { order ->
+        val date = dateOf(order.createdAt)?.toLocalDate()
+        when (range) {
+            "today" -> date == today
+            "7days" -> date != null && !date.isBefore(today.minusDays(6)) && !date.isAfter(today)
+            "30days" -> date != null && !date.isBefore(today.minusDays(29)) && !date.isAfter(today)
             else -> true
         }
     }
-    val filteredRevenue = filteredPaidOrders.sumOf { it.total }
-    val avgOrder = if (filteredPaidOrders.isNotEmpty()) filteredRevenue / filteredPaidOrders.size else 0.0
-    val posRevenue = filteredPaidOrders.filter { it.source == "pos" }.sumOf { it.total }
-    val qrRevenue = filteredPaidOrders.filter { it.source == "qr" }.sumOf { it.total }
-    val totalRevSafe = filteredRevenue.coerceAtLeast(1.0)
-    val dateRangeLabel = when (selectedDateRange) {
-        "today" -> "Hari ini"
-        "7days" -> "7 hari terakhir"
-        "30days" -> "30 hari terakhir"
-        else -> "Semua data"
+    val paid = orders.filter { it.isPaid && it.status != OrderStatus.CANCELLED }
+    val revenue = paid.sumOf { it.total }
+    val average = if (paid.isEmpty()) 0.0 else revenue / paid.size
+    val activeCount = uiState.orders.count { it.status == OrderStatus.NEW || it.status == OrderStatus.PREPARING || it.status == OrderStatus.READY }
+    val hours = (0..23).map { h -> orders.count { dateOf(it.createdAt)?.hour == h }.toFloat() }
+    val peak = hours.indices.maxByOrNull { hours[it] }?.takeIf { hours[it] > 0f }
+    val best = paid.flatMap { it.orderItems }.groupBy { it.productName }
+        .map { e -> Triple(e.key, e.value.sumOf { it.quantity }, e.value.sumOf { it.lineTotal }) }
+        .sortedByDescending { it.second }.take(5)
+    val maxQty = (best.maxOfOrNull { it.second } ?: 1).coerceAtLeast(1)
+    val payments = listOf("cash" to "Cash / Tunai", "bca" to "BCA", "qris" to "QRIS", "transfer" to "Transfer", "ewallet" to "E-Wallet", "debit" to "Kartu Debit")
+        .map { pair ->
+            val matched = paid.filter { (it.paymentMethod ?: "cash").lowercase().let { m ->
+                if (pair.first == "bca") m.contains("bca") else if (pair.first == "transfer") m == "transfer" || m == "bank_transfer" else if (pair.first == "ewallet") m == "ewallet" || m == "e_wallet" else if (pair.first == "debit") m == "debit" || m == "card" else m == pair.first || (pair.first == "cash" && m == "tunai")
+            } }
+            Triple(pair.second, matched.sumOf { it.total }, matched.size)
+        }.filter { it.second > 0.0 }
+    val trend = (0..6).map { i ->
+        val d = today.minusDays((6 - i).toLong())
+        paid.filter { dateOf(it.createdAt)?.toLocalDate() == d }.sumOf { it.total }.toFloat()
     }
+    val labels = (0..6).map { today.minusDays((6 - it).toLong()).format(java.time.format.DateTimeFormatter.ofPattern("dd/MM")) }
+    val rangeLabel = when (range) { "today" -> "Hari ini"; "7days" -> "7 hari terakhir"; "30days" -> "1 bulan"; else -> "Semua data" }
 
-    LazyColumn(
-        modifier = Modifier.fillMaxSize(),
-        verticalArrangement = Arrangement.spacedBy(12.dp)
-    ) {
+    LazyColumn(Modifier.fillMaxSize(), verticalArrangement = Arrangement.spacedBy(12.dp)) {
         item {
-            OutlinedCard(modifier = Modifier.fillMaxWidth()) {
-                Row(
-                    modifier = Modifier.fillMaxWidth().padding(horizontal = 14.dp, vertical = 10.dp),
-                    verticalAlignment = Alignment.CenterVertically,
-                    horizontalArrangement = Arrangement.SpaceBetween
-                ) {
-                    Column(modifier = Modifier.weight(1f)) {
-                        Text("Periode Dashboard", style = MaterialTheme.typography.titleSmall)
-                        Text(dateRangeLabel, style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+            OutlinedCard(Modifier.fillMaxWidth()) {
+                Row(Modifier.fillMaxWidth().padding(14.dp), verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.SpaceBetween) {
+                    Column(Modifier.weight(1f)) {
+                        Text("Dashboard Outlet", style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold)
+                        Text(rangeLabel, style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
                     }
                     Box {
-                        OutlinedButton(onClick = { dateRangeMenuExpanded = true }) {
-                            Text("Filter tanggal ▾")
+                        OutlinedButton(onClick = { menuOpen = true }) { Text("Periode ▾") }
+                        DropdownMenu(expanded = menuOpen, onDismissRequest = { menuOpen = false }) {
+                            listOf("today" to "Hari ini", "7days" to "7 hari", "30days" to "1 bulan", "all" to "Semua data").forEach { p ->
+                                DropdownMenuItem(text = { Text(p.second) }, onClick = { range = p.first; menuOpen = false })
+                            }
                         }
-                        DropdownMenu(
-                            expanded = dateRangeMenuExpanded,
-                            onDismissRequest = { dateRangeMenuExpanded = false }
-                        ) {
-                            listOf(
-                                "today" to "Hari ini",
-                                "7days" to "7 hari terakhir",
-                                "30days" to "30 hari terakhir",
-                                "all" to "Semua data"
-                            ).forEach { (key, label) ->
-                                DropdownMenuItem(
-                                    text = { Text(label) },
-                                    onClick = {
-                                        selectedDateRange = key
-                                        dateRangeMenuExpanded = false
+                    }
+                }
+            }
+        }
+        item {
+            val metrics = listOf(
+                Triple("Total Penjualan", RupiahFormatter.format(revenue), "Omzet pesanan lunas") to PosModuleRoute.LAPORAN,
+                Triple("Pesanan Lunas", paid.size.toString(), "Transaksi berhasil") to PosModuleRoute.PESANAN,
+                Triple("Rata-rata Pesanan", RupiahFormatter.format(average), "Per transaksi lunas") to PosModuleRoute.LAPORAN,
+                Triple("Jam Tersibuk", peak?.let { "%02d.00–%02d.00".format(it, (it + 1) % 24) } ?: "—", if (peak == null) "Belum ada pesanan" else hours[peak].toInt().toString() + " pesanan") to PosModuleRoute.LAPORAN
+            )
+            Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                metrics.chunked(if (isTabletOrWide) 4 else 2).forEach { row ->
+                    Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                        row.forEach { metric ->
+                            DashboardKpiCard(Modifier.weight(1f), metric.first.first, metric.first.second, metric.first.third) { onNavigateModule(metric.second) }
+                        }
+                        repeat((if (isTabletOrWide) 4 else 2) - row.size) { Spacer(Modifier.weight(1f)) }
+                    }
+                }
+            }
+        }
+        item {
+            Text("Akses Cepat", style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold)
+            val links = listOf(Triple("Transaksi Baru", "Buka kasir", PosModuleRoute.KASIR), Triple("Pesanan", activeCount.toString() + " aktif", PosModuleRoute.PESANAN), Triple("Produk & Stok", uiState.products.size.toString() + " produk", PosModuleRoute.PRODUK), Triple("Meja & QR", uiState.tables.size.toString() + " meja", PosModuleRoute.MEJA))
+            Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                links.chunked(2).forEach { row ->
+                    Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                        row.forEach { link ->
+                            OutlinedCard(onClick = { onNavigateModule(link.third) }, modifier = Modifier.weight(1f)) {
+                                Column(Modifier.padding(14.dp), verticalArrangement = Arrangement.spacedBy(6.dp)) {
+                                    Text(link.first, fontWeight = FontWeight.Bold)
+                                    Text(link.second, style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                                    Text("Buka →", color = MaterialTheme.colorScheme.primary, style = MaterialTheme.typography.labelLarge)
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        }
+        item {
+            OutlinedCard(Modifier.fillMaxWidth()) {
+                Column(Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                    Text("Tren Omzet", style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold)
+                    Text("7 hari terakhir", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                    DashboardLineChart(trend, Modifier.fillMaxWidth().height(160.dp))
+                    Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) { labels.forEach { Text(it, style = MaterialTheme.typography.labelSmall) } }
+                }
+            }
+        }
+        item {
+            OutlinedCard(Modifier.fillMaxWidth()) {
+                Column(Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                    Text("Aktivitas per Jam", style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold)
+                    DashboardBarChart(hours, Modifier.fillMaxWidth().height(130.dp))
+                    Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) { listOf("00", "04", "08", "12", "16", "20", "23").forEach { Text(it, style = MaterialTheme.typography.labelSmall) } }
+                }
+            }
+        }
+        item {
+            OutlinedCard(Modifier.fillMaxWidth()) {
+                Column(Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(10.dp)) {
+                    Text("Menu Terlaris", style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold)
+                    if (best.isEmpty()) Text("Belum ada produk terjual pada periode ini.", color = MaterialTheme.colorScheme.onSurfaceVariant)
+                    best.forEachIndexed { index, item ->
+                        Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
+                            Text((index + 1).toString() + ". " + item.first, modifier = Modifier.weight(1f))
+                            Text(item.second.toString() + " terjual", fontWeight = FontWeight.SemiBold)
+                        }
+                        Box(Modifier.fillMaxWidth().height(7.dp).background(MaterialTheme.colorScheme.surfaceVariant, RoundedCornerShape(8.dp))) {
+                            Box(Modifier.fillMaxWidth(item.second.toFloat() / maxQty).height(7.dp).background(Color(0xFF2878F0), RoundedCornerShape(8.dp)))
+                        }
+                        Text(RupiahFormatter.format(item.third), style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                    }
+                }
+            }
+        }
+        item {
+            OutlinedCard(Modifier.fillMaxWidth()) {
+                Column(Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
+                    Text("Metode Pembayaran", style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold)
+                    Text(rangeLabel, style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                    if (payments.isEmpty()) Text("Belum ada pembayaran lunas pada periode ini.", color = MaterialTheme.colorScheme.onSurfaceVariant)
+                    else Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(12.dp)) {
+                        DashboardDonutChart(payments.map { it.second.toFloat() }, Modifier.size(if (isTabletOrWide) 160.dp else 120.dp))
+                        Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                            payments.forEachIndexed { i, p ->
+                                Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(5.dp)) {
+                                    Box(Modifier.size(9.dp).background(DashboardChartColors[i % DashboardChartColors.size], RoundedCornerShape(50)))
+                                    Column(Modifier.weight(1f)) {
+                                        Text(p.first, style = MaterialTheme.typography.bodySmall)
+                                        Text(p.third.toString() + " transaksi", style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
                                     }
-                                )
+                                    Text(RupiahFormatter.format(p.second), style = MaterialTheme.typography.labelSmall)
+                                }
                             }
                         }
                     }
                 }
             }
         }
-
-        // 4 Kartu KPI Utama (4 kolom sejajar di Tablet, 2x2 di HP)
         item {
-            if (isTabletOrWide) {
-                Row(
-                    modifier = Modifier.fillMaxWidth(),
-                    horizontalArrangement = Arrangement.spacedBy(10.dp)
-                ) {
-                    DashboardKpiCard(
-                        modifier = Modifier.weight(1f),
-                        title = "Omzet Terkonfirmasi",
-                        value = RupiahFormatter.format(filteredRevenue),
-                        subtitle = "${filteredPaidOrders.size} transaksi lunas"
+            OutlinedCard(Modifier.fillMaxWidth()) {
+                Column(Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                    Text("Status Outlet", style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold)
+                    val status = listOf(
+                        Triple("Produk Aktif", uiState.products.count { it.isActive }.toString(), PosModuleRoute.PRODUK),
+                        Triple("Stok Menipis", uiState.lowStockProducts.count { !it.isOutOfStock }.toString(), PosModuleRoute.PRODUK),
+                        Triple("Pesanan Aktif", activeCount.toString(), PosModuleRoute.PESANAN),
+                        Triple("Produk Tidak Aktif", uiState.products.count { !it.isActive }.toString(), PosModuleRoute.PRODUK)
                     )
-                    DashboardKpiCard(
-                        modifier = Modifier.weight(1f),
-                        title = "Pesanan Aktif",
-                        value = "${uiState.activeOrdersCount}",
-                        subtitle = "Baru, Diproses & Siap"
-                    )
-                    DashboardKpiCard(
-                        modifier = Modifier.weight(1f),
-                        title = "Rata-rata Transaksi",
-                        value = RupiahFormatter.format(avgOrder),
-                        subtitle = "Per struk terbayar"
-                    )
-                    DashboardKpiCard(
-                        modifier = Modifier.weight(1f),
-                        title = "Stok Menipis",
-                        value = "${uiState.lowStockProducts.size} Produk",
-                        subtitle = "Perlu restock segera"
-                    )
-                }
-            } else {
-                Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                    Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                        DashboardKpiCard(
-                            modifier = Modifier.weight(1f),
-                            title = "Omzet Terkonfirmasi",
-                            value = RupiahFormatter.format(filteredRevenue),
-                            subtitle = "${filteredPaidOrders.size} struk lunas"
-                        )
-                        DashboardKpiCard(
-                            modifier = Modifier.weight(1f),
-                            title = "Pesanan Aktif",
-                            value = "${uiState.activeOrdersCount}",
-                            subtitle = "Antrean dapur"
-                        )
-                    }
-                    Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                        DashboardKpiCard(
-                            modifier = Modifier.weight(1f),
-                            title = "Rata-rata Struk",
-                            value = RupiahFormatter.format(avgOrder),
-                            subtitle = "Per transaksi"
-                        )
-                        DashboardKpiCard(
-                            modifier = Modifier.weight(1f),
-                            title = "Stok Menipis",
-                            value = "${uiState.lowStockProducts.size} SKU",
-                            subtitle = "Di bawah batas"
-                        )
-                    }
-                }
-            }
-        }
-
-        // Grafik Visual Penjualan per Kanal & Metode Pembayaran
-        item {
-            OutlinedCard(modifier = Modifier.fillMaxWidth()) {
-                Column(modifier = Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(10.dp)) {
-                    Row(
-                        modifier = Modifier.fillMaxWidth(),
-                        horizontalArrangement = Arrangement.SpaceBetween,
-                        verticalAlignment = Alignment.CenterVertically
-                    ) {
-                        Text("Grafik Distribusi Omzet & Metode Pembayaran", style = MaterialTheme.typography.titleMedium)
-                        Button(onClick = { onNavigateModule(PosModuleRoute.KASIR) }) {
-                            Text("Buka Kasir POS")
-                        }
-                    }
-
-                    Text(
-                        text = "Kanal Kasir POS (${RupiahFormatter.format(posRevenue)}) vs QR Ordering Meja (${RupiahFormatter.format(qrRevenue)})",
-                        style = MaterialTheme.typography.bodyMedium
-                    )
-                    LinearProgressIndicator(
-                        progress = { (posRevenue / totalRevSafe).toFloat().coerceIn(0f, 1f) },
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .height(10.dp)
-                    )
-
-                    HorizontalDivider(modifier = Modifier.padding(vertical = 4.dp))
-                    Text("Rincian Metode Pembayaran:", style = MaterialTheme.typography.labelMedium)
-                    listOf("cash" to "Tunai (Cash)", "qris" to "QRIS", "transfer" to "Transfer Bank", "ewallet" to "E-Wallet").forEach { (code, label) ->
-                        val methodRev = filteredPaidOrders.filter { (it.paymentMethod ?: "cash") == code }.sumOf { it.total }
-                        val ratio = (methodRev / totalRevSafe).toFloat().coerceIn(0f, 1f)
-                        Column(verticalArrangement = Arrangement.spacedBy(2.dp)) {
-                            Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
-                                Text(label, style = MaterialTheme.typography.bodyMedium)
-                                Text(RupiahFormatter.format(methodRev), fontWeight = FontWeight.SemiBold)
-                            }
-                            LinearProgressIndicator(
-                                progress = { ratio },
-                                modifier = Modifier
-                                    .fillMaxWidth()
-                                    .height(6.dp)
-                            )
-                        }
-                    }
-                }
-            }
-        }
-
-        // Produk Terlaris & Peringatan Stok Menipis
-        item {
-            OutlinedCard(modifier = Modifier.fillMaxWidth()) {
-                Column(modifier = Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                    Text("Top 5 Produk Terlaris Hari Ini", style = MaterialTheme.typography.titleMedium)
-                    val topProducts = filteredPaidOrders
-                        .flatMap { it.orderItems }
-                        .groupBy { it.productName }
-                        .map { (name, list) -> Triple(name, list.sumOf { it.quantity }, list.sumOf { it.lineTotal }) }
-                        .sortedByDescending { it.third }
-
-                    if (topProducts.isEmpty()) {
-                        Text("Belum ada produk terjual pada periode ini.")
-                    } else {
-                        topProducts.take(5).forEachIndexed { idx, (name, qty, rev) ->
-                            Row(
-                                modifier = Modifier.fillMaxWidth(),
-                                horizontalArrangement = Arrangement.SpaceBetween
-                            ) {
-                                Text("${idx + 1}. $name ($qty terjual)", style = MaterialTheme.typography.bodyMedium)
-                                Text(
-                                    text = RupiahFormatter.format(rev),
-                                    style = MaterialTheme.typography.bodyMedium,
-                                    fontWeight = FontWeight.Bold
-                                )
+                    status.chunked(2).forEach { row ->
+                        Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                            row.forEach { item ->
+                                OutlinedCard(onClick = { onNavigateModule(item.third) }, modifier = Modifier.weight(1f)) {
+                                    Column(Modifier.padding(12.dp)) {
+                                        Text(item.first, style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                                        Text(item.second, style = MaterialTheme.typography.headlineSmall, fontWeight = FontWeight.Bold)
+                                    }
+                                }
                             }
                         }
                     }
                 }
             }
         }
-
         item {
-            OutlinedCard(modifier = Modifier.fillMaxWidth()) {
-                Column(modifier = Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                    Row(
-                        modifier = Modifier.fillMaxWidth(),
-                        horizontalArrangement = Arrangement.SpaceBetween,
-                        verticalAlignment = Alignment.CenterVertically
-                    ) {
-                        Text("Indikator Stok Menipis & Habis", style = MaterialTheme.typography.titleMedium)
-                        TextButton(onClick = { onNavigateModule(PosModuleRoute.PRODUK) }) {
-                            Text("Kelola Produk & Stok →")
-                        }
+            OutlinedCard(Modifier.fillMaxWidth()) {
+                Column(Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                    Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween, verticalAlignment = Alignment.CenterVertically) {
+                        Text("Transaksi Terbaru", style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold)
+                        TextButton(onClick = { onNavigateModule(PosModuleRoute.HISTORY) }) { Text("Lihat semua") }
                     }
-                    if (uiState.lowStockProducts.isEmpty()) {
-                        Text("Seluruh produk berada di atas batas minimum stok.")
-                    } else {
-                        uiState.lowStockProducts.forEach { prod ->
-                            Row(
-                                modifier = Modifier.fillMaxWidth(),
-                                horizontalArrangement = Arrangement.SpaceBetween
-                            ) {
-                                Text("${prod.name} (Min: ${prod.lowStockThreshold})")
-                                Text(
-                                    text = if (prod.isOutOfStock) "HABIS (0)" else "Sisa ${prod.stock}",
-                                    color = MaterialTheme.colorScheme.error,
-                                    fontWeight = FontWeight.Bold
-                                )
+                    val recent = uiState.orders.sortedByDescending { dateOf(it.createdAt)?.toInstant()?.toEpochMilli() ?: 0L }.take(5)
+                    if (recent.isEmpty()) Text("Belum ada transaksi.", color = MaterialTheme.colorScheme.onSurfaceVariant)
+                    recent.forEach { order ->
+                        Row(Modifier.fillMaxWidth().padding(vertical = 4.dp), horizontalArrangement = Arrangement.SpaceBetween, verticalAlignment = Alignment.CenterVertically) {
+                            Column(Modifier.weight(1f)) {
+                                Text(order.orderNumber, fontWeight = FontWeight.SemiBold)
+                                Text(dateOf(order.createdAt)?.format(java.time.format.DateTimeFormatter.ofPattern("dd MMM, HH:mm")) ?: order.createdAt, style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                            }
+                            Column(horizontalAlignment = Alignment.End) {
+                                Text(RupiahFormatter.format(order.total), fontWeight = FontWeight.Bold)
+                                Text(if (order.isPaid) "LUNAS" else order.status.toString(), style = MaterialTheme.typography.labelSmall, color = if (order.isPaid) Color(0xFF15803D) else MaterialTheme.colorScheme.onSurfaceVariant)
                             }
                         }
+                        HorizontalDivider(color = MaterialTheme.colorScheme.outline.copy(alpha = 0.35f))
                     }
                 }
             }
@@ -528,22 +488,62 @@ private fun DashboardComposeScreen(
     }
 }
 
+private val DashboardChartColors = listOf(Color(0xFF2878F0), Color(0xFF16A085), Color(0xFFF59E0B), Color(0xFF8B5CF6), Color(0xFFEC4899), Color(0xFF0891B2), Color(0xFF64748B))
+
 @Composable
-private fun DashboardKpiCard(
-    modifier: Modifier = Modifier,
-    title: String,
-    value: String,
-    subtitle: String
-) {
-    OutlinedCard(modifier = modifier) {
-        Column(modifier = Modifier.padding(14.dp), verticalArrangement = Arrangement.spacedBy(4.dp)) {
-            Text(title, style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
-            Text(
-                text = value,
-                style = MaterialTheme.typography.titleLarge,
-                fontWeight = FontWeight.Bold
-            )
-            Text(subtitle, style = MaterialTheme.typography.labelMedium)
+private fun DashboardLineChart(values: List<Float>, modifier: Modifier = Modifier) {
+    val blue = Color(0xFF2878F0)
+    val grid = MaterialTheme.colorScheme.outline.copy(alpha = 0.22f)
+    Canvas(modifier) {
+        if (values.isEmpty()) return@Canvas
+        val left = 5f; val right = size.width - 5f; val top = 12f; val bottom = size.height - 12f
+        repeat(4) { i -> val y = top + (bottom - top) * i / 3f; drawLine(grid, androidx.compose.ui.geometry.Offset(left, y), androidx.compose.ui.geometry.Offset(right, y), strokeWidth = 1.dp.toPx()) }
+        val max = (values.maxOrNull() ?: 0f).coerceAtLeast(1f)
+        val points = values.mapIndexed { i, v -> androidx.compose.ui.geometry.Offset(left + (right-left) * i / (values.size-1).coerceAtLeast(1), bottom - (v/max).coerceIn(0f,1f) * (bottom-top)) }
+        val path = androidx.compose.ui.graphics.Path().apply { moveTo(points.first().x, points.first().y); points.drop(1).forEach { lineTo(it.x,it.y) } }
+        drawPath(path, blue.copy(alpha = 0.14f), style = androidx.compose.ui.graphics.drawscope.Stroke(width = 13.dp.toPx(), cap = androidx.compose.ui.graphics.StrokeCap.Round, join = androidx.compose.ui.graphics.StrokeJoin.Round))
+        drawPath(path, blue.copy(alpha = 0.24f), style = androidx.compose.ui.graphics.drawscope.Stroke(width = 7.dp.toPx(), cap = androidx.compose.ui.graphics.StrokeCap.Round, join = androidx.compose.ui.graphics.StrokeJoin.Round))
+        drawPath(path, blue, style = androidx.compose.ui.graphics.drawscope.Stroke(width = 3.dp.toPx(), cap = androidx.compose.ui.graphics.StrokeCap.Round, join = androidx.compose.ui.graphics.StrokeJoin.Round))
+        points.forEach { drawCircle(blue, 4.dp.toPx(), it); drawCircle(Color.White, 1.6.dp.toPx(), it) }
+    }
+}
+
+@Composable
+private fun DashboardBarChart(values: List<Float>, modifier: Modifier = Modifier) {
+    val blue = Color(0xFF2878F0); val grid = MaterialTheme.colorScheme.outline.copy(alpha = 0.22f)
+    Canvas(modifier) {
+        val max = (values.maxOrNull() ?: 0f).coerceAtLeast(1f); val step = size.width / values.size.coerceAtLeast(1)
+        repeat(3) { i -> val y = size.height * (i+1) / 4f; drawLine(grid, androidx.compose.ui.geometry.Offset(0f,y), androidx.compose.ui.geometry.Offset(size.width,y), strokeWidth = 1.dp.toPx()) }
+        values.forEachIndexed { i, v ->
+            val h = (v/max).coerceIn(0f,1f) * (size.height - 8.dp.toPx()); val w = step * 0.58f
+            drawRoundRect(if (v > 0f) blue else blue.copy(alpha = 0.12f), androidx.compose.ui.geometry.Offset(i*step+(step-w)/2f,size.height-h), androidx.compose.ui.geometry.Size(w,h.coerceAtLeast(2.dp.toPx())), androidx.compose.ui.geometry.CornerRadius(w/2f,w/2f))
+        }
+    }
+}
+
+@Composable
+private fun DashboardDonutChart(values: List<Float>, modifier: Modifier = Modifier) {
+    val total = values.sum().coerceAtLeast(1f)
+    Canvas(modifier) {
+        val stroke = 18.dp.toPx(); var start = -90f
+        values.forEachIndexed { i, v ->
+            val sweep = v / total * 360f
+            drawArc(DashboardChartColors[i % DashboardChartColors.size], start, (sweep-2f).coerceAtLeast(0f), false,
+                topLeft = androidx.compose.ui.geometry.Offset(stroke/2f,stroke/2f),
+                size = androidx.compose.ui.geometry.Size(size.width-stroke,size.height-stroke),
+                style = androidx.compose.ui.graphics.drawscope.Stroke(width=stroke))
+            start += sweep
+        }
+    }
+}
+
+@Composable
+private fun DashboardKpiCard(modifier: Modifier = Modifier, title: String, value: String, subtitle: String, onClick: () -> Unit) {
+    OutlinedCard(onClick = onClick, modifier = modifier) {
+        Column(Modifier.fillMaxWidth().padding(12.dp), verticalArrangement = Arrangement.spacedBy(4.dp)) {
+            Text(title, style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant, maxLines = 2)
+            Text(value, style = MaterialTheme.typography.titleLarge, fontWeight = FontWeight.Bold, maxLines = 2)
+            Text(subtitle, style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.onSurfaceVariant, maxLines = 2)
         }
     }
 }

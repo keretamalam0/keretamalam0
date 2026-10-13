@@ -895,7 +895,7 @@ fun PegawaiComposeScreen(viewModel: PosViewModel, uiState: PosUiState) {
                             Text("Akun ini", style = MaterialTheme.typography.labelMedium, color = MaterialTheme.colorScheme.primary)
                         } else if (!isPrivileged) {
                             Column(horizontalAlignment = Alignment.CenterHorizontally) {
-                                Switch(checked = st.isActive, onCheckedChange = { viewModel.setStaffActive(st.userId, it) }, enabled = !uiState.isLoading)
+                                Switch(checked = st.isActive, onCheckedChange = { viewModel.setStaffActive(st.userId, it) }, enabled = uiState.staffProfile.canPerform("staff.manage") && !uiState.isLoading)
                                 Text(if (st.isActive) "Aktif" else "Nonaktif", style = MaterialTheme.typography.labelSmall)
                             }
                         }
@@ -947,7 +947,7 @@ fun PegawaiComposeScreen(viewModel: PosViewModel, uiState: PosUiState) {
                                     Switch(
                                         checked = st.permissions[permission.key] ?: (StaffPermissionCatalog.defaultsFor(st.role)[permission.key] == true),
                                         onCheckedChange = { viewModel.toggleStaffPermission(st.userId, permission.key) },
-                                        enabled = !isPrivileged && !uiState.isLoading
+                                        enabled = !isPrivileged && uiState.staffProfile.canPerform("staff.manage") && !uiState.isLoading
                                     )
                                 }
                             }

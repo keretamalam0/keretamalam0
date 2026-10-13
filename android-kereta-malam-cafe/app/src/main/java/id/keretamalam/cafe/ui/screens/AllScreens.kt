@@ -518,6 +518,7 @@ private fun DashboardComposeScreen(
                 }
             }
         }
+        }
     }
 }
 

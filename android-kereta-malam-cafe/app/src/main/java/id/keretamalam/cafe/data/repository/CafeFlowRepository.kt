@@ -351,7 +351,9 @@ class CafeFlowRepository(private val context: Context) {
                 put("idempotency_key", idempotencyKey)
                 put("source", "pos")
                 put("status", "preparing")
-                if (tableId != null) put("table_id", tableId) else put("table_id", JsonNull)
+                // Sandbox IDs (for example "tbl-1") are not UUIDs accepted by public.orders.table_id.
+                val validTableId = tableId?.takeIf { it.matches(Regex("(?i)^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$")) }
+                if (validTableId != null) put("table_id", validTableId) else put("table_id", JsonNull)
                 if (promotionId != null) put("promotion_id", promotionId) else put("promotion_id", JsonNull)
                 put("customer_name", customerName ?: "Walk-in Customer")
                 put("notes", notes)

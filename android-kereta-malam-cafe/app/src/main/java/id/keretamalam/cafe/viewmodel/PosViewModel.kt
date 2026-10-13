@@ -1059,17 +1059,36 @@ class PosViewModel(application: Application) : AndroidViewModel(application) {
     }
 
     fun verifyShiftAudit(shiftId: String) {
-        if (_uiState.value.backendStatus == BackendIntegrationStatus.ACTIVE_VERIFIED) {
-            showNotice("Verifikasi audit shift live belum tersambung ke Supabase. Status audit tidak diubah.", isError = true)
+        val state = _uiState.value
+        val shift = state.shifts.firstOrNull { it.id == shiftId }
+        if (shift == null) {
+            showNotice("Shift tidak ditemukan. Muat ulang data audit.", isError = true)
             return
         }
-        _uiState.update { state ->
-            state.copy(
-                shifts = state.shifts.map {
-                    if (it.id == shiftId) it.copy(auditVerified = true) else it
-                },
-                successMessage = "Shift berhasil diverifikasi oleh auditor."
-            )
+        if (shift.status.equals("open", true)) {
+            showNotice("Shift masih aktif. Tutup shift terlebih dahulu sebelum verifikasi audit.", isError = true)
+            return
+        }
+        if (state.backendStatus == BackendIntegrationStatus.ACTIVE_VERIFIED) {
+            viewModelScope.launch {
+                _uiState.update { it.copy(isLoading = true, errorMessage = null, successMessage = null) }
+                runCatching { repository.verifyStaffShiftAudit(shiftId) }
+                    .onSuccess { updated ->
+                        _uiState.update { current ->
+                            current.copy(isLoading = false, shifts = current.shifts.map { if (it.id == updated.id) updated else it },
+                                successMessage = "Audit shift berhasil diverifikasi dan tersimpan di Supabase.")
+                        }
+                        appendAuditLog("shift.audit_verify", "staff_shifts", shiftId, "{\"verified\":true}")
+                    }
+                    .onFailure { err ->
+                        _uiState.update { it.copy(isLoading = false, errorMessage = "Verifikasi audit gagal disimpan: ${err.message ?: "Periksa izin UPDATE, RLS, dan kolom audit_verified."}") }
+                    }
+            }
+            return
+        }
+        _uiState.update { current ->
+            current.copy(shifts = current.shifts.map { if (it.id == shiftId) it.copy(auditVerified = true) else it },
+                successMessage = "Audit shift lokal berhasil diverifikasi (mode sandbox).")
         }
         appendAuditLog("shift.audit_verify", "staff_shifts", shiftId, "{\"verified\":true}")
     }

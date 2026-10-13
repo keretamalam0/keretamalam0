@@ -112,7 +112,7 @@ fun LoginComposeScreen(
                             color = if (uiState.errorMessage != null) MaterialTheme.colorScheme.onErrorContainer else MaterialTheme.colorScheme.onPrimary,
                             modifier = Modifier.weight(1f)
                         )
-                        TextButton(onClick = { viewModel.clearBannerMessages() }) {
+                        OutlinedButton(onClick = { viewModel.clearBannerMessages() }) {
                             Text("Tutup")
                         }
                     }
@@ -154,7 +154,7 @@ fun LoginComposeScreen(
                 }
             }
 
-            TextButton(onClick = { viewModel.setThemeMode(!uiState.darkTheme) }) {
+            OutlinedButton(onClick = { viewModel.setThemeMode(!uiState.darkTheme) }) {
                 Text(if (uiState.darkTheme) "Gunakan Mode Terang" else "Gunakan Mode Gelap")
             }
         }
@@ -271,7 +271,7 @@ fun RenderModuleScreen(
                         horizontalArrangement = Arrangement.End,
                         verticalAlignment = Alignment.CenterVertically
                     ) {
-                        TextButton(onClick = { viewModel.openReceiptDialog(null) }) { Text("Tutup") }
+                        OutlinedButton(onClick = { viewModel.openReceiptDialog(null) }) { Text("Tutup") }
                         Spacer(modifier = Modifier.width(4.dp))
                         OutlinedButton(onClick = {
                             viewModel.printOrderToThermal(receiptOrder, PrinterRole.KITCHEN, true)
@@ -484,7 +484,7 @@ private fun DashboardComposeScreen(
                 Column(Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
                     Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween, verticalAlignment = Alignment.CenterVertically) {
                         Text("Transaksi Terbaru", style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold)
-                        TextButton(onClick = { onNavigateModule(PosModuleRoute.HISTORY) }) { Text("Lihat semua") }
+                        OutlinedButton(onClick = { onNavigateModule(PosModuleRoute.HISTORY) }) { Text("Lihat semua") }
                     }
                     val recent = uiState.orders.sortedByDescending { dateOf(it.createdAt)?.toInstant()?.toEpochMilli() ?: 0L }.take(5)
                     if (recent.isEmpty()) Text("Belum ada transaksi.", color = MaterialTheme.colorScheme.onSurfaceVariant)
@@ -868,7 +868,7 @@ private fun KasirComposeScreen(
                     ) {
                         Text("Keranjang Transaksi", style = MaterialTheme.typography.titleMedium)
                         if (uiState.cart.isNotEmpty()) {
-                            TextButton(onClick = { viewModel.clearCart() }) {
+                            OutlinedButton(onClick = { viewModel.clearCart() }) {
                                 Text("Kosongkan")
                             }
                         }
@@ -1099,7 +1099,7 @@ private fun KasirComposeScreen(
                                 color = MaterialTheme.colorScheme.onPrimary,
                                 fontWeight = FontWeight.Bold
                             )
-                            TextButton(onClick = { mobileTab = 1 }) {
+                            OutlinedButton(onClick = { mobileTab = 1 }) {
                                 Text("Lanjut Bayar →", color = MaterialTheme.colorScheme.onPrimary, fontWeight = FontWeight.Bold)
                             }
                         }
@@ -1204,7 +1204,7 @@ private fun KasirComposeScreen(
                         horizontalArrangement = Arrangement.End,
                         verticalAlignment = Alignment.CenterVertically
                     ) {
-                        TextButton(onClick = { customizingProduct = null }) { Text("Batal") }
+                        OutlinedButton(onClick = { customizingProduct = null }) { Text("Batal") }
                         Spacer(modifier = Modifier.width(4.dp))
                         Button(onClick = {
                             val activeOptions = uiState.customizationOptions.filter { it.productId == targetCustom.id && it.isActive }
@@ -1274,7 +1274,7 @@ private fun KasirComposeScreen(
                         horizontalArrangement = Arrangement.End,
                         verticalAlignment = Alignment.CenterVertically
                     ) {
-                        TextButton(
+                        OutlinedButton(
                             onClick = { showConfirmCheckoutDialog = false },
                             enabled = !uiState.isCheckoutProcessing
                         ) { Text("Batal") }
@@ -1342,7 +1342,7 @@ private fun PesananComposeScreen(
             OutlinedTextField(value = search, onValueChange = { search = it }, label = { Text("Cari nomor order / pelanggan") }, modifier = Modifier.weight(1f), singleLine = true)
             var sourceOpen by remember { mutableStateOf(false) }
             Box {
-                TextButton(onClick = { sourceOpen = true }) { Text(if (sourceFilter == "ALL") "Semua kanal ▾" else "$sourceFilter ▾") }
+                OutlinedButton(onClick = { sourceOpen = true }) { Text(if (sourceFilter == "ALL") "Semua kanal ▾" else "$sourceFilter ▾") }
                 DropdownMenu(expanded = sourceOpen, onDismissRequest = { sourceOpen = false }) {
                     listOf("ALL" to "Semua kanal", "pos" to "POS Kasir", "qr" to "QR Meja").forEach { (code, label) ->
                         DropdownMenuItem(text = { Text(label) }, onClick = { sourceFilter = code; sourceOpen = false })
@@ -1455,14 +1455,14 @@ private fun HistoryComposeScreen(viewModel: PosViewModel, uiState: PosUiState) {
             title = { Text("Hapus transaksi terpilih?") },
             text = { Text("Yakin hapus ${selectedIds.size} transaksi yang dipilih? Data yang dihapus tidak bisa dikembalikan.") },
             confirmButton = {
-                TextButton(onClick = {
+                OutlinedButton(onClick = {
                     confirmDeleteSelected = false
                     val ids = selectedIds.toList()
                     viewModel.deleteOrders(ids)
                     selectedIds = emptySet()
                 }) { Text("Ya, Hapus", color = MaterialTheme.colorScheme.error) }
             },
-            dismissButton = { TextButton(onClick = { confirmDeleteSelected = false }) { Text("Batal") } }
+            dismissButton = { OutlinedButton(onClick = { confirmDeleteSelected = false }) { Text("Batal") } }
         )
     }
     if (confirmDeleteAll) {
@@ -1471,13 +1471,13 @@ private fun HistoryComposeScreen(viewModel: PosViewModel, uiState: PosUiState) {
             title = { Text("Hapus SEMUA transaksi?") },
             text = { Text("Ini akan menghapus seluruh data transaksi yang tersimpan, bukan hanya hasil pencarian atau tanggal yang sedang tampil. Tindakan ini permanen dan tidak bisa dibatalkan.") },
             confirmButton = {
-                TextButton(onClick = {
+                OutlinedButton(onClick = {
                     confirmDeleteAll = false
                     viewModel.deleteAllOrders()
                     selectedIds = emptySet()
                 }) { Text("Hapus Semua", color = MaterialTheme.colorScheme.error) }
             },
-            dismissButton = { TextButton(onClick = { confirmDeleteAll = false }) { Text("Jangan Hapus") } }
+            dismissButton = { OutlinedButton(onClick = { confirmDeleteAll = false }) { Text("Jangan Hapus") } }
         )
     }
 
@@ -1504,7 +1504,7 @@ private fun HistoryComposeScreen(viewModel: PosViewModel, uiState: PosUiState) {
         }
         Row(horizontalArrangement = Arrangement.spacedBy(8.dp), verticalAlignment = Alignment.CenterVertically) {
             OutlinedTextField(value = search, onValueChange = { search = it }, label = { Text("Cari #Order / Nama") }, modifier = Modifier.weight(1f), singleLine = true)
-            TextButton(onClick = {
+            OutlinedButton(onClick = {
                 selectedIds = if (filteredOrders.isNotEmpty() && filteredOrders.all { it.id in selectedIds }) {
                     selectedIds - filteredOrders.map { it.id }.toSet()
                 } else selectedIds + filteredOrders.map { it.id }
@@ -1688,11 +1688,11 @@ private fun AuditShiftComposeScreen(viewModel: PosViewModel, uiState: PosUiState
             },
             confirmButton = {
                 if (!shift.auditVerified && shift.status.equals("closed", true)) {
-                    TextButton(onClick = { viewModel.verifyShiftAudit(shift.id); selectedShift = null }) { Text("Verifikasi Audit") }
-                } else TextButton(onClick = { selectedShift = null }) { Text("Tutup") }
+                    OutlinedButton(onClick = { viewModel.verifyShiftAudit(shift.id); selectedShift = null }) { Text("Verifikasi Audit") }
+                } else OutlinedButton(onClick = { selectedShift = null }) { Text("Tutup") }
             },
             dismissButton = {
-                if (!shift.auditVerified && shift.status.equals("closed", true)) TextButton(onClick = { selectedShift = null }) { Text("Kembali") }
+                if (!shift.auditVerified && shift.status.equals("closed", true)) OutlinedButton(onClick = { selectedShift = null }) { Text("Kembali") }
             }
         )
     }

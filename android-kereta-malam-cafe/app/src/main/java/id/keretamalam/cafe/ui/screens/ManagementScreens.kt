@@ -833,7 +833,7 @@ fun PegawaiComposeScreen(viewModel: PosViewModel, uiState: PosUiState) {
                         }
                     }
                     Button(
-                        enabled = newName.isNotBlank() && newEmail.contains("@") && !uiState.isLoading,
+                        enabled = newName.isNotBlank() && newEmail.contains("@") && !uiState.isLoading && uiState.staffProfile.canPerform("staff.manage"),
                         onClick = {
                             viewModel.addStaffProfile(newName.trim(), newEmail.trim(), newRole)
                             newName = ""
@@ -902,10 +902,10 @@ fun PegawaiComposeScreen(viewModel: PosViewModel, uiState: PosUiState) {
                     }
 
                     Row(horizontalArrangement = Arrangement.spacedBy(8.dp), verticalAlignment = Alignment.CenterVertically) {
-                        OutlinedButton(onClick = { expandedPermissionsFor = if (expanded) null else st.userId }) {
+                        OutlinedButton(onClick = { expandedPermissionsFor = if (expanded) null else st.userId }, enabled = uiState.staffProfile.canPerform("staff.manage")) {
                             Text(if (expanded) "Tutup Hak Akses" else "Atur Hak Akses")
                         }
-                        if (!isCurrent && !isPrivileged) {
+                        if (!isCurrent && !isPrivileged && uiState.staffProfile.canPerform("staff.manage")) {
                             TextButton(onClick = { pendingDelete = st }, enabled = !uiState.isLoading) {
                                 Text("Hapus", color = MaterialTheme.colorScheme.error)
                             }
@@ -925,9 +925,9 @@ fun PegawaiComposeScreen(viewModel: PosViewModel, uiState: PosUiState) {
                                 ) {
                                     Text(perm.key.replaceFirstChar { it.uppercase() }, modifier = Modifier.weight(1f))
                                     Switch(
-                                        checked = st.permissions[perm.key] == true,
+                                        checked = st.canAccess(perm),
                                         onCheckedChange = { viewModel.toggleStaffPermission(st.userId, perm.key) },
-                                        enabled = !isPrivileged && !uiState.isLoading
+                                        enabled = !isPrivileged && uiState.staffProfile.canPerform("staff.manage") && !uiState.isLoading
                                     )
                                 }
                             }
@@ -945,7 +945,7 @@ fun PegawaiComposeScreen(viewModel: PosViewModel, uiState: PosUiState) {
                                 ) {
                                     Text(permission.label, modifier = Modifier.weight(1f), style = MaterialTheme.typography.bodyMedium)
                                     Switch(
-                                        checked = st.permissions[permission.key] == true,
+                                        checked = st.permissions[permission.key] ?: (StaffPermissionCatalog.defaultsFor(st.role)[permission.key] == true),
                                         onCheckedChange = { viewModel.toggleStaffPermission(st.userId, permission.key) },
                                         enabled = !isPrivileged && !uiState.isLoading
                                     )

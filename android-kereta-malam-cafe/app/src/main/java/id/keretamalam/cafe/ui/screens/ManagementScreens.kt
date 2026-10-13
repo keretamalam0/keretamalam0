@@ -895,7 +895,43 @@ fun PengaturanOutletComposeScreen(viewModel: PosViewModel, uiState: PosUiState) 
     var paymentInstructions by remember { mutableStateOf("") }
     var paymentImageUrl by remember { mutableStateOf<String?>(null) }
     var paymentImageUploading by remember { mutableStateOf(false) }
+    var newPassword by remember { mutableStateOf("") }
+    var confirmNewPassword by remember { mutableStateOf("") }
+    var passwordVisible by remember { mutableStateOf(false) }
+    var alertSoundUploading by remember { mutableStateOf(false) }
+    var alertSoundUrl by remember { mutableStateOf<String?>(null) }
     val context = LocalContext.current
+    LaunchedEffect(Unit) {
+        alertSoundUrl = context.getSharedPreferences("order_alert_settings", android.content.Context.MODE_PRIVATE)
+            .getString("sound_url", null)
+    }
+    val alertSoundPicker = rememberLauncherForActivityResult(ActivityResultContracts.GetContent()) { uri: Uri? ->
+        if (uri != null) {
+            alertSoundUploading = true
+            val mime = context.contentResolver.getType(uri) ?: "audio/mpeg"
+            val ext = when (mime.lowercase()) {
+                "audio/mp4", "audio/x-m4a" -> "m4a"
+                "audio/wav", "audio/x-wav" -> "wav"
+                "audio/ogg", "application/ogg" -> "ogg"
+                "audio/aac" -> "aac"
+                "audio/webm" -> "webm"
+                else -> "mp3"
+            }
+            val bytes = runCatching { context.contentResolver.openInputStream(uri)?.use { it.readBytes() } }.getOrNull()
+            if (bytes == null || bytes.isEmpty()) {
+                alertSoundUploading = false
+                viewModel.showNotice("File suara tidak bisa dibaca.", isError = true)
+            } else {
+                viewModel.uploadOrderAlertSound(bytes, mime, ext) { url ->
+                    alertSoundUrl = url
+                    context.getSharedPreferences("order_alert_settings", android.content.Context.MODE_PRIVATE)
+                        .edit().putString("sound_url", url).apply()
+                    alertSoundUploading = false
+                }
+            }
+        }
+    }
+    val paymentImagePicker = rememberLauncherForActivityResult(ActivityResultContracts.GetContent()) { uri: Uri? ->
     val paymentImagePicker = rememberLauncherForActivityResult(ActivityResultContracts.GetContent()) { uri: Uri? ->
         if (uri != null) {
             paymentImageUploading = true
@@ -1049,7 +1085,72 @@ fun PengaturanOutletComposeScreen(viewModel: PosViewModel, uiState: PosUiState) 
 
         OutlinedCard(modifier = Modifier.fillMaxWidth()) {
             Column(modifier = Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(10.dp)) {
-                Text("5. Metode Pembayaran", style = MaterialTheme.typography.titleMedium)
+                Text("5. Suara Otomatis Pesanan Masuk", style = MaterialTheme.typography.titleMedium)
+                Text("Unggah file suara pengumuman, misalnya: “Halo, halo kasir, ada pesanan masuk.” Saat aplikasi kasir terbuka dan mendeteksi pesanan baru, suara ini akan diputar otomatis. Format audio umum didukung; ukuran maksimal 10 MB.")
+                Text(
+                    if (alertSoundUrl.isNullOrBlank()) "Belum ada suara khusus. Pesanan baru tidak akan memutar file kustom."
+                    else "Suara aktif: ${alertSoundUrl!!.substringAfterLast('/').take(42)}",
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                )
+                Row(horizontalArrangement = Arrangement.spacedBy(8.dp), verticalAlignment = Alignment.CenterVertically) {
+                    OutlinedButton(onClick = { alertSoundPicker.launch("audio/*") }, enabled = !alertSoundUploading) {
+                        Text(if (alertSoundUploading) "Mengunggah suara..." else "Unggah File Suara")
+                    }
+                    if (!alertSoundUrl.isNullOrBlank()) {
+                        OutlinedButton(onClick = {
+                            context.getSharedPreferences("order_alert_settings", android.content.Context.MODE_PRIVATE)
+                                .edit().remove("sound_url").apply()
+                            alertSoundUrl = null
+                        }) { Text("Hapus Suara") }
+                    }
+                }
+                Text("Catatan: pengaturan suara tersimpan di perangkat kasir ini. Agar berbunyi, aplikasi harus berjalan dan terhubung ke internet.", style = MaterialTheme.typography.bodySmall)
+            }
+        }
+
+        OutlinedCard(modifier = Modifier.fillMaxWidth()) {
+            Column(modifier = Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(10.dp)) {
+                Text("6. Ganti Password Akun", style = MaterialTheme.typography.titleMedium)
+                Text("Password akun login Supabase yang sedang aktif akan diperbarui.")
+                OutlinedTextField(
+                    value = newPassword,
+                    onValueChange = { newPassword = it },
+                    label = { Text("Password baru (minimal 8 karakter)") },
+                    visualTransformation = PasswordVisualTransformation(),
+                    modifier = Modifier.fillMaxWidth(),
+                    singleLine = true
+                )
+                OutlinedTextField(
+                    value = confirmNewPassword,
+                    onValueChange = { confirmNewPassword = it },
+                    label = { Text("Ulangi password baru") },
+                    visualTransformation = PasswordVisualTransformation(),
+                    modifier = Modifier.fillMaxWidth(),
+                    singleLine = true
+                )
+                Button(
+                    onClick = {
+                        if (newPassword.length < 8) {
+                            viewModel.showNotice("Password baru minimal 8 karakter.", isError = true)
+                        } else if (newPassword != confirmNewPassword) {
+                            viewModel.showNotice("Konfirmasi password belum sama.", isError = true)
+                        } else {
+                            viewModel.changePassword(newPassword)
+                            newPassword = ""
+                            confirmNewPassword = ""
+                        }
+                    },
+                    modifier = Modifier.fillMaxWidth(),
+                    enabled = uiState.isLoggedIn && newPassword.length >= 8 && newPassword == confirmNewPassword
+                ) { Text("Simpan Password Baru") }
+                if (!uiState.isLoggedIn) Text("Login dengan akun Supabase untuk mengganti password.", color = MaterialTheme.colorScheme.error, style = MaterialTheme.typography.bodySmall)
+            }
+        }
+
+        OutlinedCard(modifier = Modifier.fillMaxWidth()) {
+            Column(modifier = Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(10.dp)) {
+                Text("7. Metode Pembayaran", style = MaterialTheme.typography.titleMedium)
                 Text("Tambah, edit, atau hapus metode pembayaran yang digunakan outlet.")
                 if (uiState.paymentMethods.isEmpty()) {
                     Text("Belum ada metode pembayaran yang ditambahkan.", style = MaterialTheme.typography.bodyMedium)

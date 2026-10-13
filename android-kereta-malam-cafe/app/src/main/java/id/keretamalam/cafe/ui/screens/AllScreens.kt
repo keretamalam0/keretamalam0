@@ -357,23 +357,26 @@ private fun DashboardComposeScreen(
         }
         item {
             val metrics = listOf(
-                Triple("Total Penjualan", RupiahFormatter.format(revenue), "Omzet pesanan lunas") to PosModuleRoute.LAPORAN,
-                Triple("Pesanan Lunas", paid.size.toString(), "Transaksi berhasil") to PosModuleRoute.PESANAN,
-                Triple("Rata-rata Pesanan", RupiahFormatter.format(average), "Per transaksi lunas") to PosModuleRoute.LAPORAN,
-                Triple("Jam Tersibuk", peak?.let { "%02d.00–%02d.00".format(it, (it + 1) % 24) } ?: "—", if (peak == null) "Belum ada pesanan" else hours[peak].toInt().toString() + " pesanan") to PosModuleRoute.LAPORAN
-            )
-            Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                metrics.chunked(if (isTabletOrWide) 4 else 2).forEach { row ->
-                    Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                        row.forEach { metric ->
-                            DashboardKpiCard(Modifier.weight(1f), metric.first.first, metric.first.second, metric.first.third) { onNavigateModule(metric.second) }
+                Triple(Triple("Total Penjualan", RupiahFormatter.format(revenue), "Omzet pesanan lunas"), PosModuleRoute.LAPORAN, "dashboard.total_sales"),
+                Triple(Triple("Pesanan Lunas", paid.size.toString(), "Transaksi berhasil"), PosModuleRoute.PESANAN, "dashboard.paid_orders"),
+                Triple(Triple("Rata-rata Pesanan", RupiahFormatter.format(average), "Per transaksi lunas"), PosModuleRoute.LAPORAN, "dashboard.average_order"),
+                Triple(Triple("Jam Tersibuk", peak?.let { "%02d.00–%02d.00".format(it, (it + 1) % 24) } ?: "—", if (peak == null) "Belum ada pesanan" else hours[peak].toInt().toString() + " pesanan"), PosModuleRoute.LAPORAN, "dashboard.busy_hours")
+            ).filter { uiState.staffProfile.canPerform(it.third) }
+            if (metrics.isNotEmpty()) {
+                Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                    metrics.chunked(if (isTabletOrWide) 4 else 2).forEach { row ->
+                        Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                            row.forEach { metric ->
+                                DashboardKpiCard(Modifier.weight(1f), metric.first.first, metric.first.second, metric.first.third) { onNavigateModule(metric.second) }
+                            }
+                            repeat((if (isTabletOrWide) 4 else 2) - row.size) { Spacer(Modifier.weight(1f)) }
                         }
-                        repeat((if (isTabletOrWide) 4 else 2) - row.size) { Spacer(Modifier.weight(1f)) }
                     }
                 }
             }
         }
         item {
+            if (uiState.staffProfile.canPerform("dashboard.quick_links")) {
             Text("Akses Cepat", style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold)
             val links = listOf(Triple("Transaksi Baru", "Buka kasir", PosModuleRoute.KASIR), Triple("Pesanan", activeCount.toString() + " aktif", PosModuleRoute.PESANAN), Triple("Produk & Stok", uiState.products.size.toString() + " produk", PosModuleRoute.PRODUK), Triple("Meja & QR", uiState.tables.size.toString() + " meja", PosModuleRoute.MEJA))
             Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
@@ -391,8 +394,10 @@ private fun DashboardComposeScreen(
                     }
                 }
             }
+            }
         }
         item {
+            if (uiState.staffProfile.canPerform("dashboard.sales_trend")) {
             OutlinedCard(Modifier.fillMaxWidth()) {
                 Column(Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
                     Text("Tren Omzet", style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold)
@@ -401,8 +406,10 @@ private fun DashboardComposeScreen(
                     Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) { labels.forEach { Text(it, style = MaterialTheme.typography.labelSmall) } }
                 }
             }
+            }
         }
         item {
+            if (uiState.staffProfile.canPerform("dashboard.hourly_activity")) {
             OutlinedCard(Modifier.fillMaxWidth()) {
                 Column(Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
                     Text("Aktivitas per Jam", style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold)
@@ -410,8 +417,10 @@ private fun DashboardComposeScreen(
                     Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) { listOf("00", "04", "08", "12", "16", "20", "23").forEach { Text(it, style = MaterialTheme.typography.labelSmall) } }
                 }
             }
+            }
         }
         item {
+            if (uiState.staffProfile.canPerform("dashboard.best_sellers")) {
             OutlinedCard(Modifier.fillMaxWidth()) {
                 Column(Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(10.dp)) {
                     Text("Menu Terlaris", style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold)
@@ -428,8 +437,10 @@ private fun DashboardComposeScreen(
                     }
                 }
             }
+            }
         }
         item {
+            if (uiState.staffProfile.canPerform("dashboard.payment_methods")) {
             OutlinedCard(Modifier.fillMaxWidth()) {
                 Column(Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
                     Text("Metode Pembayaran", style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold)
@@ -452,8 +463,10 @@ private fun DashboardComposeScreen(
                     }
                 }
             }
+            }
         }
         item {
+            if (uiState.staffProfile.canPerform("dashboard.outlet_status")) {
             OutlinedCard(Modifier.fillMaxWidth()) {
                 Column(Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
                     Text("Status Outlet", style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold)
@@ -476,6 +489,7 @@ private fun DashboardComposeScreen(
                         }
                     }
                 }
+            }
             }
         }
         item {

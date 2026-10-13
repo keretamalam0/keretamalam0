@@ -44,7 +44,6 @@ object StaffPermissionCatalog {
         StaffPermissionItem("dashboard.recent_transactions", "Lihat daftar transaksi terbaru", "Dashboard"),
         StaffPermissionItem("history.export_csv", "Download / ekspor CSV transaksi", "Riwayat & Data"),
         StaffPermissionItem("history.delete", "Hapus transaksi", "Riwayat & Data"),
-        StaffPermissionItem("reports.export", "Download / ekspor laporan", "Riwayat & Data"),
         StaffPermissionItem("products.edit", "Tambah dan edit produk", "Operasional"),
         StaffPermissionItem("products.delete", "Hapus produk", "Operasional"),
         StaffPermissionItem("inventory.edit", "Ubah stok dan mutasi inventori", "Operasional"),

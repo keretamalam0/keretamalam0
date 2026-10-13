@@ -213,6 +213,8 @@ data class OutletSettings(
     val phone: String = "0812-3456-7890",
     @SerialName("tax_rate") val taxRate: Double = 11.0,
     @SerialName("service_rate") val serviceRate: Double = 5.0,
+    @SerialName("service_fee_mode") val serviceFeeMode: String = "percentage",
+    @SerialName("service_fixed_amount") val serviceFixedAmount: Double = 0.0,
     @SerialName("tax_enabled") val taxEnabled: Boolean = false,
     @SerialName("service_enabled") val serviceEnabled: Boolean = false,
     @SerialName("cash_enabled") val cashEnabled: Boolean = true,

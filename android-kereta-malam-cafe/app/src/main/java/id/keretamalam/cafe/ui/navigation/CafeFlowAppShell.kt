@@ -24,6 +24,26 @@ import id.keretamalam.cafe.viewmodel.PosUiState
 import id.keretamalam.cafe.viewmodel.PosViewModel
 import kotlinx.coroutines.launch
 
+private fun moduleIconTint(route: PosModuleRoute): androidx.compose.ui.graphics.Color = when (route) {
+    PosModuleRoute.DASHBOARD -> androidx.compose.ui.graphics.Color(0xFF6F91C5) // soft blue
+    PosModuleRoute.AI_ASSISTANT -> androidx.compose.ui.graphics.Color(0xFF9A83C7) // lavender
+    PosModuleRoute.KASIR -> androidx.compose.ui.graphics.Color(0xFF5F9E91) // teal green
+    PosModuleRoute.PESANAN -> androidx.compose.ui.graphics.Color(0xFF6D9BC7) // blue
+    PosModuleRoute.HISTORY -> androidx.compose.ui.graphics.Color(0xFF8B91A7) // slate
+    PosModuleRoute.SHIFT_KASIR -> androidx.compose.ui.graphics.Color(0xFFC29A5D) // muted amber
+    PosModuleRoute.AUDIT_SHIFT -> androidx.compose.ui.graphics.Color(0xFF7D9B7B) // sage
+    PosModuleRoute.ACTIVITY_LOG -> androidx.compose.ui.graphics.Color(0xFF8297A8) // steel blue
+    PosModuleRoute.PRODUK -> androidx.compose.ui.graphics.Color(0xFF6EAA83) // green
+    PosModuleRoute.MEJA -> androidx.compose.ui.graphics.Color(0xFF9A83C7) // lavender
+    PosModuleRoute.INVENTORY -> androidx.compose.ui.graphics.Color(0xFF6DA99A) // sea green
+    PosModuleRoute.PROMOSI -> androidx.compose.ui.graphics.Color(0xFFD39A68) // muted orange
+    PosModuleRoute.KEUANGAN -> androidx.compose.ui.graphics.Color(0xFF6D9EBA) // blue teal
+    PosModuleRoute.LAPORAN -> androidx.compose.ui.graphics.Color(0xFF6F91C5) // blue
+    PosModuleRoute.PEGAWAI -> androidx.compose.ui.graphics.Color(0xFFB784A3) // dusty rose
+    PosModuleRoute.PENGATURAN -> androidx.compose.ui.graphics.Color(0xFF8993A4) // slate
+    PosModuleRoute.PRINTER -> androidx.compose.ui.graphics.Color(0xFF8A9C8C) // sage
+}
+
 enum class PosModuleRoute(
     val route: String,
     val titleId: String,
@@ -137,7 +157,7 @@ fun CafeFlowAppShell(
                                                 overflow = TextOverflow.Ellipsis
                                             )
                                         },
-                                        icon = { Icon(item.icon, contentDescription = item.titleId) },
+                                        icon = { Icon(item.icon, contentDescription = item.titleId, tint = moduleIconTint(item)) },
                                         badge = badgeText?.let { b ->
                                             {
                                                 Badge { Text(b) }
@@ -256,14 +276,14 @@ fun CafeFlowAppShell(
                                 NavigationBarItem(
                                     selected = activeModule == route,
                                     onClick = { activeModule = route },
-                                    icon = { Icon(route.icon, contentDescription = route.titleId) },
+                                    icon = { Icon(route.icon, contentDescription = route.titleId, tint = moduleIconTint(route)) },
                                     label = { Text(route.titleId, maxLines = 1, overflow = TextOverflow.Ellipsis) }
                                 )
                             }
                             NavigationBarItem(
                                 selected = activeModule !in quickRoutes,
                                 onClick = { scope.launch { drawerState.open() } },
-                                icon = { Icon(Icons.Outlined.Menu, contentDescription = "Semua Modul") },
+                                icon = { Icon(Icons.Outlined.Menu, contentDescription = "Semua Modul", tint = androidx.compose.ui.graphics.Color(0xFF8993A4)) },
                                 label = { Text("Modul") }
                             )
                         }

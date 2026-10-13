@@ -13,6 +13,7 @@ import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.foundation.lazy.grid.GridCells
 import androidx.compose.foundation.lazy.grid.LazyHorizontalGrid
+import androidx.compose.foundation.lazy.grid.LazyVerticalGrid
 import androidx.compose.foundation.lazy.grid.items
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.rememberScrollState
@@ -739,16 +740,16 @@ private fun KasirComposeScreen(
                 }
             }
 
-            LazyHorizontalGrid(
-                rows = GridCells.Fixed(6),
-                modifier = Modifier.fillMaxWidth().height(550.dp),
+            LazyVerticalGrid(
+                columns = GridCells.Adaptive(minSize = if (isTabletOrWide) 164.dp else 148.dp),
+                modifier = Modifier.fillMaxWidth().weight(1f),
                 horizontalArrangement = Arrangement.spacedBy(8.dp),
                 verticalArrangement = Arrangement.spacedBy(8.dp),
-                contentPadding = PaddingValues(end = 8.dp, bottom = 4.dp)
+                contentPadding = PaddingValues(end = 4.dp, bottom = 8.dp)
             ) {
                 items(filteredProducts, key = { it.id }) { product ->
                     OutlinedCard(
-                        modifier = Modifier.width(178.dp).height(90.dp),
+                        modifier = Modifier.fillMaxWidth().height(158.dp),
                         shape = RoundedCornerShape(10.dp)
                     ) {
                         Row(
@@ -757,7 +758,7 @@ private fun KasirComposeScreen(
                             verticalAlignment = Alignment.CenterVertically
                         ) {
                             Box(
-                                modifier = Modifier.size(58.dp),
+                                modifier = Modifier.size(if (isTabletOrWide) 58.dp else 52.dp),
                                 contentAlignment = Alignment.Center
                             ) {
                                 Surface(
@@ -816,7 +817,7 @@ private fun KasirComposeScreen(
                                     horizontalArrangement = Arrangement.spacedBy(4.dp),
                                     verticalAlignment = Alignment.CenterVertically
                                 ) {
-                                    TextButton(
+                                    OutlinedButton(
                                         onClick = {
                                             customizingProduct = product
                                             customSugar = "Normal Sugar"
@@ -828,7 +829,8 @@ private fun KasirComposeScreen(
                                             customNote = ""
                                         },
                                         enabled = !product.isOutOfStock,
-                                        contentPadding = PaddingValues(horizontal = 3.dp, vertical = 0.dp)
+                                        contentPadding = PaddingValues(horizontal = 7.dp, vertical = 0.dp),
+                                        modifier = Modifier.height(30.dp)
                                     ) { Text("Opsi", style = MaterialTheme.typography.labelSmall) }
                                     Button(
                                         onClick = { viewModel.addToCart(product) },

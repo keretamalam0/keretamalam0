@@ -411,7 +411,7 @@ class PosViewModel(application: Application) : AndroidViewModel(application) {
         }
         _uiState.update { current ->
             val list = current.staffList.map { st ->
-                if (st.userId == userId) st.copy(permissions = st.permissions.toMutableMap().apply { put(permKey, !(st.permissions[permKey] == true)) }) else st
+                if (st.userId == userId) st.copy(permissions = st.permissions.toMutableMap().apply { put(permKey, !(st.permissions[permKey] ?: (StaffPermissionCatalog.defaultsFor(st.role)[permKey] == true))) }) else st
             }
             current.copy(staffList = list, staffProfile = list.firstOrNull { it.userId == current.staffProfile.userId } ?: current.staffProfile)
         }
@@ -692,12 +692,16 @@ class PosViewModel(application: Application) : AndroidViewModel(application) {
         payMethod: String = _uiState.value.paymentMethod,
         cashInput: String = _uiState.value.cashReceivedInput
     ) {
+        val permittedPromoId = if (promoId != null && !_uiState.value.staffProfile.canPerform("payments.discount")) {
+            showNotice("Akun ini tidak memiliki izin menggunakan diskon.", isError = true)
+            null
+        } else promoId
         _uiState.update {
             it.copy(
                 selectedTableId = tableId,
                 customerName = customer,
                 orderNotes = notes,
-                selectedPromotionId = promoId,
+                selectedPromotionId = permittedPromoId,
                 paymentMethod = payMethod,
                 cashReceivedInput = cashInput
             )

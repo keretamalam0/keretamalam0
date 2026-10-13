@@ -14,11 +14,11 @@ Project directory: `android-kereta-malam-cafe/`
 - [ ] Dashboard analytics and charts
 - [ ] Cashier product grid, photos, and cart/table behavior
 - [ ] Order lanes and transaction history with guarded deletion
-- [ ] Shift opening/closing audit
+- [ ] Shift opening/closing audit (live writes explicitly blocked until Supabase persistence is implemented)
 - [ ] Activity log filters and CSV export
 - [ ] Product, category, add-on, and customization management
 - [x] Removed manual “Simulasi Order QR Masuk” button; end-to-end live QR verification still pending
-- [ ] Inventory adjustments and movement history
+- [ ] Inventory adjustments and movement history (live writes explicitly blocked until Supabase persistence is implemented)
 - [ ] Promotion eligibility and server-side validation
 - [ ] Expenses and profit/loss based on real data
 - [ ] Sales reports and submenus
@@ -29,6 +29,7 @@ Project directory: `android-kereta-malam-cafe/`
 - [ ] Remove Website Management from Android; secure Super Admin separation
 
 ## Work log
+- `1d464676fa72305aae336c5616d95f9cc8efbc8b`: added live-backend guards to 11 operations that previously updated only in-memory state (staff creation, shifts/audit, product QR visibility, table add/delete, inventory movement, promotions, expenses, outlet settings). In live mode these now fail clearly rather than falsely implying persistence. These features remain pending real Supabase write implementations.
 - `ab5503c5ee9c1bd8670d88bbd5cf3b11efcc3e0f`: removed the fake QR-order simulation button from the native table/QR screen.
 - `ab5503c5ee9c1bd8670d88bbd5cf3b11efcc3e0f`: removed the fake QR-order simulation button from the native table/QR screen.
 - `2376c4db330190ff6d69d28a6cfe842138d28da1`: removed hardcoded fake Bluetooth printer entries from `PosViewModel`; an empty real scan now gives an actionable pairing message. This is a small correctness fix, not full printer validation.

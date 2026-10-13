@@ -613,7 +613,10 @@ class CafeFlowRepository(private val context: Context) {
 
     suspend fun fetchOutletSettings(): OutletSettings {
         val creds = requireVerifiedCredentials()
-        val url = "${creds.supabaseUrl}/rest/v1/outlet_settings?select=*&limit=1"
+        val ownerId = creds.authenticatedUserId
+        require(ownerId.isNotBlank()) { "Silakan masuk sebagai pemilik outlet terlebih dahulu." }
+        val encodedOwner = URLEncoder.encode(ownerId, "UTF-8")
+        val url = "${creds.supabaseUrl}/rest/v1/outlet_settings?select=*&owner_id=eq.$encodedOwner&limit=1"
         val raw = executeJsonRequest("GET", url, buildHeaders(creds))
         return json.decodeFromString<List<OutletSettings>>(raw).firstOrNull() ?: OutletSettings()
     }
@@ -653,7 +656,7 @@ class CafeFlowRepository(private val context: Context) {
             val encodedId = URLEncoder.encode(id, "UTF-8")
             executeJsonRequest(
                 method = "PATCH",
-                url = "${creds.supabaseUrl}/rest/v1/outlet_settings?id=eq.$encodedId",
+                url = "${creds.supabaseUrl}/rest/v1/outlet_settings?id=eq.$encodedId&owner_id=eq.$encodedOwner",
                 headers = buildHeaders(creds, "return=representation"),
                 bodyJson = json.encodeToString(JsonObject.serializer(), payload)
             )

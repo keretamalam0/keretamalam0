@@ -389,7 +389,7 @@ export default function App() {
     }
     setIsSyncingBackend(true);
     try {
-      const [catRes, prodRes, tblRes, ordRes, promoRes] = await Promise.all([
+      const [catRes, prodRes, tblRes, ordRes, promoRes, paymentRes, outletRes, staffRes] = await Promise.all([
         client.from('categories').select('*').order('sort_order'),
         client.from('products').select('*').order('name'),
         client.from('restaurant_tables').select('*').order('code'),
@@ -399,6 +399,9 @@ export default function App() {
           .order('created_at', { ascending: false })
           .limit(200),
         client.from('promotions').select('*').order('created_at', { ascending: false }),
+        client.from('payment_methods').select('*').order('sort_order'),
+        client.from('outlet_settings').select('*').limit(1).maybeSingle(),
+        client.from('staff_profiles').select('*').order('created_at'),
       ]);
 
       if (catRes.error) throw catRes.error;
@@ -429,6 +432,14 @@ export default function App() {
       }
       if (!promoRes.error && promoRes.data) {
         setPromotions(promoRes.data as unknown as Promotion[]);
+      }
+      if (!paymentRes.error && paymentRes.data) setPaymentMethods(paymentRes.data as typeof paymentMethods);
+      if (!staffRes.error && staffRes.data) setStaffList(staffRes.data as unknown as StaffProfile[]);
+      if (!outletRes.error && outletRes.data) {
+        const o = outletRes.data as Record<string, unknown>;
+        setOutletSettings(prev => ({...prev, name:String(o.name ?? prev.name), address:String(o.address ?? prev.address), phone:String(o.phone ?? prev.phone), tax_rate:Number(o.tax_rate ?? prev.tax_rate), service_rate:Number(o.service_rate ?? prev.service_rate), tax_enabled:Boolean(o.tax_enabled), service_enabled:Boolean(o.service_enabled), cash_enabled:Boolean(o.cash_enabled), card_enabled:Boolean(o.card_enabled), qris_enabled:Boolean(o.qris_enabled), app_language:(String(o.app_language ?? 'id') as OutletSettings['app_language'])}));
+        const lang = String(o.app_language ?? 'id') as 'id'|'en'|'zh'|'th'|'vi';
+        if (['id','en','zh','th','vi'].includes(lang)) { setAppLanguage(lang); localStorage.setItem('km_app_language', lang); }
       }
 
       setBackendMode('LIVE_SUPABASE');

@@ -165,124 +165,117 @@ fun RenderModuleScreen(
     viewModel: PosViewModel,
     uiState: PosUiState
 ) {
-    Column(
-        modifier = Modifier
-            .fillMaxSize()
-            .padding(if (isTabletOrWide) 16.dp else 12.dp),
-        verticalArrangement = Arrangement.spacedBy(12.dp)
-    ) {
-        // Notifikasi sebagai dialog tengah agar tombol mudah dijangkau.
-        val activeMsg = uiState.errorMessage ?: uiState.successMessage
+    val activeMsg = uiState.errorMessage ?: uiState.successMessage
+    LaunchedEffect(activeMsg) {
         if (activeMsg != null) {
-            Dialog(onDismissRequest = { viewModel.clearBannerMessages() }) {
-                Surface(
-                    shape = RoundedCornerShape(18.dp),
-                    color = MaterialTheme.colorScheme.surface,
-                    tonalElevation = 6.dp,
-                    modifier = Modifier.fillMaxWidth()
-                ) {
-                    Column(
-                        modifier = Modifier.padding(20.dp),
-                        verticalArrangement = Arrangement.spacedBy(16.dp)
-                    ) {
-                        Text(
-                            text = if (uiState.errorMessage != null) "Belum berhasil" else "Berhasil",
-                            style = MaterialTheme.typography.titleMedium,
-                            fontWeight = FontWeight.Bold
-                        )
-                        Text(
-                            text = activeMsg,
-                            style = MaterialTheme.typography.bodyMedium,
-                            color = MaterialTheme.colorScheme.onSurface
-                        )
-                        Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.End) {
-                            Button(onClick = { viewModel.clearBannerMessages() }) { Text("Tutup") }
-                        }
-                    }
-                }
-            }
-        }
-
-        // Backend configuration is intentionally hidden from the client-facing UI.
-        when (module) {
-            PosModuleRoute.DASHBOARD -> DashboardComposeScreen(uiState, isTabletOrWide, onNavigateModule)
-            PosModuleRoute.AI_ASSISTANT -> AiAssistantComposeScreen(viewModel, uiState)
-            PosModuleRoute.KASIR -> KasirComposeScreen(viewModel, uiState, isTabletOrWide)
-            PosModuleRoute.PESANAN -> PesananComposeScreen(viewModel, uiState, isTabletOrWide)
-            PosModuleRoute.HISTORY -> HistoryComposeScreen(viewModel, uiState)
-            PosModuleRoute.SHIFT_KASIR -> ShiftKasirComposeScreen(viewModel, uiState)
-            PosModuleRoute.AUDIT_SHIFT -> AuditShiftComposeScreen(viewModel, uiState)
-            PosModuleRoute.ACTIVITY_LOG -> ActivityLogComposeScreen(uiState)
-            PosModuleRoute.PRODUK -> ProdukStokComposeScreen(viewModel, uiState)
-            PosModuleRoute.MEJA -> MejaQrComposeScreen(viewModel, uiState, isTabletOrWide)
-            PosModuleRoute.INVENTORY -> InventoryComposeScreen(viewModel, uiState)
-            PosModuleRoute.PROMOSI -> PromosiComposeScreen(viewModel, uiState)
-            PosModuleRoute.KEUANGAN -> KeuanganComposeScreen(viewModel, uiState)
-            PosModuleRoute.LAPORAN -> LaporanPenjualanComposeScreen(viewModel, uiState)
-            PosModuleRoute.PEGAWAI -> PegawaiComposeScreen(viewModel, uiState)
-            PosModuleRoute.PENGATURAN -> PengaturanOutletComposeScreen(viewModel, uiState)
-            PosModuleRoute.PRINTER -> PrinterComposeScreen(viewModel, uiState, isTabletOrWide)
+            kotlinx.coroutines.delay(2600)
+            viewModel.clearBannerMessages()
         }
     }
 
-    // Dialog Struk Pembayaran & Cetak ESC/POS di Tengah Layar
+    Box(modifier = Modifier.fillMaxSize()) {
+        Column(
+            modifier = Modifier
+                .fillMaxSize()
+                .padding(if (isTabletOrWide) 16.dp else 12.dp),
+            verticalArrangement = Arrangement.spacedBy(12.dp)
+        ) {
+            when (module) {
+                PosModuleRoute.DASHBOARD -> DashboardComposeScreen(uiState, isTabletOrWide, onNavigateModule)
+                PosModuleRoute.AI_ASSISTANT -> AiAssistantComposeScreen(viewModel, uiState)
+                PosModuleRoute.KASIR -> KasirComposeScreen(viewModel, uiState, isTabletOrWide)
+                PosModuleRoute.PESANAN -> PesananComposeScreen(viewModel, uiState, isTabletOrWide)
+                PosModuleRoute.HISTORY -> HistoryComposeScreen(viewModel, uiState)
+                PosModuleRoute.SHIFT_KASIR -> ShiftKasirComposeScreen(viewModel, uiState)
+                PosModuleRoute.AUDIT_SHIFT -> AuditShiftComposeScreen(viewModel, uiState)
+                PosModuleRoute.ACTIVITY_LOG -> ActivityLogComposeScreen(uiState)
+                PosModuleRoute.PRODUK -> ProdukStokComposeScreen(viewModel, uiState)
+                PosModuleRoute.MEJA -> MejaQrComposeScreen(viewModel, uiState, isTabletOrWide)
+                PosModuleRoute.INVENTORY -> InventoryComposeScreen(viewModel, uiState)
+                PosModuleRoute.PROMOSI -> PromosiComposeScreen(viewModel, uiState)
+                PosModuleRoute.KEUANGAN -> KeuanganComposeScreen(viewModel, uiState)
+                PosModuleRoute.LAPORAN -> LaporanPenjualanComposeScreen(viewModel, uiState)
+                PosModuleRoute.PEGAWAI -> PegawaiComposeScreen(viewModel, uiState)
+                PosModuleRoute.PENGATURAN -> PengaturanOutletComposeScreen(viewModel, uiState)
+                PosModuleRoute.PRINTER -> PrinterComposeScreen(viewModel, uiState, isTabletOrWide)
+            }
+        }
+
+        if (activeMsg != null) {
+            Surface(
+                modifier = Modifier
+                    .align(Alignment.TopCenter)
+                    .padding(horizontal = 12.dp, vertical = 6.dp)
+                    .widthIn(max = 360.dp),
+                shape = RoundedCornerShape(12.dp),
+                color = if (uiState.errorMessage != null)
+                    MaterialTheme.colorScheme.errorContainer
+                else MaterialTheme.colorScheme.inverseSurface,
+                tonalElevation = 5.dp
+            ) {
+                Text(
+                    text = activeMsg,
+                    modifier = Modifier.padding(horizontal = 14.dp, vertical = 10.dp),
+                    style = MaterialTheme.typography.bodySmall,
+                    color = if (uiState.errorMessage != null)
+                        MaterialTheme.colorScheme.onErrorContainer
+                    else MaterialTheme.colorScheme.inverseOnSurface
+                )
+            }
+        }
+    }
+
     val receiptOrder = uiState.receiptDialogOrder
     if (receiptOrder != null) {
+        val screenHeight = androidx.compose.ui.platform.LocalConfiguration.current.screenHeightDp
         Dialog(
             onDismissRequest = { viewModel.openReceiptDialog(null) },
-            properties = DialogProperties(usePlatformDefaultWidth = false)
+            properties = DialogProperties(usePlatformDefaultWidth = true)
         ) {
             Surface(
-                shape = RoundedCornerShape(16.dp),
+                shape = RoundedCornerShape(14.dp),
                 color = MaterialTheme.colorScheme.surface,
                 modifier = Modifier
-                    .fillMaxWidth(0.92f)
-                    .widthIn(max = 460.dp)
-                    .padding(16.dp)
+                    .widthIn(max = 420.dp)
+                    .heightIn(max = (screenHeight * 0.82f).dp)
             ) {
                 Column(
-                    modifier = Modifier.padding(20.dp),
-                    verticalArrangement = Arrangement.spacedBy(12.dp)
+                    modifier = Modifier
+                        .padding(14.dp)
+                        .verticalScroll(rememberScrollState()),
+                    verticalArrangement = Arrangement.spacedBy(8.dp)
                 ) {
                     Text(
-                        text = "Struk Pembayaran #${receiptOrder.orderNo}",
-                        style = MaterialTheme.typography.titleLarge
+                        text = "Struk #${receiptOrder.orderNo}",
+                        style = MaterialTheme.typography.titleMedium,
+                        fontWeight = FontWeight.SemiBold
                     )
                     Surface(
-                        shape = RoundedCornerShape(10.dp),
+                        shape = RoundedCornerShape(8.dp),
                         color = MaterialTheme.colorScheme.surfaceVariant,
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .heightIn(max = 360.dp)
+                        modifier = Modifier.fillMaxWidth().heightIn(max = 170.dp)
                     ) {
                         Text(
                             text = viewModel.formatOrderForThermalPreview(receiptOrder, false),
                             fontFamily = FontFamily.Monospace,
-                            style = MaterialTheme.typography.bodyMedium,
-                            modifier = Modifier
-                                .padding(12.dp)
-                                .verticalScroll(rememberScrollState())
+                            style = MaterialTheme.typography.bodySmall,
+                            modifier = Modifier.padding(10.dp).verticalScroll(rememberScrollState())
                         )
                     }
                     Row(
                         modifier = Modifier.fillMaxWidth(),
-                        horizontalArrangement = Arrangement.End
+                        horizontalArrangement = Arrangement.End,
+                        verticalAlignment = Alignment.CenterVertically
                     ) {
-                        TextButton(onClick = { viewModel.openReceiptDialog(null) }) {
-                            Text("Tutup")
-                        }
-                        Spacer(modifier = Modifier.width(6.dp))
+                        TextButton(onClick = { viewModel.openReceiptDialog(null) }) { Text("Tutup") }
+                        Spacer(modifier = Modifier.width(4.dp))
                         OutlinedButton(onClick = {
                             viewModel.printOrderToThermal(receiptOrder, PrinterRole.KITCHEN, true)
-                        }) {
-                            Text("Cetak Dapur")
-                        }
-                        Spacer(modifier = Modifier.width(6.dp))
+                        }) { Text("Dapur") }
+                        Spacer(modifier = Modifier.width(4.dp))
                         Button(onClick = {
                             viewModel.printOrderToThermal(receiptOrder, PrinterRole.CASHIER, true)
-                        }) {
-                            Text("Cetak Struk")
-                        }
+                        }) { Text("Cetak Struk") }
                     }
                 }
             }

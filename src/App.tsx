@@ -2235,6 +2235,10 @@ export default function App() {
                             checked={p.show_on_menu}
                             onChange={(e) => {
                               const checked = e.target.checked;
+                              if (backendMode === 'LIVE_SUPABASE') {
+                                showNotice('error', 'Ubah status menu belum terhubung ke Supabase. Tidak ada perubahan disimpan.');
+                                return;
+                              }
                               setProducts((prev) =>
                                 prev.map((x) => (x.id === p.id ? { ...x, show_on_menu: checked } : x))
                               );
@@ -4109,6 +4113,10 @@ export default function App() {
                     showNotice('error', 'Nama produk dan harga jual wajib valid.');
                     return;
                   }
+                  if (backendMode === 'LIVE_SUPABASE') {
+                    showNotice('error', 'Simpan produk belum terhubung ke Supabase. Tidak ada perubahan disimpan.');
+                    return;
+                  }
                   if (editingProduct.id) {
                     setProducts((prev) =>
                       prev.map((p) => (p.id === editingProduct.id ? editingProduct : p))
@@ -4152,6 +4160,10 @@ export default function App() {
               <button
                 type="button"
                 onClick={() => {
+                  if (backendMode === 'LIVE_SUPABASE') {
+                    showNotice('error', 'Hapus produk belum terhubung ke Supabase. Tidak ada perubahan disimpan.');
+                    return;
+                  }
                   setProducts((prev) => prev.filter((p) => p.id !== deletingProduct.id));
                   appendAuditLog('product.delete', 'products', deletingProduct.id, {
                     name: deletingProduct.name,

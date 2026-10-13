@@ -3027,7 +3027,7 @@ export default function App() {
         return (
           <div className="space-y-6">
             <div className="rounded-xl border border-zinc-200 bg-white p-5 dark:border-zinc-800 dark:bg-zinc-900">
-              <h3 className="text-base font-bold">Manajemen Pegawai &amp; Hak Akses Role (staff_profiles)</h3>
+              <div className="flex flex-wrap items-center justify-between gap-3"><h3 className="text-base font-bold">Manajemen Pegawai &amp; Hak Akses</h3><button type="button" onClick={() => setStaffInviteOpen(true)} className="inline-flex items-center gap-2 rounded-lg bg-zinc-900 px-4 py-2 text-xs font-bold text-white dark:bg-zinc-100 dark:text-zinc-900"><Plus className="size-4"/> Tambah Staf</button></div>
               <p className="mt-1 text-xs text-zinc-500">
                 Anda dapat menguji perpindahan sesi staf untuk memverifikasi bagaimana menu navigasi beradaptasi dengan role (<code className="font-mono">owner</code>, <code className="font-mono">manager</code>, <code className="font-mono">cashier</code>).
               </p>
@@ -3069,6 +3069,7 @@ export default function App() {
                 })}
               </div>
             </div>
+            {staffInviteOpen && <div className="fixed inset-0 z-[90] flex items-center justify-center bg-black/40 p-4"><form onSubmit={e=>{e.preventDefault();void inviteStaff();}} className="w-full max-w-md space-y-4 rounded-2xl bg-white p-6 shadow-2xl dark:bg-zinc-900"><div className="flex items-center justify-between"><h3 className="text-base font-bold">Undang Staf Baru</h3><button type="button" onClick={()=>setStaffInviteOpen(false)}><X className="size-5"/></button></div><label className="block text-xs">Nama lengkap<input required value={staffInvite.full_name} onChange={e=>setStaffInvite(p=>({...p,full_name:e.target.value}))} className="mt-1 w-full rounded-lg border p-3 text-sm dark:bg-zinc-950"/></label><label className="block text-xs">Email undangan<input required type="email" value={staffInvite.email} onChange={e=>setStaffInvite(p=>({...p,email:e.target.value}))} className="mt-1 w-full rounded-lg border p-3 text-sm dark:bg-zinc-950"/></label><label className="block text-xs">Peran<select value={staffInvite.role} onChange={e=>setStaffInvite(p=>({...p,role:e.target.value}))} className="mt-1 w-full rounded-lg border p-3 text-sm dark:bg-zinc-950"><option value="cashier">Kasir</option><option value="manager">Manager</option></select></label><button disabled={staffInviteLoading} className="w-full rounded-lg bg-zinc-900 p-3 text-sm font-bold text-white disabled:opacity-50 dark:bg-zinc-100 dark:text-zinc-900">{staffInviteLoading?'Mengirim undangan…':'Kirim Undangan Email'}</button></form></div>}
           </div>
         );
 

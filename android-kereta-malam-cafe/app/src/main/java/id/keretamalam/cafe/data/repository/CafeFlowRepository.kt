@@ -486,6 +486,53 @@ class CafeFlowRepository(private val context: Context) {
         return json.decodeFromString<List<OutletSettings>>(raw).firstOrNull() ?: OutletSettings()
     }
 
+    suspend fun updateOutletSettings(settings: OutletSettings) {
+        val creds = requireVerifiedCredentials()
+        val ownerId = creds.authenticatedUserId
+        require(ownerId.isNotBlank()) { "Silakan masuk sebagai pemilik outlet terlebih dahulu." }
+        val payload = buildJsonObject {
+            put("owner_id", ownerId)
+            put("name", settings.name)
+            put("address", settings.address)
+            put("phone", settings.phone)
+            put("tax_rate", settings.taxRate)
+            put("service_rate", settings.serviceRate)
+            put("tax_enabled", settings.taxEnabled)
+            put("service_enabled", settings.serviceEnabled)
+            put("cash_enabled", settings.cashEnabled)
+            put("card_enabled", settings.cardEnabled)
+            put("qris_enabled", settings.qrisEnabled)
+            put("app_language", settings.appLanguage)
+            put("global_theme", settings.globalTheme)
+            put("public_web_base_url", settings.publicWebBaseUrl)
+        }
+        val encodedOwner = URLEncoder.encode(ownerId, "UTF-8")
+        val existingRaw = executeJsonRequest(
+            method = "GET",
+            url = "${creds.supabaseUrl}/rest/v1/outlet_settings?select=id&owner_id=eq.$encodedOwner&limit=1",
+            headers = buildHeaders(creds)
+        )
+        val existing = json.parseToJsonElement(existingRaw).jsonArray.firstOrNull()
+        if (existing != null) {
+            val id = existing.jsonObject["id"]?.jsonPrimitive?.contentOrNull
+                ?: throw IllegalStateException("Data outlet tidak memiliki ID.")
+            val encodedId = URLEncoder.encode(id, "UTF-8")
+            executeJsonRequest(
+                method = "PATCH",
+                url = "${creds.supabaseUrl}/rest/v1/outlet_settings?id=eq.$encodedId",
+                headers = buildHeaders(creds, "return=representation"),
+                bodyJson = json.encodeToString(JsonObject.serializer(), payload)
+            )
+        } else {
+            executeJsonRequest(
+                method = "POST",
+                url = "${creds.supabaseUrl}/rest/v1/outlet_settings",
+                headers = buildHeaders(creds, "return=representation"),
+                bodyJson = json.encodeToString(JsonObject.serializer(), payload)
+            )
+        }
+    }
+
     suspend fun fetchStaffShifts(): List<StaffShift> {
         val creds = requireVerifiedCredentials()
         val url = "${creds.supabaseUrl}/rest/v1/staff_shifts?select=*&order=opened_at.desc"

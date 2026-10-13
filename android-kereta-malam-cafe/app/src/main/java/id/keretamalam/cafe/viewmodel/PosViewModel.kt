@@ -822,6 +822,44 @@ class PosViewModel(application: Application) : AndroidViewModel(application) {
     // ========================================================================
     // PESANAN & QR ORDERING
     // ========================================================================
+    fun deleteOrders(orderIds: List<String>) {
+        if (orderIds.isEmpty()) return
+        viewModelScope.launch {
+            if (_uiState.value.backendStatus == BackendIntegrationStatus.ACTIVE_VERIFIED) {
+                runCatching { repository.deleteOrders(orderIds) }
+                    .onSuccess {
+                        syncAllDataFromBackend()
+                        showNotice("${orderIds.size} transaksi berhasil dihapus.")
+                    }
+                    .onFailure { showNotice(it.message ?: "Gagal menghapus transaksi.", isError = true) }
+                return@launch
+            }
+            _uiState.update { state ->
+                state.copy(orders = state.orders.filterNot { it.id in orderIds })
+            }
+            appendAuditLog("order.delete", "orders", null, "{\"count\":${orderIds.size}}")
+            showNotice("${orderIds.size} transaksi dihapus dari data lokal.")
+        }
+    }
+
+    fun deleteAllOrders() {
+        viewModelScope.launch {
+            if (_uiState.value.backendStatus == BackendIntegrationStatus.ACTIVE_VERIFIED) {
+                runCatching { repository.deleteAllOrders() }
+                    .onSuccess {
+                        syncAllDataFromBackend()
+                        showNotice("Semua transaksi berhasil dihapus.")
+                    }
+                    .onFailure { showNotice(it.message ?: "Gagal menghapus semua transaksi.", isError = true) }
+                return@launch
+            }
+            val count = _uiState.value.orders.size
+            _uiState.update { it.copy(orders = emptyList()) }
+            appendAuditLog("order.delete_all", "orders", null, "{\"count\":$count}")
+            showNotice("Semua transaksi lokal dihapus.")
+        }
+    }
+
     fun updateOrderStatus(order: OrderWithItems, nextStatus: OrderStatus) {
         viewModelScope.launch {
             if (_uiState.value.backendStatus == BackendIntegrationStatus.ACTIVE_VERIFIED) {

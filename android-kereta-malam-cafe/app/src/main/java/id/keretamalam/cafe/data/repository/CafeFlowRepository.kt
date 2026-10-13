@@ -245,6 +245,32 @@ class CafeFlowRepository(private val context: Context) {
         return json.decodeFromString(raw)
     }
 
+    suspend fun uploadProductImage(bytes: ByteArray, mimeType: String, fileExtension: String): String {
+        require(bytes.isNotEmpty()) { "File foto kosong." }
+        require(bytes.size <= 8 * 1024 * 1024) { "Ukuran foto maksimal 8 MB." }
+        val creds = requireVerifiedCredentials()
+        val safeExt = fileExtension.lowercase().filter { it.isLetterOrDigit() }.ifBlank { "jpg" }
+        val objectPath = "products/${UUID.randomUUID()}.$safeExt"
+        val encodedPath = objectPath.split("/").joinToString("/") { URLEncoder.encode(it, "UTF-8") }
+        val request = Request.Builder()
+            .url("${creds.supabaseUrl}/storage/v1/object/product-images/$encodedPath")
+            .header("apikey", creds.publishableKey)
+            .header("Authorization", "Bearer ${creds.accessToken.ifBlank { creds.publishableKey }}")
+            .header("Content-Type", mimeType)
+            .header("x-upsert", "false")
+            .post(bytes.toRequestBody(mimeType.toMediaType()))
+            .build()
+        withContext(Dispatchers.IO) {
+            httpClient.newCall(request).execute().use { response ->
+                if (!response.isSuccessful) {
+                    val detail = response.body?.string().orEmpty().take(180)
+                    throw IllegalStateException("Upload foto gagal (HTTP ${response.code}). Periksa bucket product-images dan Storage policy. $detail")
+                }
+            }
+        }
+        return "${creds.supabaseUrl}/storage/v1/object/public/product-images/$encodedPath"
+    }
+
     suspend fun saveProduct(product: Product): Product {
         val creds = requireVerifiedCredentials()
         val payload = buildJsonObject {

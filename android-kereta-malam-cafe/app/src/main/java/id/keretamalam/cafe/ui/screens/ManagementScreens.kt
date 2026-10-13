@@ -832,8 +832,8 @@ fun PegawaiComposeScreen(viewModel: PosViewModel, uiState: PosUiState) {
                     if (uiState.backendStatus == BackendIntegrationStatus.LOCAL_SANDBOX_UI) TextButton(onClick = { viewModel.switchActiveStaffProfile(st) }, enabled = !isCurrent && st.isActive) { Text(if (isCurrent) "Profil ini" else "Uji profil") }
                 }
                 if (!isCurrent && isOwner) Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                    OutlinedButton(Modifier.weight(1f), enabled = !uiState.isLoading, onClick = { viewModel.setStaffActive(st.userId, !st.isActive) }) { Text(if (st.isActive) "Nonaktifkan" else "Aktifkan") }
-                    OutlinedButton(Modifier.weight(1f), enabled = !uiState.isLoading, onClick = { pendingDelete = st }) { Text("Delete") }
+                    OutlinedButton(onClick = { viewModel.setStaffActive(st.userId, !st.isActive) }, modifier = Modifier.weight(1f), enabled = !uiState.isLoading) { Text(if (st.isActive) "Nonaktifkan" else "Aktifkan") }
+                    OutlinedButton(onClick = { pendingDelete = st }, modifier = Modifier.weight(1f), enabled = !uiState.isLoading) { Text("Delete") }
                 }
                 Text("Hak akses menu", style = MaterialTheme.typography.titleSmall, fontWeight = FontWeight.Bold)
                 modules.forEach { (key, label) -> PermissionToggleRow(label, st.permissions[key] == true, isOwner && !isCurrent && st.role != StaffRole.OWNER && !uiState.isLoading) { viewModel.toggleStaffPermission(st.userId, key) } }

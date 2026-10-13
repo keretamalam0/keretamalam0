@@ -60,8 +60,12 @@ object SupabaseConfigManager {
                 EncryptedSharedPreferences.PrefKeyEncryptionScheme.AES256_SIV,
                 EncryptedSharedPreferences.PrefValueEncryptionScheme.AES256_GCM
             )
-        } catch (_: Exception) {
-            context.getSharedPreferences(PREF_FILE, Context.MODE_PRIVATE)
+        } catch (error: Exception) {
+            // Fail closed: never downgrade access tokens or backend credentials to plaintext storage.
+            throw IllegalStateException(
+                "Penyimpanan aman tidak tersedia. Data kredensial tidak disimpan tanpa enkripsi.",
+                error
+            )
         }
     }
 

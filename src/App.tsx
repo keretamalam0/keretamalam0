@@ -352,6 +352,16 @@ export default function App() {
     }, 4500);
   };
 
+  const t = (id: string, fallback: string) => {
+    const dict: Record<string, Record<string,string>> = {
+      en: {'Utama':'Main','Transaksi':'Transactions','Produk & Outlet':'Products & Outlet','Pemasaran':'Marketing','Manajemen':'Management','Dashboard':'Dashboard','Kasir':'Cashier','Pesanan':'Orders','Produk & Stok':'Products & Stock','Meja & QR Menu':'Tables & QR Menu','Promosi & Diskon':'Promotions & Discounts','Laporan Penjualan':'Sales Reports','Pegawai & Shift':'Staff & Shifts','Pengaturan Outlet':'Outlet Settings','Metode Pembayaran':'Payment Methods','Tambah Metode':'Add Method'},
+      zh: {'Utama':'主页','Transaksi':'交易','Produk & Outlet':'产品与门店','Pemasaran':'营销','Manajemen':'管理','Dashboard':'仪表盘','Kasir':'收银台','Pesanan':'订单','Produk & Stok':'产品与库存','Meja & QR Menu':'桌台与二维码菜单','Promosi & Diskon':'促销与折扣','Laporan Penjualan':'销售报表','Pegawai & Shift':'员工与班次','Pengaturan Outlet':'门店设置','Metode Pembayaran':'付款方式','Tambah Metode':'添加方式'},
+      th: {'Utama':'หลัก','Transaksi':'ธุรกรรม','Produk & Outlet':'สินค้าและสาขา','Pemasaran':'การตลาด','Manajemen':'การจัดการ','Dashboard':'แดชบอร์ด','Kasir':'แคชเชียร์','Pesanan':'คำสั่งซื้อ','Produk & Stok':'สินค้าและสต็อก','Meja & QR Menu':'โต๊ะและเมนู QR','Promosi & Diskon':'โปรโมชั่นและส่วนลด','Laporan Penjualan':'รายงานยอดขาย','Pegawai & Shift':'พนักงานและกะ','Pengaturan Outlet':'ตั้งค่าสาขา','Metode Pembayaran':'วิธีชำระเงิน','Tambah Metode':'เพิ่มวิธี'},
+      vi: {'Utama':'Chính','Transaksi':'Giao dịch','Produk & Outlet':'Sản phẩm & Cửa hàng','Pemasaran':'Tiếp thị','Manajemen':'Quản lý','Dashboard':'Tổng quan','Kasir':'Thu ngân','Pesanan':'Đơn hàng','Produk & Stok':'Sản phẩm & Tồn kho','Meja & QR Menu':'Bàn & Menu QR','Promosi & Diskon':'Khuyến mãi & Giảm giá','Laporan Penjualan':'Báo cáo doanh thu','Pegawai & Shift':'Nhân viên & Ca','Pengaturan Outlet':'Cài đặt cửa hàng','Metode Pembayaran':'Phương thức thanh toán','Tambah Metode':'Thêm phương thức'}
+    };
+    return dict[appLanguage]?.[id] ?? fallback;
+  };
+
   const canAccessModule = (perm: PermissionKey): boolean => {
     if (!currentStaff.is_active) return false;
     return (
@@ -1589,14 +1599,7 @@ export default function App() {
                   <div>
                     <label className="block text-[11px] font-medium text-zinc-500">Metode Pembayaran</label>
                     <div className="mt-1 grid grid-cols-4 gap-1.5">
-                      {(
-                        [
-                          ['cash', 'Tunai'],
-                          ['qris', 'QRIS'],
-                          ['transfer', 'Transfer'],
-                          ['ewallet', 'E-Wallet'],
-                        ] as const
-                      ).map(([code, label]) => (
+                      {(paymentMethods.filter(pm => pm.is_active).length ? paymentMethods.filter(pm => pm.is_active).map(pm => ({ code: pm.type === 'bank_transfer' ? 'transfer' : pm.type, label: pm.name })) : [{code:'cash',label:'Tunai'},{code:'qris',label:'QRIS'},{code:'transfer',label:'Transfer'},{code:'ewallet',label:'E-Wallet'}]).map(({code,label}) => (
                         <button
                           key={code}
                           type="button"
@@ -3668,7 +3671,7 @@ export default function App() {
                   const visibleItems = group.items.filter((item) => canAccessModule(item.permission));
                   if (visibleItems.length === 0) return null;
                   return (
-                    <div key={group.label}>
+                    <div key={t(group.label, group.label)}>
                       <p className="px-2.5 text-[10px] font-bold tracking-wider text-zinc-400 uppercase">
                         {group.label}
                       </p>
@@ -3688,7 +3691,7 @@ export default function App() {
                               }`}
                             >
                               <Icon className="size-4 shrink-0" />
-                              <span className="truncate">{item.label}</span>
+                              <span className="truncate">{t(item.label, item.label)}</span>
                             </button>
                           );
                         })}

@@ -86,7 +86,11 @@ data class PosUiState(
     val taxAndServiceAmount: Double
         get() {
             val tax = if (outletSettings.taxEnabled) taxableBase * (outletSettings.taxRate / 100.0) else 0.0
-            val svc = if (outletSettings.serviceEnabled) taxableBase * (outletSettings.serviceRate / 100.0) else 0.0
+            val svc = if (!outletSettings.serviceEnabled) 0.0 else if (outletSettings.serviceFeeMode == "fixed") {
+                outletSettings.serviceFixedAmount.coerceAtLeast(0.0)
+            } else {
+                taxableBase * (outletSettings.serviceRate.coerceAtLeast(0.0) / 100.0)
+            }
             return kotlin.math.round(tax + svc)
         }
 

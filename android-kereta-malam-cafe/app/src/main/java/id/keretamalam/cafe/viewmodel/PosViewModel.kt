@@ -1290,33 +1290,114 @@ class PosViewModel(application: Application) : AndroidViewModel(application) {
     }
 
     fun addRestaurantTable(name: String, code: String) {
-        if (_uiState.value.backendStatus == BackendIntegrationStatus.ACTIVE_VERIFIED) {
-            showNotice("Penambahan meja live belum tersambung ke Supabase. Meja tidak dibuat.", isError = true)
+        val cleanName = name.trim()
+        val cleanCode = code.trim().uppercase()
+        if (cleanName.isBlank() || cleanCode.isBlank()) {
+            showNotice("Nama dan kode meja wajib diisi.", isError = true)
             return
         }
-        if (name.isBlank() || code.isBlank()) return
+        if (_uiState.value.tables.any { it.code.equals(cleanCode, ignoreCase = true) }) {
+            showNotice("Kode meja $cleanCode sudah digunakan. Pakai kode lain.", isError = true)
+            return
+        }
+
+        if (_uiState.value.backendStatus == BackendIntegrationStatus.ACTIVE_VERIFIED) {
+            viewModelScope.launch {
+                _uiState.update { it.copy(isLoading = true, errorMessage = null, successMessage = null) }
+                runCatching { repository.createRestaurantTable(cleanName, cleanCode) }
+                    .onSuccess { created ->
+                        runCatching { repository.fetchTables() }
+                            .onSuccess { tables ->
+                                _uiState.update {
+                                    it.copy(
+                                        isLoading = false,
+                                        tables = tables,
+                                        selectedTableId = created.id,
+                                        successMessage = "Meja ${created.name} (${created.code}) berhasil disimpan ke database."
+                                    )
+                                }
+                            }
+                            .onFailure { refreshError ->
+                                _uiState.update {
+                                    it.copy(
+                                        isLoading = false,
+                                        tables = it.tables + created,
+                                        selectedTableId = created.id,
+                                        successMessage = "Meja tersimpan. Daftar meja belum bisa diperbarui: ${refreshError.message ?: "coba muat ulang"}"
+                                    )
+                                }
+                            }
+                    }
+                    .onFailure { err ->
+                        _uiState.update {
+                            it.copy(
+                                isLoading = false,
+                                errorMessage = err.message?.takeIf(String::isNotBlank)
+                                    ?: "Meja gagal disimpan. Periksa koneksi dan izin database."
+                            )
+                        }
+                    }
+            }
+            return
+        }
+
         val created = RestaurantTable(
             id = "tbl-${System.currentTimeMillis()}",
-            name = name.trim(),
-            code = code.trim().uppercase()
+            name = cleanName,
+            code = cleanCode
         )
         _uiState.update {
             it.copy(
                 tables = it.tables + created,
-                successMessage = "Meja ${created.name} (${created.code}) ditambahkan."
+                successMessage = "Meja ${created.name} (${created.code}) ditambahkan dalam mode simulasi."
             )
         }
     }
 
     fun deleteRestaurantTable(tableId: String) {
         if (_uiState.value.backendStatus == BackendIntegrationStatus.ACTIVE_VERIFIED) {
-            showNotice("Penghapusan meja live belum tersambung ke Supabase. Meja tidak dihapus.", isError = true)
+            viewModelScope.launch {
+                _uiState.update { it.copy(isLoading = true, errorMessage = null, successMessage = null) }
+                runCatching { repository.deleteRestaurantTable(tableId) }
+                    .onSuccess {
+                        runCatching { repository.fetchTables() }
+                            .onSuccess { tables ->
+                                _uiState.update {
+                                    it.copy(
+                                        isLoading = false,
+                                        tables = tables,
+                                        selectedTableId = tables.firstOrNull()?.id,
+                                        successMessage = "Meja berhasil dihapus dari database."
+                                    )
+                                }
+                            }
+                            .onFailure { err ->
+                                _uiState.update {
+                                    it.copy(
+                                        isLoading = false,
+                                        tables = it.tables.filterNot { table -> table.id == tableId },
+                                        selectedTableId = it.tables.firstOrNull { table -> table.id != tableId }?.id,
+                                        successMessage = "Meja terhapus. Daftar belum bisa diperbarui: ${err.message ?: "coba muat ulang"}"
+                                    )
+                                }
+                            }
+                    }
+                    .onFailure { err ->
+                        _uiState.update {
+                            it.copy(
+                                isLoading = false,
+                                errorMessage = err.message?.takeIf(String::isNotBlank)
+                                    ?: "Meja gagal dihapus. Periksa koneksi atau transaksi yang memakai meja ini."
+                            )
+                        }
+                    }
+            }
             return
         }
         _uiState.update {
             it.copy(
                 tables = it.tables.filterNot { t -> t.id == tableId },
-                successMessage = "Meja berhasil dihapus."
+                successMessage = "Meja berhasil dihapus dalam mode simulasi."
             )
         }
     }

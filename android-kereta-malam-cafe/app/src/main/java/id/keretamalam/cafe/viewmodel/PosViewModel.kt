@@ -320,6 +320,7 @@ class PosViewModel(application: Application) : AndroidViewModel(application) {
     }
 
     fun addStaffProfile(fullName: String, email: String, role: StaffRole) {
+        if (!_uiState.value.staffProfile.canPerform("staff.manage")) { showNotice("Akun ini tidak memiliki izin menambah pegawai.", isError = true); return }
         if (fullName.isBlank() || email.isBlank()) {
             showNotice("Nama lengkap dan email pegawai wajib diisi.", isError = true)
             return

@@ -324,6 +324,99 @@ class CafeFlowRepository(private val context: Context) {
         )
     }
 
+    suspend fun saveCategory(category: Category): Category {
+        val creds = requireVerifiedCredentials()
+        val payload = buildJsonObject {
+            put("name", category.name.trim())
+            put("sort_order", category.sortOrder)
+        }
+        val raw = executeJsonRequest(
+            method = "POST",
+            url = "${creds.supabaseUrl}/rest/v1/categories",
+            headers = buildHeaders(creds, "return=representation"),
+            bodyJson = json.encodeToString(JsonObject.serializer(), payload)
+        )
+        return json.decodeFromString<List<Category>>(raw).first()
+    }
+
+    suspend fun fetchProductAddons(): List<ProductAddon> {
+        val creds = requireVerifiedCredentials()
+        val raw = executeJsonRequest(
+            "GET",
+            "${creds.supabaseUrl}/rest/v1/product_addons?select=*&order=name.asc",
+            buildHeaders(creds)
+        )
+        return json.decodeFromString(raw)
+    }
+
+    suspend fun saveProductAddon(addon: ProductAddon): ProductAddon {
+        val creds = requireVerifiedCredentials()
+        require(addon.productId.isNotBlank()) { "Pilih produk untuk topping." }
+        val payload = buildJsonObject {
+            put("product_id", addon.productId)
+            put("name", addon.name.trim())
+            put("price", addon.price)
+            put("is_active", addon.isActive)
+        }
+        val body = json.encodeToString(JsonObject.serializer(), payload)
+        val url = if (addon.id.isBlank()) "${creds.supabaseUrl}/rest/v1/product_addons"
+            else "${creds.supabaseUrl}/rest/v1/product_addons?id=eq.${URLEncoder.encode(addon.id, "UTF-8")}"
+        val raw = executeJsonRequest(
+            if (addon.id.isBlank()) "POST" else "PATCH",
+            url, buildHeaders(creds, "return=representation"), body
+        )
+        return json.decodeFromString<List<ProductAddon>>(raw).first()
+    }
+
+    suspend fun deleteProductAddon(id: String) {
+        val creds = requireVerifiedCredentials()
+        executeJsonRequest(
+            "DELETE",
+            "${creds.supabaseUrl}/rest/v1/product_addons?id=eq.${URLEncoder.encode(id, "UTF-8")}",
+            buildHeaders(creds)
+        )
+    }
+
+    suspend fun fetchCustomizationOptions(): List<ProductCustomizationOption> {
+        val creds = requireVerifiedCredentials()
+        val raw = executeJsonRequest(
+            "GET",
+            "${creds.supabaseUrl}/rest/v1/product_customization_options?select=*&order=sort_order.asc,name.asc",
+            buildHeaders(creds)
+        )
+        return json.decodeFromString(raw)
+    }
+
+    suspend fun saveCustomizationOption(option: ProductCustomizationOption): ProductCustomizationOption {
+        val creds = requireVerifiedCredentials()
+        require(option.productId.isNotBlank()) { "Pilih produk untuk opsi kustomisasi." }
+        val payload = buildJsonObject {
+            put("product_id", option.productId)
+            put("group_key", option.groupKey)
+            put("name", option.name.trim())
+            put("price_delta", option.priceDelta)
+            put("is_active", option.isActive)
+            put("sort_order", option.sortOrder)
+        }
+        val body = json.encodeToString(JsonObject.serializer(), payload)
+        val url = if (option.id.isBlank()) "${creds.supabaseUrl}/rest/v1/product_customization_options"
+            else "${creds.supabaseUrl}/rest/v1/product_customization_options?id=eq.${URLEncoder.encode(option.id, "UTF-8")}"
+        val raw = executeJsonRequest(
+            if (option.id.isBlank()) "POST" else "PATCH",
+            url, buildHeaders(creds, "return=representation"), body
+        )
+        return json.decodeFromString<List<ProductCustomizationOption>>(raw).first()
+    }
+
+    suspend fun deleteCustomizationOption(id: String) {
+        val creds = requireVerifiedCredentials()
+        executeJsonRequest(
+            "DELETE",
+            "${creds.supabaseUrl}/rest/v1/product_customization_options?id=eq.${URLEncoder.encode(id, "UTF-8")}",
+            buildHeaders(creds)
+        )
+    }
+
     suspend fun fetchTables(): List<RestaurantTable> {
         val creds = requireVerifiedCredentials()
         val url = "${creds.supabaseUrl}/rest/v1/restaurant_tables?select=*&order=code.asc"

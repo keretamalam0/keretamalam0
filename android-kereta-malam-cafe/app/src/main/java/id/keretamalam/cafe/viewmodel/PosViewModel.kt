@@ -504,6 +504,7 @@ class PosViewModel(application: Application) : AndroidViewModel(application) {
             _uiState.update { it.copy(isLoading = true, errorMessage = null) }
             runCatching {
                 val profile = repository.fetchMyStaffProfile()
+                val staffProfiles = repository.fetchStaffProfiles()
                 val categories = repository.fetchCategories()
                 val products = repository.fetchProducts()
                 val tables = repository.fetchTables()
@@ -519,6 +520,7 @@ class PosViewModel(application: Application) : AndroidViewModel(application) {
                     it.copy(
                         isLoading = false,
                         staffProfile = profile ?: it.staffProfile,
+                        staffList = staffProfiles,
                         categories = categories,
                         products = products,
                         tables = tables,

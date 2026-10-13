@@ -129,13 +129,27 @@ fun ProdukStokComposeScreen(viewModel: PosViewModel, uiState: PosUiState) {
                         horizontalArrangement = Arrangement.SpaceBetween,
                         verticalAlignment = Alignment.CenterVertically
                     ) {
-                        if (!prod.imageUrl.isNullOrBlank()) {
-                            AsyncImage(
-                                model = prod.imageUrl,
-                                contentDescription = "Foto ${prod.name}",
-                                modifier = Modifier.size(76.dp),
-                                contentScale = androidx.compose.ui.layout.ContentScale.Crop
-                            )
+                        Box(
+                            modifier = Modifier.size(76.dp),
+                            contentAlignment = Alignment.Center
+                        ) {
+                            Surface(
+                                modifier = Modifier.fillMaxSize(),
+                                shape = RoundedCornerShape(8.dp),
+                                color = MaterialTheme.colorScheme.surfaceVariant
+                            ) {
+                                Box(contentAlignment = Alignment.Center) {
+                                    Text("FOTO", style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                                }
+                            }
+                            if (!prod.imageUrl.isNullOrBlank()) {
+                                AsyncImage(
+                                    model = prod.imageUrl,
+                                    contentDescription = "Foto ${prod.name}",
+                                    modifier = Modifier.fillMaxSize(),
+                                    contentScale = androidx.compose.ui.layout.ContentScale.Crop
+                                )
+                            }
                         }
                         Column(modifier = Modifier.weight(1f)) {
                             Text("${prod.name} ($catName)", fontWeight = FontWeight.Bold)

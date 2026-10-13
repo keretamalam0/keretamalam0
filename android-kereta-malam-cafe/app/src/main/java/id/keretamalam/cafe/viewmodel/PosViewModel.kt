@@ -43,7 +43,6 @@ data class PosUiState(
     val inventoryMovements: List<InventoryMovement> = SandboxSeedData.initialInventoryMovements,
     val auditLogs: List<AuditLog> = SandboxSeedData.initialAuditLogs,
     val outletSettings: OutletSettings = OutletSettings(),
-    val websiteCms: WebsiteCmsModel = WebsiteCmsModel(),
     val aiReplyText: String? = null,
     // Kasir & Keranjang State
     val selectedCategoryId: String = "ALL",
@@ -1246,29 +1245,6 @@ class PosViewModel(application: Application) : AndroidViewModel(application) {
             it.copy(
                 outletSettings = settings,
                 successMessage = "Pengaturan outlet diperbarui."
-            )
-        }
-    }
-
-    fun updateWebsiteCms(cms: WebsiteCmsModel) {
-        _uiState.update {
-            it.copy(
-                websiteCms = cms,
-                successMessage = "Pengaturan CMS Website berhasil diperbarui."
-            )
-        }
-    }
-
-    fun toggleWebsitePageStatus(pageId: String) {
-        _uiState.update { state ->
-            val updatedPages = state.websiteCms.pages.map { pg ->
-                if (pg.id == pageId) {
-                    pg.copy(status = if (pg.status == "published") "draft" else "published")
-                } else pg
-            }
-            state.copy(
-                websiteCms = state.websiteCms.copy(pages = updatedPages),
-                successMessage = "Status publikasi halaman website diperbarui."
             )
         }
     }

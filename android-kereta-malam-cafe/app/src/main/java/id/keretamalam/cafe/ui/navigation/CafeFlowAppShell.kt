@@ -110,7 +110,7 @@ fun CafeFlowAppShell(
         val drawerContent: @Composable () -> Unit = {
             ModalDrawerSheet(
                 modifier = Modifier.width(280.dp),
-                drawerContainerColor = androidx.compose.ui.graphics.Color(0xFF080A0D)
+                drawerContainerColor = if (uiState.darkTheme) androidx.compose.ui.graphics.Color(0xFF080A0D) else androidx.compose.ui.graphics.Color(0xFFFFFFFF)
             ) {
                 Column(
                     modifier = Modifier
@@ -153,7 +153,8 @@ fun CafeFlowAppShell(
                                 Text(
                                     text = group,
                                     style = MaterialTheme.typography.labelMedium,
-                                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                    color = if (uiState.darkTheme) androidx.compose.ui.graphics.Color(0xFFCBD5E1) else androidx.compose.ui.graphics.Color(0xFF64748B),
+                                    fontWeight = FontWeight.Bold,
                                     modifier = Modifier.padding(top = 8.dp, bottom = 4.dp, start = 8.dp)
                                 )
                                 visible.forEach { item ->
@@ -165,16 +166,17 @@ fun CafeFlowAppShell(
                                     }
                                     NavigationDrawerItem(
                                         colors = NavigationDrawerItemDefaults.colors(
-                                            selectedContainerColor = androidx.compose.ui.graphics.Color(0xFF203A56),
+                                            selectedContainerColor = if (uiState.darkTheme) androidx.compose.ui.graphics.Color(0xFF203A56) else androidx.compose.ui.graphics.Color(0xFFE8EEF5),
                                             unselectedContainerColor = androidx.compose.ui.graphics.Color.Transparent,
-                                            selectedTextColor = androidx.compose.ui.graphics.Color(0xFFF7FAFF),
-                                            unselectedTextColor = androidx.compose.ui.graphics.Color(0xFFD0D7E0),
-                                            selectedIconColor = androidx.compose.ui.graphics.Color(0xFFB9D9FF),
-                                            unselectedIconColor = androidx.compose.ui.graphics.Color(0xFFB0BAC7)
+                                            selectedTextColor = if (uiState.darkTheme) androidx.compose.ui.graphics.Color(0xFFFFFFFF) else androidx.compose.ui.graphics.Color(0xFF111827),
+                                            unselectedTextColor = if (uiState.darkTheme) androidx.compose.ui.graphics.Color(0xFFF5F7FA) else androidx.compose.ui.graphics.Color(0xFF334155),
+                                            selectedIconColor = if (uiState.darkTheme) androidx.compose.ui.graphics.Color(0xFFD6E8FF) else androidx.compose.ui.graphics.Color(0xFF334155),
+                                            unselectedIconColor = if (uiState.darkTheme) androidx.compose.ui.graphics.Color(0xFFD1D9E3) else androidx.compose.ui.graphics.Color(0xFF64748B)
                                         ),
                                         label = {
                                             Text(
                                                 text = localizedRouteTitle(item.titleId, uiState.outletSettings.appLanguage),
+                                                fontWeight = if (activeModule == item) FontWeight.Bold else FontWeight.SemiBold,
                                                 maxLines = 1,
                                                 overflow = TextOverflow.Ellipsis
                                             )
@@ -209,14 +211,16 @@ fun CafeFlowAppShell(
                             Text(
                                 text = uiState.staffProfile.fullName,
                                 style = MaterialTheme.typography.bodyMedium,
-                                fontWeight = FontWeight.SemiBold,
+                                fontWeight = FontWeight.Bold,
+                                color = if (uiState.darkTheme) androidx.compose.ui.graphics.Color(0xFFFFFFFF) else androidx.compose.ui.graphics.Color(0xFF111827),
                                 maxLines = 1,
                                 overflow = TextOverflow.Ellipsis
                             )
                             Text(
                                 text = "Role: ${uiState.staffProfile.role.labelId}",
                                 style = MaterialTheme.typography.labelMedium,
-                                color = MaterialTheme.colorScheme.onSurfaceVariant
+                                color = if (uiState.darkTheme) androidx.compose.ui.graphics.Color(0xFFE2E8F0) else androidx.compose.ui.graphics.Color(0xFF475569),
+                                fontWeight = FontWeight.Medium
                             )
                         }
                         IconButton(onClick = { viewModel.logoutSession() }) {
@@ -304,8 +308,8 @@ fun CafeFlowAppShell(
                     // Navigasi Bawah khusus layar HP untuk akses cepat 1 tangan
                     if (!isTabletOrWide) {
                         NavigationBar(
-                            containerColor = androidx.compose.ui.graphics.Color(0xFF080A0D),
-                            contentColor = androidx.compose.ui.graphics.Color(0xFFD0D7E0)
+                            containerColor = if (uiState.darkTheme) androidx.compose.ui.graphics.Color(0xFF080A0D) else androidx.compose.ui.graphics.Color(0xFFFFFFFF),
+                            contentColor = if (uiState.darkTheme) androidx.compose.ui.graphics.Color(0xFFF5F7FA) else androidx.compose.ui.graphics.Color(0xFF334155)
                         ) {
                             val quickRoutes = listOf(
                                 PosModuleRoute.DASHBOARD,
@@ -317,11 +321,11 @@ fun CafeFlowAppShell(
                                 NavigationBarItem(
                                     selected = activeModule == route,
                                     colors = NavigationBarItemDefaults.colors(
-                                        selectedIconColor = androidx.compose.ui.graphics.Color(0xFFB9D9FF),
-                                        selectedTextColor = androidx.compose.ui.graphics.Color(0xFFF7FAFF),
-                                        indicatorColor = androidx.compose.ui.graphics.Color(0xFF203A56),
-                                        unselectedIconColor = androidx.compose.ui.graphics.Color(0xFFB0BAC7),
-                                        unselectedTextColor = androidx.compose.ui.graphics.Color(0xFFD0D7E0)
+                                        selectedIconColor = if (uiState.darkTheme) androidx.compose.ui.graphics.Color(0xFFD6E8FF) else androidx.compose.ui.graphics.Color(0xFF1F2937),
+                                        selectedTextColor = if (uiState.darkTheme) androidx.compose.ui.graphics.Color(0xFFFFFFFF) else androidx.compose.ui.graphics.Color(0xFF111827),
+                                        indicatorColor = if (uiState.darkTheme) androidx.compose.ui.graphics.Color(0xFF203A56) else androidx.compose.ui.graphics.Color(0xFFE8EEF5),
+                                        unselectedIconColor = if (uiState.darkTheme) androidx.compose.ui.graphics.Color(0xFFD1D9E3) else androidx.compose.ui.graphics.Color(0xFF64748B),
+                                        unselectedTextColor = if (uiState.darkTheme) androidx.compose.ui.graphics.Color(0xFFF5F7FA) else androidx.compose.ui.graphics.Color(0xFF334155)
                                     ),
                                     onClick = { activeModule = route },
                                     icon = { Icon(route.icon, contentDescription = localizedRouteTitle(route.titleId, uiState.outletSettings.appLanguage), tint = moduleIconTint(route)) },
@@ -331,11 +335,11 @@ fun CafeFlowAppShell(
                             NavigationBarItem(
                                 selected = activeModule !in quickRoutes,
                                 colors = NavigationBarItemDefaults.colors(
-                                    selectedIconColor = androidx.compose.ui.graphics.Color(0xFFB9D9FF),
-                                    selectedTextColor = androidx.compose.ui.graphics.Color(0xFFF7FAFF),
-                                    indicatorColor = androidx.compose.ui.graphics.Color(0xFF203A56),
-                                    unselectedIconColor = androidx.compose.ui.graphics.Color(0xFFB0BAC7),
-                                    unselectedTextColor = androidx.compose.ui.graphics.Color(0xFFD0D7E0)
+                                    selectedIconColor = if (uiState.darkTheme) androidx.compose.ui.graphics.Color(0xFFD6E8FF) else androidx.compose.ui.graphics.Color(0xFF1F2937),
+                                    selectedTextColor = if (uiState.darkTheme) androidx.compose.ui.graphics.Color(0xFFFFFFFF) else androidx.compose.ui.graphics.Color(0xFF111827),
+                                    indicatorColor = if (uiState.darkTheme) androidx.compose.ui.graphics.Color(0xFF203A56) else androidx.compose.ui.graphics.Color(0xFFE8EEF5),
+                                    unselectedIconColor = if (uiState.darkTheme) androidx.compose.ui.graphics.Color(0xFFD1D9E3) else androidx.compose.ui.graphics.Color(0xFF64748B),
+                                    unselectedTextColor = if (uiState.darkTheme) androidx.compose.ui.graphics.Color(0xFFF5F7FA) else androidx.compose.ui.graphics.Color(0xFF334155)
                                 ),
                                 onClick = { scope.launch { drawerState.open() } },
                                 icon = { Icon(Icons.Outlined.Menu, contentDescription = "Semua Modul", tint = androidx.compose.ui.graphics.Color(0xFF8993A4)) },

@@ -1263,9 +1263,12 @@ private fun PesananComposeScreen(
 @Composable
 private fun HistoryComposeScreen(viewModel: PosViewModel, uiState: PosUiState) {
     val context = LocalContext.current
-    var fromDate by remember { mutableStateOf("2026-10-01") }
-    var toDate by remember { mutableStateOf("2026-10-12") }
+    var fromDate by remember { mutableStateOf("") }
+    var toDate by remember { mutableStateOf("") }
     var search by remember { mutableStateOf("") }
+    var selectedIds by remember { mutableStateOf(setOf<String>()) }
+    var confirmDeleteSelected by remember { mutableStateOf(false) }
+    var confirmDeleteAll by remember { mutableStateOf(false) }
 
     val filteredOrders = remember(uiState.orders, fromDate, toDate, search) {
         uiState.orders.filter { o ->
@@ -1277,15 +1280,48 @@ private fun HistoryComposeScreen(viewModel: PosViewModel, uiState: PosUiState) {
             inRange && matchQuery
         }
     }
+    val selectedVisibleIds = filteredOrders.map { it.id }.filter { it in selectedIds }.toSet()
 
     val csvLauncher = rememberLauncherForActivityResult(
         ActivityResultContracts.CreateDocument("text/csv")
     ) { uri ->
         if (uri != null) {
-            CsvExporter.writeSalesReportToUri(context, uri, "$fromDate s/d $toDate", filteredOrders)
+            CsvExporter.writeSalesReportToUri(context, uri, "${fromDate.ifBlank { "Semua tanggal" }} s/d ${toDate.ifBlank { "sekarang" }}", filteredOrders)
                 .onSuccess { viewModel.showNotice("CSV Riwayat Transaksi berhasil disimpan.") }
                 .onFailure { viewModel.showNotice(it.message ?: "Gagal menyimpan CSV.", isError = true) }
         }
+    }
+
+    if (confirmDeleteSelected) {
+        AlertDialog(
+            onDismissRequest = { confirmDeleteSelected = false },
+            title = { Text("Hapus transaksi terpilih?") },
+            text = { Text("Yakin hapus ${selectedIds.size} transaksi yang dipilih? Data yang dihapus tidak bisa dikembalikan.") },
+            confirmButton = {
+                TextButton(onClick = {
+                    confirmDeleteSelected = false
+                    val ids = selectedIds.toList()
+                    viewModel.deleteOrders(ids)
+                    selectedIds = emptySet()
+                }) { Text("Ya, Hapus", color = MaterialTheme.colorScheme.error) }
+            },
+            dismissButton = { TextButton(onClick = { confirmDeleteSelected = false }) { Text("Batal") } }
+        )
+    }
+    if (confirmDeleteAll) {
+        AlertDialog(
+            onDismissRequest = { confirmDeleteAll = false },
+            title = { Text("Hapus SEMUA transaksi?") },
+            text = { Text("Ini akan menghapus seluruh data transaksi yang tersimpan, bukan hanya hasil pencarian atau tanggal yang sedang tampil. Tindakan ini permanen dan tidak bisa dibatalkan.") },
+            confirmButton = {
+                TextButton(onClick = {
+                    confirmDeleteAll = false
+                    viewModel.deleteAllOrders()
+                    selectedIds = emptySet()
+                }) { Text("Hapus Semua", color = MaterialTheme.colorScheme.error) }
+            },
+            dismissButton = { TextButton(onClick = { confirmDeleteAll = false }) { Text("Jangan Hapus") } }
+        )
     }
 
     Column(modifier = Modifier.fillMaxSize(), verticalArrangement = Arrangement.spacedBy(10.dp)) {
@@ -1294,70 +1330,57 @@ private fun HistoryComposeScreen(viewModel: PosViewModel, uiState: PosUiState) {
             horizontalArrangement = Arrangement.SpaceBetween,
             verticalAlignment = Alignment.CenterVertically
         ) {
-            Column {
+            Column(modifier = Modifier.weight(1f)) {
                 Text("Riwayat Transaksi (${filteredOrders.size} Order)", style = MaterialTheme.typography.titleMedium)
-                Text(
-                    text = "Total Nilai Periode: ${RupiahFormatter.format(filteredOrders.filter { it.isPaid }.sumOf { it.total })}",
-                    style = MaterialTheme.typography.bodyMedium
-                )
+                Text("Total Nilai Transaksi Lunas: ${RupiahFormatter.format(filteredOrders.filter { it.isPaid }.sumOf { it.total })}", style = MaterialTheme.typography.bodyMedium)
+                Text("Kosongkan tanggal untuk melihat semua transaksi.", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
             }
-            Button(onClick = { csvLauncher.launch("history-transaksi-kereta-malam.csv") }) {
-                Text("Ekspor CSV History")
+            Column(horizontalAlignment = Alignment.End, verticalArrangement = Arrangement.spacedBy(4.dp)) {
+                Button(onClick = { csvLauncher.launch("history-transaksi-kereta-malam.csv") }) { Text("Ekspor CSV") }
+                OutlinedButton(onClick = { confirmDeleteAll = true }, colors = ButtonDefaults.outlinedButtonColors(contentColor = MaterialTheme.colorScheme.error)) { Text("Hapus Semua Data") }
             }
         }
 
-        Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-            OutlinedTextField(
-                value = fromDate,
-                onValueChange = { fromDate = it },
-                label = { Text("Dari (YYYY-MM-DD)") },
-                modifier = Modifier.weight(1f),
-                singleLine = true
-            )
-            OutlinedTextField(
-                value = toDate,
-                onValueChange = { toDate = it },
-                label = { Text("Sampai (YYYY-MM-DD)") },
-                modifier = Modifier.weight(1f),
-                singleLine = true
-            )
-            OutlinedTextField(
-                value = search,
-                onValueChange = { search = it },
-                label = { Text("Cari #Order / Nama") },
-                modifier = Modifier.weight(1.2f),
-                singleLine = true
-            )
+        Row(horizontalArrangement = Arrangement.spacedBy(8.dp), verticalAlignment = Alignment.CenterVertically) {
+            OutlinedTextField(value = fromDate, onValueChange = { fromDate = it }, label = { Text("Dari (YYYY-MM-DD)") }, modifier = Modifier.weight(1f), singleLine = true)
+            OutlinedTextField(value = toDate, onValueChange = { toDate = it }, label = { Text("Sampai (YYYY-MM-DD)") }, modifier = Modifier.weight(1f), singleLine = true)
+        }
+        Row(horizontalArrangement = Arrangement.spacedBy(8.dp), verticalAlignment = Alignment.CenterVertically) {
+            OutlinedTextField(value = search, onValueChange = { search = it }, label = { Text("Cari #Order / Nama") }, modifier = Modifier.weight(1f), singleLine = true)
+            TextButton(onClick = {
+                selectedIds = if (filteredOrders.isNotEmpty() && filteredOrders.all { it.id in selectedIds }) {
+                    selectedIds - filteredOrders.map { it.id }.toSet()
+                } else selectedIds + filteredOrders.map { it.id }
+            }) { Text(if (filteredOrders.isNotEmpty() && filteredOrders.all { it.id in selectedIds }) "Batal Pilih" else "Pilih Semua") }
+        }
+        Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween, verticalAlignment = Alignment.CenterVertically) {
+            Text("${selectedIds.size} transaksi dipilih", style = MaterialTheme.typography.bodyMedium)
+            Button(
+                onClick = { confirmDeleteSelected = true },
+                enabled = selectedIds.isNotEmpty(),
+                colors = ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.error)
+            ) { Text("Hapus Terpilih") }
         }
 
-        LazyColumn(
-            modifier = Modifier.weight(1f),
-            verticalArrangement = Arrangement.spacedBy(8.dp)
-        ) {
+        LazyColumn(modifier = Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(8.dp)) {
             items(filteredOrders, key = { it.id }) { order ->
                 OutlinedCard(modifier = Modifier.fillMaxWidth()) {
                     Row(
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .padding(14.dp),
-                        horizontalArrangement = Arrangement.SpaceBetween,
+                        modifier = Modifier.fillMaxWidth().padding(12.dp),
+                        horizontalArrangement = Arrangement.spacedBy(8.dp),
                         verticalAlignment = Alignment.CenterVertically
                     ) {
-                        Column(modifier = Modifier.weight(1f)) {
+                        Checkbox(checked = order.id in selectedIds, onCheckedChange = { checked ->
+                            selectedIds = if (checked) selectedIds + order.id else selectedIds - order.id
+                        })
+                        Column(modifier = Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(3.dp)) {
                             Text("#${order.orderNo} · ${order.customerName ?: "Walk-in"} (${order.source.uppercase()})", fontWeight = FontWeight.Bold)
-                            Text(
-                                text = "${order.createdAt} · ${order.restaurantTable?.name ?: "Takeaway"} · ${order.status.labelId}",
-                                style = MaterialTheme.typography.bodyMedium
-                            )
+                            Text("${order.createdAt} · ${order.restaurantTable?.name ?: "Takeaway"} · ${order.status.labelId}", style = MaterialTheme.typography.bodyMedium)
+                            Text(if (order.isPaid) "LUNAS" else "BELUM LUNAS", color = if (order.isPaid) Color(0xFF15803D) else MaterialTheme.colorScheme.error, style = MaterialTheme.typography.bodySmall)
                         }
-                        Row(
-                            verticalAlignment = Alignment.CenterVertically,
-                            horizontalArrangement = Arrangement.spacedBy(8.dp)
-                        ) {
+                        Column(horizontalAlignment = Alignment.End, verticalArrangement = Arrangement.spacedBy(5.dp)) {
                             Text(RupiahFormatter.format(order.total), fontWeight = FontWeight.Bold)
-                            OutlinedButton(onClick = { viewModel.openReceiptDialog(order) }) {
-                                Text("Lihat Struk")
-                            }
+                            OutlinedButton(onClick = { viewModel.openReceiptDialog(order) }) { Text("Struk") }
                         }
                     }
                 }

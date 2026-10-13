@@ -74,7 +74,7 @@ fun ProdukStokComposeScreen(viewModel: PosViewModel, uiState: PosUiState) {
         Text("Produk & Stok", style = MaterialTheme.typography.headlineSmall, fontWeight = FontWeight.Bold)
         Text("Atur produk, kategori, topping, dan pilihan minuman.", style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
         Row(Modifier.fillMaxWidth().horizontalScroll(rememberScrollState()), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-            listOf("PRODUK" to "Semua Produk", "KATEGORI" to "Kelola Kategori", "TOPPING" to "Topping", "CUSTOM" to "Kustomisasi Minuman").forEach { (key, label) ->
+            listOf("PRODUK" to "Produk", "KATEGORI" to "Kelola Kategori").forEach { (key, label) ->
                 FilterChip(selected = section == key, onClick = { section = key }, label = { Text(label) })
             }
         }
@@ -104,16 +104,29 @@ fun ProdukStokComposeScreen(viewModel: PosViewModel, uiState: PosUiState) {
                                     Text(category, style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
                                     Text(RupiahFormatter.format(p.price), fontWeight = FontWeight.SemiBold)
                                     Text("Stok ${p.stock} · Ambang ${p.lowStockThreshold}", style = MaterialTheme.typography.bodySmall)
-                                    Row(verticalAlignment = Alignment.CenterVertically) {
-                                        Text("Aktif", style = MaterialTheme.typography.labelSmall)
-                                        Switch(checked = p.isActive, onCheckedChange = { viewModel.toggleProductActive(p.id, it) })
-                                        Text("QR", style = MaterialTheme.typography.labelSmall)
-                                        Switch(checked = p.showOnMenu, onCheckedChange = { viewModel.toggleProductQrMenu(p.id, it) })
+                                    Row(
+                                        modifier = Modifier.fillMaxWidth(),
+                                        horizontalArrangement = Arrangement.spacedBy(6.dp),
+                                        verticalAlignment = Alignment.CenterVertically
+                                    ) {
+                                        FilterChip(
+                                            selected = p.isActive,
+                                            onClick = { viewModel.toggleProductActive(p.id, !p.isActive) },
+                                            label = { Text(if (p.isActive) "Aktif" else "Nonaktif", style = MaterialTheme.typography.labelSmall) },
+                                            modifier = Modifier.height(32.dp)
+                                        )
+                                        FilterChip(
+                                            selected = p.showOnMenu,
+                                            onClick = { viewModel.toggleProductQrMenu(p.id, !p.showOnMenu) },
+                                            label = { Text(if (p.showOnMenu) "QR tampil" else "QR disembunyikan", style = MaterialTheme.typography.labelSmall) },
+                                            modifier = Modifier.height(32.dp)
+                                        )
                                     }
                                 }
                                 Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
                                     OutlinedButton(onClick = { editingProduct = p }) { Text("Edit") }
-                                    OutlinedButton(onClick = { selectedProductId = p.id; section = "TOPPING" }) { Text("Topping") }
+                                    TextButton(onClick = { selectedProductId = p.id; section = "TOPPING" }) { Text("Topping") }
+                                    TextButton(onClick = { selectedProductId = p.id; section = "CUSTOM" }) { Text("Kustomisasi") }
                                     TextButton(onClick = { deletingProduct = p }) { Text("Hapus") }
                                 }
                             }
@@ -246,6 +259,11 @@ fun ProdukStokComposeScreen(viewModel: PosViewModel, uiState: PosUiState) {
             Surface(shape = RoundedCornerShape(16.dp), color = MaterialTheme.colorScheme.surface, modifier = Modifier.fillMaxWidth(0.94f).widthIn(max = 520.dp).padding(12.dp)) {
                 Column(Modifier.padding(16.dp).verticalScroll(rememberScrollState()), verticalArrangement = Arrangement.spacedBy(10.dp)) {
                     Text(if (targetEdit.id.isBlank()) "Tambah Produk" else "Edit Produk", style = MaterialTheme.typography.titleLarge, fontWeight = FontWeight.Bold)
+                    Text(
+                        "Foto, detail, harga, kategori, stok, dan status diatur di sini. Setelah disimpan, topping serta opsi gula/es bisa diatur dari tombol pada kartu produk.",
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                    )
                     OutlinedTextField(value = name, onValueChange = { name = it }, label = { Text("Nama produk") }, modifier = Modifier.fillMaxWidth(), singleLine = true)
                     OutlinedTextField(value = desc, onValueChange = { desc = it }, label = { Text("Deskripsi") }, modifier = Modifier.fillMaxWidth(), maxLines = 2)
                     Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(10.dp)) {

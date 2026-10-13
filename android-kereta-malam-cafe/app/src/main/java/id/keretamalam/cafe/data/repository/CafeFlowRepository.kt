@@ -613,9 +613,40 @@ class CafeFlowRepository(private val context: Context) {
 
     suspend fun fetchOutletSettings(): OutletSettings {
         val creds = requireVerifiedCredentials()
-        val url = "${creds.supabaseUrl}/rest/v1/outlet_settings?select=*&limit=1"
+        val ownerId = creds.authenticatedUserId
+        require(ownerId.isNotBlank()) { "Silakan masuk sebagai pemilik outlet terlebih dahulu." }
+        val encodedOwner = URLEncoder.encode(ownerId, "UTF-8")
+        val url = "${creds.supabaseUrl}/rest/v1/outlet_settings?select=*&owner_id=eq.$encodedOwner&limit=1"
         val raw = executeJsonRequest("GET", url, buildHeaders(creds))
         return json.decodeFromString<List<OutletSettings>>(raw).firstOrNull() ?: OutletSettings()
+    }
+
+    suspend fun updateOutletLanguage(language: String) {
+        require(language in setOf("id", "en", "zh", "th", "vi")) { "Bahasa aplikasi tidak didukung." }
+        val creds = requireVerifiedCredentials()
+        val ownerId = creds.authenticatedUserId
+        require(ownerId.isNotBlank()) { "Silakan masuk sebagai pemilik outlet terlebih dahulu." }
+        val encodedOwner = URLEncoder.encode(ownerId, "UTF-8")
+        val existingRaw = executeJsonRequest(
+            method = "GET",
+            url = "${creds.supabaseUrl}/rest/v1/outlet_settings?select=id&owner_id=eq.$encodedOwner&limit=1",
+            headers = buildHeaders(creds)
+        )
+        val existing = json.parseToJsonElement(existingRaw).jsonArray.firstOrNull()
+            ?: throw IllegalStateException("Pengaturan outlet untuk akun ini belum ditemukan.")
+        val id = existing.jsonObject["id"]?.jsonPrimitive?.contentOrNull
+            ?: throw IllegalStateException("Data outlet tidak memiliki ID.")
+        val encodedId = URLEncoder.encode(id, "UTF-8")
+        val payload = buildJsonObject { put("app_language", language) }
+        val updatedRaw = executeJsonRequest(
+            method = "PATCH",
+            url = "${creds.supabaseUrl}/rest/v1/outlet_settings?id=eq.$encodedId&owner_id=eq.$encodedOwner",
+            headers = buildHeaders(creds, "return=representation"),
+            bodyJson = json.encodeToString(JsonObject.serializer(), payload)
+        )
+        require(json.parseToJsonElement(updatedRaw).jsonArray.isNotEmpty()) {
+            "Bahasa tidak tersimpan. Periksa kebijakan akses tabel outlet_settings."
+        }
     }
 
     suspend fun updateOutletSettings(settings: OutletSettings) {
@@ -653,7 +684,7 @@ class CafeFlowRepository(private val context: Context) {
             val encodedId = URLEncoder.encode(id, "UTF-8")
             executeJsonRequest(
                 method = "PATCH",
-                url = "${creds.supabaseUrl}/rest/v1/outlet_settings?id=eq.$encodedId",
+                url = "${creds.supabaseUrl}/rest/v1/outlet_settings?id=eq.$encodedId&owner_id=eq.$encodedOwner",
                 headers = buildHeaders(creds, "return=representation"),
                 bodyJson = json.encodeToString(JsonObject.serializer(), payload)
             )

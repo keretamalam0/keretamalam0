@@ -1545,12 +1545,25 @@ class PosViewModel(application: Application) : AndroidViewModel(application) {
         if (_uiState.value.backendStatus == BackendIntegrationStatus.ACTIVE_VERIFIED) {
             viewModelScope.launch {
                 _uiState.update { it.copy(isLoading = true, errorMessage = null, successMessage = null) }
-                runCatching { repository.updateOutletSettings(settings) }
+                val current = _uiState.value.outletSettings
+                val languageOnly = settings.copy(appLanguage = current.appLanguage) == current &&
+                    settings.appLanguage != current.appLanguage
+                runCatching {
+                    if (languageOnly) repository.updateOutletLanguage(settings.appLanguage)
+                    else repository.updateOutletSettings(settings)
+                }
                     .onSuccess {
                         _uiState.update { it.copy(outletSettings = settings, isLoading = false, successMessage = "Pengaturan outlet berhasil disimpan.") }
                     }
                     .onFailure { error ->
-                        _uiState.update { it.copy(isLoading = false, errorMessage = "Pengaturan outlet gagal disimpan. Periksa koneksi dan akses akun.") }
+                        val detail = error.message?.replace("\n", " ")?.replace("\r", " ")?.take(220)?.takeIf { it.isNotBlank() }
+                        _uiState.update {
+                            it.copy(
+                                isLoading = false,
+                                errorMessage = if (detail == null) "Pengaturan outlet gagal disimpan. Periksa koneksi."
+                                else "Pengaturan outlet gagal disimpan: $detail"
+                            )
+                        }
                     }
             }
             return

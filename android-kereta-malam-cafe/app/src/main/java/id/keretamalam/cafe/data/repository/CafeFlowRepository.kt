@@ -128,7 +128,7 @@ class CafeFlowRepository(private val context: Context) {
                         ?: raw
                 }.getOrDefault(raw.ifBlank { "HTTP ${response.code}" })
                 // Keep credentials and response bodies out of the UI; retain safe diagnostics.
-                throw IllegalStateException("Permintaan Supabase gagal (HTTP " + response.code + ", " + request.url.encodedPath + ").")
+                throw IllegalStateException("Permintaan Supabase gagal (HTTP " + response.code + ", " + response.request.url.encodedPath + ").")
             }
             raw
         }

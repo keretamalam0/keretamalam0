@@ -11,7 +11,7 @@ Project directory: `android-kereta-malam-cafe/`
 - [ ] Device-level verification recorded.
 
 ## Requested feature batches
-- [ ] Dashboard analytics and charts
+- [ ] Dashboard analytics and charts (partially implemented; date-range filter for paid revenue/payment breakdown/top products added in `bf5bd216430248d62bfb910c57cb5e845c1dab7d`; full KPI/chart review and build verification remain pending)
 - [ ] Cashier product grid, photos, and cart/table behavior
 - [ ] Order lanes and transaction history with guarded deletion
 - [ ] Shift opening/closing audit (live writes explicitly blocked until Supabase persistence is implemented)
@@ -29,6 +29,7 @@ Project directory: `android-kereta-malam-cafe/`
 - [x] Removed Website Management UI, local CMS state/actions, and unused CMS models from Android. [ ] Secure Super Admin separation remains pending.
 
 ## Work log
+- `bf5bd216430248d62bfb910c57cb5e845c1dab7d`: added Dashboard date presets (today, last 7 days, last 30 days, all data) and scoped paid-revenue KPIs, payment-method breakdown, and best-selling products to the selected period. Compilation and date/time-zone behavior still require verification.
 - `3cd38f63e61d5daaa1c2250bb18fcc5545ae8871`: removed unused native website CMS data models after deleting the inaccessible Website Management screen and local-only save/publish actions.
 - `ba7c0f5b68df3d843393add1ab8176a53aaece0e`: removed Website CMS state and local-only mutations from `PosViewModel`.
 - `a8452ca11882486ae2410639ca191f3020064e87`: removed the unused Website Management screen from `ManagementScreens.kt`; verified its screen symbol is no longer present in the app source files checked.

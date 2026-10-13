@@ -779,18 +779,7 @@ export default function App() {
   // ============================================================================
   const handleUpdateOrderStatus = async (order: OrderWithItems, nextStatus: OrderStatus) => {
     if (backendMode === 'LIVE_SUPABASE') {
-      const client = getVerifiedSupabaseClient(supabaseConfig);
-      if (!client) return;
-      const { error } = await client
-        .from('orders')
-        .update({ status: nextStatus })
-        .eq('id', order.id);
-      if (error) {
-        showNotice('error', error.message);
-        return;
-      }
-      await syncFromLiveSupabase(supabaseConfig);
-      showNotice('success', `Status Order #${order.order_no} diubah ke ${STATUS_LABELS[nextStatus]}.`);
+      showNotice('error', 'Perubahan status langsung diblokir sementara: perlu RPC server yang memvalidasi outlet, pembayaran, dan pemulihan stok. Status order tidak diubah.');
       return;
     }
 

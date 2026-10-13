@@ -226,7 +226,7 @@ export default function App() {
   const [customerName, setCustomerName] = useState('');
   const [orderNotes, setOrderNotes] = useState('');
   const [selectedPromoId, setSelectedPromoId] = useState<string>('');
-  const [paymentMethod, setPaymentMethod] = useState<'cash' | 'qris' | 'transfer' | 'ewallet'>('cash');
+  const [paymentMethod, setPaymentMethod] = useState<string>('cash');
   const [cashReceivedInput, setCashReceivedInput] = useState<string>('');
   const [confirmCheckoutModalOpen, setConfirmCheckoutModalOpen] = useState(false);
   const [isCheckoutProcessing, setIsCheckoutProcessing] = useState(false);

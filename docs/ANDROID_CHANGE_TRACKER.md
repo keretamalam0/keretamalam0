@@ -29,6 +29,7 @@ Project directory: `android-kereta-malam-cafe/`
 - [x] Removed Website Management UI, local CMS state/actions, and unused CMS models from Android. [ ] Secure Super Admin separation remains pending.
 
 ## Work log
+- `934c849217e75e18ad1403ba941ac3c1db5c7de2`: `StaffProfile.canAccess` now denies operational POS module permissions to `SUPER_ADMIN`; the global admin is treated as a separate control plane. This is client-side separation only; the actual Super Admin portal and server-side authorization/audit policy remain pending.
 - `42337a532981d5e7a917e667e601cd3f2b52a776`: disabled staff-profile switching in live mode at the UI layer; the ViewModel now permits profile switching only in explicitly labeled local sandbox mode. Staff permissions still require server-side RLS/RPC enforcement and a successful build/runtime test.
 - `3c6b7723bdb66bbe61163909b50ccee0a742ddf2`: guarded `switchActiveStaffProfile` so selecting a staff row cannot change the active identity in verified backend mode; the user must log out and authenticate with the intended staff account.
 - `30a4b9b2d30fcf31a3d31c1ab73dec06d80cf9a5`: dashboard date filtering now converts ISO timestamps to the device's local time zone before comparing calendar dates, avoiding UTC/local midnight mismatches. Build verification remains pending.

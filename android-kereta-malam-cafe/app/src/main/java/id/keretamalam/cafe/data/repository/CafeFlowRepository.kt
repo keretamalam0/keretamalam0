@@ -198,6 +198,19 @@ class CafeFlowRepository(private val context: Context) {
         return profile
     }
 
+    suspend fun changePassword(newPassword: String) {
+        require(newPassword.length >= 8) { "Password baru minimal 8 karakter." }
+        val creds = requireVerifiedCredentials()
+        check(creds.accessToken.isNotBlank()) { "Sesi login tidak valid. Silakan login ulang." }
+        val payload = buildJsonObject { put("password", newPassword) }
+        executeJsonRequest(
+            method = "PATCH",
+            url = "${creds.supabaseUrl}/auth/v1/user",
+            headers = buildHeaders(creds),
+            bodyJson = json.encodeToString(JsonObject.serializer(), payload)
+        )
+    }
+
     suspend fun signOut() {
         val creds = SupabaseConfigManager.loadCredentials(context)
         if (creds.status == BackendIntegrationStatus.ACTIVE_VERIFIED && creds.accessToken.isNotBlank()) {
@@ -274,6 +287,32 @@ class CafeFlowRepository(private val context: Context) {
                 if (!response.isSuccessful) {
                     val detail = response.body?.string().orEmpty().take(180)
                     throw IllegalStateException("Upload foto gagal (HTTP ${response.code}). Periksa bucket product-images dan Storage policy. $detail")
+                }
+            }
+        }
+        return "${creds.supabaseUrl}/storage/v1/object/public/product-images/$encodedPath"
+    }
+
+    suspend fun uploadOrderAlertSound(bytes: ByteArray, mimeType: String, fileExtension: String): String {
+        require(bytes.isNotEmpty()) { "File suara kosong." }
+        require(bytes.size <= 10 * 1024 * 1024) { "Ukuran file suara maksimal 10 MB." }
+        val creds = requireVerifiedCredentials()
+        val safeExt = fileExtension.lowercase().filter { it.isLetterOrDigit() }.ifBlank { "mp3" }
+        val objectPath = "order-alert-sounds/${UUID.randomUUID()}.$safeExt"
+        val encodedPath = objectPath.split("/").joinToString("/") { URLEncoder.encode(it, "UTF-8") }
+        val request = Request.Builder()
+            .url("${creds.supabaseUrl}/storage/v1/object/product-images/$encodedPath")
+            .header("apikey", creds.publishableKey)
+            .header("Authorization", "Bearer ${creds.accessToken.ifBlank { creds.publishableKey }}")
+            .header("Content-Type", mimeType)
+            .header("x-upsert", "false")
+            .post(bytes.toRequestBody(mimeType.toMediaType()))
+            .build()
+        withContext(Dispatchers.IO) {
+            httpClient.newCall(request).execute().use { response ->
+                if (!response.isSuccessful) {
+                    val detail = response.body?.string().orEmpty().take(180)
+                    throw IllegalStateException("Upload suara gagal (HTTP ${response.code}). Periksa izin Storage bucket product-images. $detail")
                 }
             }
         }

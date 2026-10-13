@@ -454,6 +454,55 @@ export default function App() {
     }
   };
 
+  const saveOutletSettings = async () => {
+    const client = getVerifiedSupabaseClient(supabaseConfig);
+    if (!client || backendMode !== 'LIVE_SUPABASE') { showNotice('error','Koneksi belum siap. Pengaturan belum disimpan.'); return; }
+    try {
+      const { data: authData } = await client.auth.getUser();
+      if (!authData.user) throw new Error('Silakan masuk kembali.');
+      const payload = { owner_id: authData.user.id, name: outletSettings.name, address: outletSettings.address || null, phone: outletSettings.phone || null, tax_rate: outletSettings.tax_rate, service_rate: outletSettings.service_rate, tax_enabled: outletSettings.tax_enabled, service_enabled: outletSettings.service_enabled, cash_enabled: outletSettings.cash_enabled, card_enabled: outletSettings.card_enabled, qris_enabled: outletSettings.qris_enabled, app_language: appLanguage, updated_at: new Date().toISOString() };
+      const { data: existing, error: readError } = await client.from('outlet_settings').select('id').eq('owner_id',authData.user.id).maybeSingle();
+      if (readError) throw readError;
+      const result = existing?.id ? await client.from('outlet_settings').update(payload).eq('id',existing.id) : await client.from('outlet_settings').insert(payload);
+      if (result.error) throw result.error;
+      showNotice('success','Pengaturan outlet berhasil disimpan.');
+    } catch (err) { showNotice('error', err instanceof Error ? err.message : 'Pengaturan gagal disimpan.'); }
+  };
+
+  const savePaymentMethod = async () => {
+    const client = getVerifiedSupabaseClient(supabaseConfig);
+    if (!client || backendMode !== 'LIVE_SUPABASE') { showNotice('error','Koneksi belum siap. Metode pembayaran belum disimpan.'); return; }
+    if (!paymentDraft.name.trim()) { showNotice('error','Nama metode pembayaran wajib diisi.'); return; }
+    try {
+      const { data: authData } = await client.auth.getUser();
+      if (!authData.user) throw new Error('Silakan masuk kembali.');
+      const code = paymentDraft.type + '_' + paymentDraft.name.trim().toLowerCase().replace(/[^a-z0-9]+/g,'_').replace(/^_|_$/g,'');
+      const { data, error } = await client.from('payment_methods').insert({owner_id:authData.user.id,code,name:paymentDraft.name.trim(),type:paymentDraft.type,provider:paymentDraft.provider.trim()||null,account_name:paymentDraft.account_name.trim()||null,account_number:paymentDraft.account_number.trim()||null,instructions:paymentDraft.instructions.trim()||null,image_url:paymentDraft.image_url.trim()||null,is_active:true,sort_order:paymentMethods.length}).select('*').single();
+      if (error) throw error;
+      setPaymentMethods(prev=>[...prev,data]);
+      setPaymentDraft({name:'',type:'cash',provider:'',account_name:'',account_number:'',instructions:'',image_url:''});
+      setPaymentModalOpen(false); showNotice('success','Metode pembayaran berhasil ditambahkan.');
+    } catch(err) { showNotice('error',err instanceof Error?err.message:'Metode pembayaran gagal disimpan.'); }
+  };
+
+  const inviteStaff = async () => {
+    const client = getVerifiedSupabaseClient(supabaseConfig);
+    if (!client || backendMode !== 'LIVE_SUPABASE') { showNotice('error','Koneksi belum siap. Masuk sebagai owner untuk menambahkan kasir.'); return; }
+    if (!staffInvite.full_name.trim() || !staffInvite.email.trim()) { showNotice('error','Nama dan email staf wajib diisi.'); return; }
+    setStaffInviteLoading(true);
+    try {
+      const { data: sessionData } = await client.auth.getSession();
+      if (!sessionData.session) throw new Error('Sesi login berakhir. Silakan masuk kembali.');
+      const { data, error } = await client.functions.invoke('invite-staff', { body: { full_name: staffInvite.full_name.trim(), email: staffInvite.email.trim().toLowerCase(), role: staffInvite.role, permissions: { dashboard:true, orders:true, payments:true, products:false, inventory:false, tables:true, reports:false, customers:true, promotions:false, settings:false } } });
+      if (error) throw error;
+      if (data?.error) throw new Error(data.error);
+      setStaffInviteOpen(false); setStaffInvite({full_name:'',email:'',role:'cashier'});
+      await syncFromLiveSupabase();
+      showNotice('success','Undangan staf berhasil dikirim ke email.');
+    } catch(err) { showNotice('error',err instanceof Error?err.message:'Undangan staf gagal dikirim.'); }
+    finally { setStaffInviteLoading(false); }
+  };
+
   const handleSupabaseLogin = async (e: React.FormEvent) => {
     e.preventDefault();
     const client = getVerifiedSupabaseClient(supabaseConfig);

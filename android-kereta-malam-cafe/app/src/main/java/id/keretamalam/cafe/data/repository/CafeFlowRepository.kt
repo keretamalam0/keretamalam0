@@ -424,6 +424,36 @@ class CafeFlowRepository(private val context: Context) {
         return json.decodeFromString(raw)
     }
 
+    suspend fun createRestaurantTable(name: String, code: String): RestaurantTable {
+        val creds = requireVerifiedCredentials()
+        val payload = buildJsonObject {
+            put("name", name.trim())
+            put("code", code.trim().uppercase())
+        }
+        val raw = executeJsonRequest(
+            method = "POST",
+            url = "${creds.supabaseUrl}/rest/v1/restaurant_tables",
+            headers = buildHeaders(creds, "return=representation"),
+            bodyJson = json.encodeToString(JsonObject.serializer(), payload)
+        )
+        return json.decodeFromString<List<RestaurantTable>>(raw).firstOrNull()
+            ?: throw IllegalStateException("Meja tidak dikembalikan oleh database.")
+    }
+
+    suspend fun deleteRestaurantTable(tableId: String) {
+        val creds = requireVerifiedCredentials()
+        val encodedId = URLEncoder.encode(tableId, "UTF-8")
+        val raw = executeJsonRequest(
+            method = "DELETE",
+            url = "${creds.supabaseUrl}/rest/v1/restaurant_tables?id=eq.$encodedId",
+            headers = buildHeaders(creds, "return=representation")
+        )
+        val deleted = runCatching { json.decodeFromString<List<RestaurantTable>>(raw) }.getOrDefault(emptyList())
+        if (deleted.isEmpty()) {
+            throw IllegalStateException("Meja tidak terhapus. Periksa izin database atau pastikan meja belum dipakai transaksi.")
+        }
+    }
+
     fun buildValidTableQrUrl(tableCode: String): String {
         val creds = SupabaseConfigManager.loadCredentials(context)
         val baseUrl = creds.publicWebMenuBaseUrl.removeSuffix("/")

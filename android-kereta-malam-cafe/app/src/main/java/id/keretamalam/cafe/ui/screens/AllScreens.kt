@@ -23,6 +23,13 @@ import androidx.compose.material.icons.outlined.Inventory2
 import androidx.compose.material.icons.outlined.TableRestaurant
 import androidx.compose.material.icons.outlined.TrendingUp
 import androidx.compose.material.icons.outlined.AutoAwesome
+import androidx.compose.material.icons.outlined.FiberNew
+import androidx.compose.material.icons.outlined.PlayArrow
+import androidx.compose.material.icons.outlined.DoneAll
+import androidx.compose.material.icons.outlined.History
+import androidx.compose.material.icons.outlined.Refresh
+import androidx.compose.material.icons.outlined.Search
+import androidx.compose.material.icons.outlined.WarningAmber
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
@@ -1213,7 +1220,20 @@ private fun PesananComposeScreen(
         Row(Modifier.fillMaxWidth().horizontalScroll(rememberScrollState()), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
             lanes.forEach { (key, label) ->
                 val count = uiState.orders.count { inLane(it, key) }
-                FilterChip(selected = lane == key, onClick = { lane = key }, label = { Text("$label ($count)") })
+                val tint = when (key) {
+                    "baru" -> Color(0xFF6F91C5)
+                    "diproses" -> Color(0xFFC29A5D)
+                    "siap" -> Color(0xFF5F9E91)
+                    else -> Color(0xFF8B91A7)
+                }
+                val laneIcon = when (key) {
+                    "baru" -> Icons.Outlined.FiberNew
+                    "diproses" -> Icons.Outlined.PlayArrow
+                    "siap" -> Icons.Outlined.DoneAll
+                    else -> Icons.Outlined.History
+                }
+                FilterChip(selected = lane == key, onClick = { lane = key }, label = { Text("$label ($count)") },
+                    leadingIcon = { Icon(laneIcon, contentDescription = null, tint = tint) })
             }
         }
         Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp), verticalAlignment = Alignment.CenterVertically) {
@@ -1409,13 +1429,16 @@ private fun HistoryComposeScreen(viewModel: PosViewModel, uiState: PosUiState) {
                             selectedIds = if (checked) selectedIds + order.id else selectedIds - order.id
                         })
                         Column(modifier = Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(3.dp)) {
-                            Text("#${order.orderNo} · ${order.customerName ?: "Walk-in"} (${order.source.uppercase()})", fontWeight = FontWeight.Bold)
-                            Text("${order.createdAt} · ${order.restaurantTable?.name ?: "Takeaway"} · ${order.status.labelId}", style = MaterialTheme.typography.bodyMedium)
-                            Text(if (order.isPaid) "LUNAS" else "BELUM LUNAS", color = if (order.isPaid) Color(0xFF15803D) else MaterialTheme.colorScheme.error, style = MaterialTheme.typography.bodySmall)
+                            Text("#${order.orderNo} · ${order.customerName ?: "Walk-in"}", fontWeight = FontWeight.Bold)
+                            Text("Waktu: ${order.createdAt}", style = MaterialTheme.typography.bodySmall)
+                            Text("Sumber: ${if (order.source.equals("qr", true)) "QR Meja" else "POS Kasir"} · Meja: ${order.restaurantTable?.name ?: "Takeaway"}", style = MaterialTheme.typography.bodyMedium)
+                            Text("Metode: ${order.paymentMethod?.uppercase() ?: "Belum ditentukan"} · Status: ${order.status.labelId}", style = MaterialTheme.typography.bodyMedium)
+                            Text("Dibayar: ${if (order.isPaid) "LUNAS" else "BELUM LUNAS"}", color = if (order.isPaid) Color(0xFF15803D) else MaterialTheme.colorScheme.error, style = MaterialTheme.typography.bodySmall)
                         }
                         Column(horizontalAlignment = Alignment.End, verticalArrangement = Arrangement.spacedBy(5.dp)) {
+                            Text("Total", style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
                             Text(RupiahFormatter.format(order.total), fontWeight = FontWeight.Bold)
-                            OutlinedButton(onClick = { viewModel.openReceiptDialog(order) }) { Text("Struk") }
+                            OutlinedButton(onClick = { viewModel.openReceiptDialog(order) }) { Text("Detail") }
                         }
                     }
                 }
@@ -1514,53 +1537,113 @@ private fun ShiftKasirComposeScreen(viewModel: PosViewModel, uiState: PosUiState
 // ============================================================================
 @Composable
 private fun AuditShiftComposeScreen(viewModel: PosViewModel, uiState: PosUiState) {
-    LazyColumn(
-        modifier = Modifier.fillMaxSize(),
-        verticalArrangement = Arrangement.spacedBy(10.dp)
-    ) {
-        item {
-            Row(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
-                DashboardKpiCard(
-                    modifier = Modifier.weight(1f),
-                    title = "Total Shift",
-                    value = "${uiState.shifts.size}",
-                    subtitle = "Tercatat",
-                    onClick = {}
-                )
-                DashboardKpiCard(
-                    modifier = Modifier.weight(1f),
-                    title = "Terverifikasi Audit",
-                    value = "${uiState.shifts.count { it.auditVerified }}",
-                    subtitle = "Sesuai SOP",
-                    onClick = {}
-                )
+    var filter by remember { mutableStateOf("SEMUA") }
+    var search by remember { mutableStateOf("") }
+    var selectedShift by remember { mutableStateOf<StaffShift?>(null) }
+    val activeCount = uiState.shifts.count { it.status.equals("open", true) }
+    val needsReview = uiState.shifts.count { !it.auditVerified && it.status.equals("closed", true) }
+    val filtered = uiState.shifts.filter { shift ->
+        val queryMatch = search.isBlank() || shift.staffName.contains(search, true) || shift.id.contains(search, true) || shift.notes.orEmpty().contains(search, true)
+        val filterMatch = when (filter) {
+            "PERLU" -> !shift.auditVerified && shift.status.equals("closed", true)
+            "AKTIF" -> shift.status.equals("open", true)
+            else -> true
+        }
+        queryMatch && filterMatch
+    }
+    selectedShift?.let { shift ->
+        val variance = (shift.closingCash ?: 0.0) - (shift.expectedCash ?: 0.0)
+        val suspicious = shift.status.equals("closed", true) && kotlin.math.abs(variance) >= 1.0
+        AlertDialog(
+            onDismissRequest = { selectedShift = null },
+            title = { Text("Detail Audit Shift") },
+            text = {
+                Column(Modifier.fillMaxWidth().heightIn(max = 460.dp).verticalScroll(rememberScrollState()), verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                    Text("Kasir: ${shift.staffName}", fontWeight = FontWeight.Bold)
+                    Text("ID Shift: ${shift.id}", style = MaterialTheme.typography.bodySmall)
+                    Text("Status: ${shift.status.uppercase()}")
+                    Text("Opening: ${shift.openedAt}")
+                    Text("Modal awal: ${RupiahFormatter.format(shift.openingCash)}")
+                    Text("Closing: ${shift.closedAt ?: "Belum ditutup"}")
+                    Text("Ekspektasi kas: ${RupiahFormatter.format(shift.expectedCash ?: 0.0)}")
+                    Text("Kas fisik akhir: ${shift.closingCash?.let { RupiahFormatter.format(it) } ?: "Belum ada"}")
+                    Text("Selisih kas: ${RupiahFormatter.format(variance)}")
+                    if (!shift.notes.isNullOrBlank()) Text("Catatan: ${shift.notes}")
+                    if (shift.status.equals("open", true)) {
+                        Text("Shift masih aktif; audit final dilakukan setelah closing.", color = Color(0xFFC29A5D))
+                    } else if (suspicious) {
+                        Surface(color = MaterialTheme.colorScheme.errorContainer, shape = RoundedCornerShape(10.dp)) {
+                            Row(Modifier.padding(10.dp), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                                Icon(Icons.Outlined.WarningAmber, contentDescription = null, tint = MaterialTheme.colorScheme.error)
+                                Text("Perlu pemeriksaan: ditemukan selisih kas sebesar ${RupiahFormatter.format(variance)}. Cocokkan transaksi dan uang fisik sebelum verifikasi.", color = MaterialTheme.colorScheme.onErrorContainer)
+                            }
+                        }
+                    } else {
+                        Text("Tidak ditemukan selisih kas berdasarkan angka yang tersedia. Cocokkan bukti transaksi sebelum verifikasi.", color = Color(0xFF5F9E91))
+                    }
+                    Text(if (shift.auditVerified) "Status audit: TERVERIFIKASI" else "Status audit: MENUNGGU VERIFIKASI", fontWeight = FontWeight.Bold)
+                }
+            },
+            confirmButton = {
+                if (!shift.auditVerified && shift.status.equals("closed", true)) {
+                    TextButton(onClick = { viewModel.verifyShiftAudit(shift.id); selectedShift = null }) { Text("Verifikasi Audit") }
+                } else TextButton(onClick = { selectedShift = null }) { Text("Tutup") }
+            },
+            dismissButton = {
+                if (!shift.auditVerified && shift.status.equals("closed", true)) TextButton(onClick = { selectedShift = null }) { Text("Kembali") }
+            }
+        )
+    }
+    Column(Modifier.fillMaxSize(), verticalArrangement = Arrangement.spacedBy(10.dp)) {
+        Row(Modifier.fillMaxWidth().horizontalScroll(rememberScrollState()), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+            DashboardKpiCard(Modifier.widthIn(min = 140.dp).weight(1f), "Semua Shift", "${uiState.shifts.size}", "Tercatat", onClick = { filter = "SEMUA" })
+            DashboardKpiCard(Modifier.widthIn(min = 140.dp).weight(1f), "Perlu Diperiksa", "$needsReview", "Belum diverifikasi", onClick = { filter = "PERLU" })
+            DashboardKpiCard(Modifier.widthIn(min = 140.dp).weight(1f), "Shift Aktif", "$activeCount", "Sedang berjalan", onClick = { filter = "AKTIF" })
+        }
+        Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp), verticalAlignment = Alignment.CenterVertically) {
+            OutlinedTextField(value = search, onValueChange = { search = it }, label = { Text("Cari nama kasir / ID / catatan") },
+                leadingIcon = { Icon(Icons.Outlined.Search, contentDescription = null) }, modifier = Modifier.weight(1f), singleLine = true)
+            OutlinedButton(onClick = { viewModel.syncAllDataFromBackend() }, enabled = !uiState.isLoading) {
+                Icon(Icons.Outlined.Refresh, contentDescription = null)
+                Spacer(Modifier.width(4.dp))
+                Text(if (uiState.isLoading) "Memuat" else "Refresh")
             }
         }
-        items(uiState.shifts, key = { it.id }) { shift ->
-            val variance = (shift.closingCash ?: 0.0) - (shift.expectedCash ?: 0.0)
-            OutlinedCard(modifier = Modifier.fillMaxWidth()) {
-                Row(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .padding(14.dp),
-                    horizontalArrangement = Arrangement.SpaceBetween,
-                    verticalAlignment = Alignment.CenterVertically
-                ) {
-                    Column(modifier = Modifier.weight(1f)) {
-                        Text("${shift.staffName} (${shift.status.uppercase()})", fontWeight = FontWeight.Bold)
-                        Text("Modal Awal: ${RupiahFormatter.format(shift.openingCash)} · Ekspektasi: ${RupiahFormatter.format(shift.expectedCash ?: 0.0)}")
-                        if (shift.closingCash != null) {
-                            Text("Kas Akhir: ${RupiahFormatter.format(shift.closingCash)} · Selisih: ${RupiahFormatter.format(variance)}")
-                        }
-                        if (!shift.notes.isNullOrBlank()) {
-                            Text("Catatan: ${shift.notes}", style = MaterialTheme.typography.labelMedium)
-                        }
-                    }
-                    if (shift.auditVerified) {
-                        Text("Terverifikasi", fontWeight = FontWeight.Bold)
-                    } else {
-                        Button(onClick = { viewModel.verifyShiftAudit(shift.id) }) {
-                            Text("Verifikasi Audit")
+        Row(Modifier.fillMaxWidth().horizontalScroll(rememberScrollState()), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+            listOf("SEMUA" to "Semua Shift", "PERLU" to "Perlu Diperiksa", "AKTIF" to "Shift Aktif").forEach { (key, label) ->
+                FilterChip(selected = filter == key, onClick = { filter = key }, label = { Text(label) })
+            }
+        }
+        Text("Riwayat Opening & Closing", style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold)
+        if (filtered.isEmpty()) {
+            Box(Modifier.weight(1f).fillMaxWidth(), contentAlignment = Alignment.Center) { Text("Tidak ada shift yang cocok dengan filter.") }
+        } else {
+            LazyColumn(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                items(filtered, key = { it.id }) { shift ->
+                    val variance = (shift.closingCash ?: 0.0) - (shift.expectedCash ?: 0.0)
+                    val suspicious = shift.status.equals("closed", true) && kotlin.math.abs(variance) >= 1.0
+                    OutlinedCard(Modifier.fillMaxWidth(), onClick = { selectedShift = shift }) {
+                        Column(Modifier.fillMaxWidth().padding(14.dp), verticalArrangement = Arrangement.spacedBy(6.dp)) {
+                            Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween, verticalAlignment = Alignment.CenterVertically) {
+                                Column(Modifier.weight(1f)) {
+                                    Text(shift.staffName, fontWeight = FontWeight.Bold)
+                                    Text("${shift.status.uppercase()} · Opening ${shift.openedAt}", style = MaterialTheme.typography.bodySmall)
+                                    Text("Closing: ${shift.closedAt ?: "Belum ditutup"}", style = MaterialTheme.typography.bodySmall)
+                                }
+                                if (shift.auditVerified) Text("Terverifikasi", color = Color(0xFF5F9E91), fontWeight = FontWeight.Bold)
+                                else if (shift.status.equals("closed", true)) Text("Perlu diperiksa", color = if (suspicious) MaterialTheme.colorScheme.error else Color(0xFFC29A5D), fontWeight = FontWeight.Bold)
+                                else Text("Aktif", color = Color(0xFF6F91C5), fontWeight = FontWeight.Bold)
+                            }
+                            Text("Modal awal: ${RupiahFormatter.format(shift.openingCash)} · Kas akhir: ${shift.closingCash?.let { RupiahFormatter.format(it) } ?: "-"}")
+                            if (shift.status.equals("closed", true)) {
+                                Text("Ekspektasi: ${RupiahFormatter.format(shift.expectedCash ?: 0.0)} · Selisih: ${RupiahFormatter.format(variance)}")
+                                if (suspicious) Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(5.dp)) {
+                                    Icon(Icons.Outlined.WarningAmber, contentDescription = null, tint = MaterialTheme.colorScheme.error)
+                                    Text("Ada selisih kas — periksa sebelum verifikasi", color = MaterialTheme.colorScheme.error, style = MaterialTheme.typography.bodySmall)
+                                }
+                            }
+                            if (!shift.notes.isNullOrBlank()) Text("Catatan: ${shift.notes}", style = MaterialTheme.typography.bodySmall)
+                            Text("Ketuk untuk detail audit", color = MaterialTheme.colorScheme.primary, style = MaterialTheme.typography.labelMedium)
                         }
                     }
                 }

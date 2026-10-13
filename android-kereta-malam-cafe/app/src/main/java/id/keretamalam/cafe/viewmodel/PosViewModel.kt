@@ -387,7 +387,7 @@ class PosViewModel(application: Application) : AndroidViewModel(application) {
         }
         if (state.backendStatus == BackendIntegrationStatus.ACTIVE_VERIFIED) {
             val nextPermissions = target.permissions.toMutableMap().apply {
-                put(permKey, !(target.permissions[permKey] == true))
+                put(permKey, !(target.permissions[permKey] ?: (StaffPermissionCatalog.defaultsFor(target.role)[permKey] == true)))
             }
             val updated = target.copy(permissions = nextPermissions)
             viewModelScope.launch {

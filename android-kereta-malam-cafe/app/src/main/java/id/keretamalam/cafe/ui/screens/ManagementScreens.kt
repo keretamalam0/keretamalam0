@@ -878,6 +878,13 @@ fun PengaturanOutletComposeScreen(viewModel: PosViewModel, uiState: PosUiState) 
     var outletName by remember(uiState.outletSettings.name) { mutableStateOf(uiState.outletSettings.name) }
     var outletAddress by remember(uiState.outletSettings.address) { mutableStateOf(uiState.outletSettings.address) }
     var outletPhone by remember(uiState.outletSettings.phone) { mutableStateOf(uiState.outletSettings.phone) }
+    var taxRateInput by remember(uiState.outletSettings.taxRate) { mutableStateOf(uiState.outletSettings.taxRate.toString()) }
+    var serviceRateInput by remember(uiState.outletSettings.serviceRate) { mutableStateOf(uiState.outletSettings.serviceRate.toString()) }
+    var serviceFixedInput by remember(uiState.outletSettings.serviceFixedAmount) { mutableStateOf(uiState.outletSettings.serviceFixedAmount.toLong().toString()) }
+    var serviceFeeMode by remember(uiState.outletSettings.serviceFeeMode) { mutableStateOf(uiState.outletSettings.serviceFeeMode) }
+    var feeValidationError by remember { mutableStateOf<String?>(null) }
+    var showPaymentForm by remember { mutableStateOf(false) }
+    var editingPaymentId by remember { mutableStateOf<String?>(null) }
     var paymentName by remember { mutableStateOf("") }
     var paymentType by remember { mutableStateOf("qris") }
     var paymentProvider by remember { mutableStateOf("") }
@@ -949,39 +956,81 @@ fun PengaturanOutletComposeScreen(viewModel: PosViewModel, uiState: PosUiState) 
             }
         }
 
-        // Pajak & Layanan
+        // Pajak & Biaya Layanan
         OutlinedCard(modifier = Modifier.fillMaxWidth()) {
-            Column(modifier = Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
+            Column(modifier = Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(10.dp)) {
                 Text("3. Parameter Pajak & Biaya Layanan Outlet", style = MaterialTheme.typography.titleMedium)
-                Row(
+                Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween, verticalAlignment = Alignment.CenterVertically) {
+                    Column(modifier = Modifier.weight(1f)) {
+                        Text("Pajak transaksi", fontWeight = FontWeight.SemiBold)
+                        Text("Aktifkan atau nonaktifkan pajak untuk transaksi outlet.")
+                    }
+                    Switch(checked = uiState.outletSettings.taxEnabled, onCheckedChange = {
+                        viewModel.updateOutletSettings(uiState.outletSettings.copy(taxEnabled = it))
+                    })
+                }
+                OutlinedTextField(
+                    value = taxRateInput,
+                    onValueChange = { taxRateInput = it.filter { ch -> ch.isDigit() || ch == '.' || ch == ',' }; feeValidationError = null },
+                    label = { Text("Persentase pajak (%)") },
                     modifier = Modifier.fillMaxWidth(),
-                    horizontalArrangement = Arrangement.SpaceBetween,
-                    verticalAlignment = Alignment.CenterVertically
-                ) {
-                    Text("Aktifkan Pajak PB1 (${uiState.outletSettings.taxRate.toInt()}%)")
-                    Switch(
-                        checked = uiState.outletSettings.taxEnabled,
-                        onCheckedChange = {
-                            viewModel.updateOutletSettings(uiState.outletSettings.copy(taxEnabled = it))
-                        }
+                    singleLine = true
+                )
+                HorizontalDivider()
+                Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween, verticalAlignment = Alignment.CenterVertically) {
+                    Column(modifier = Modifier.weight(1f)) {
+                        Text("Biaya layanan / Service charge", fontWeight = FontWeight.SemiBold)
+                        Text("Pilih persentase atau nominal tetap per transaksi.")
+                    }
+                    Switch(checked = uiState.outletSettings.serviceEnabled, onCheckedChange = {
+                        viewModel.updateOutletSettings(uiState.outletSettings.copy(serviceEnabled = it))
+                    })
+                }
+                Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                    FilterChip(selected = serviceFeeMode == "percentage", onClick = { serviceFeeMode = "percentage" }, label = { Text("Persentase (%)") })
+                    FilterChip(selected = serviceFeeMode == "fixed", onClick = { serviceFeeMode = "fixed" }, label = { Text("Nominal tetap (Rp)") })
+                }
+                if (serviceFeeMode == "percentage") {
+                    OutlinedTextField(
+                        value = serviceRateInput,
+                        onValueChange = { serviceRateInput = it.filter { ch -> ch.isDigit() || ch == '.' || ch == ',' }; feeValidationError = null },
+                        label = { Text("Service charge (%)") },
+                        modifier = Modifier.fillMaxWidth(),
+                        singleLine = true
+                    )
+                } else {
+                    OutlinedTextField(
+                        value = serviceFixedInput,
+                        onValueChange = { serviceFixedInput = it.filter { ch -> ch.isDigit() }; feeValidationError = null },
+                        label = { Text("Nominal service per transaksi (Rp)") },
+                        modifier = Modifier.fillMaxWidth(),
+                        singleLine = true
                     )
                 }
-                Row(
-                    modifier = Modifier.fillMaxWidth(),
-                    horizontalArrangement = Arrangement.SpaceBetween,
-                    verticalAlignment = Alignment.CenterVertically
-                ) {
-                    Text("Aktifkan Service Charge (${uiState.outletSettings.serviceRate.toInt()}%)")
-                    Switch(
-                        checked = uiState.outletSettings.serviceEnabled,
-                        onCheckedChange = {
-                            viewModel.updateOutletSettings(uiState.outletSettings.copy(serviceEnabled = it))
-                        }
-                    )
+                if (feeValidationError != null) {
+                    Text(feeValidationError!!, color = MaterialTheme.colorScheme.error, style = MaterialTheme.typography.bodySmall)
+                }
+                Button(onClick = {
+                    val tax = taxRateInput.replace(',', '.').toDoubleOrNull()
+                    val serviceRate = serviceRateInput.replace(',', '.').toDoubleOrNull()
+                    val serviceFixed = serviceFixedInput.toDoubleOrNull()
+                    if (tax == null || tax < 0 || tax > 100 || serviceRate == null || serviceRate < 0 || serviceRate > 100 || serviceFixed == null || serviceFixed < 0) {
+                        feeValidationError = "Nilai pajak/service harus valid. Persentase maksimal 100% dan nominal tidak boleh negatif."
+                    } else {
+                        feeValidationError = null
+                        viewModel.updateOutletSettings(uiState.outletSettings.copy(
+                            taxRate = tax,
+                            serviceRate = serviceRate,
+                            serviceFeeMode = serviceFeeMode,
+                            serviceFixedAmount = serviceFixed
+                        ))
+                    }
+                }, modifier = Modifier.fillMaxWidth()) {
+                    Text("Simpan Pajak & Biaya Layanan")
                 }
             }
         }
-        
+
         OutlinedCard(modifier = Modifier.fillMaxWidth()) {
             Column(modifier = Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(10.dp)) {
                 Text("4. Bahasa Aplikasi", style = MaterialTheme.typography.titleMedium)
@@ -997,51 +1046,105 @@ fun PengaturanOutletComposeScreen(viewModel: PosViewModel, uiState: PosUiState) 
         }
 
         OutlinedCard(modifier = Modifier.fillMaxWidth()) {
-            Column(modifier = Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
+            Column(modifier = Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(10.dp)) {
                 Text("5. Metode Pembayaran", style = MaterialTheme.typography.titleMedium)
-                Text("Metode aktif dapat digunakan oleh kasir dan ditampilkan untuk pembayaran QR sesuai dukungan menu online.")
+                Text("Tambah, edit, atau hapus metode pembayaran yang digunakan outlet.")
+                if (uiState.paymentMethods.isEmpty()) {
+                    Text("Belum ada metode pembayaran yang ditambahkan.", style = MaterialTheme.typography.bodyMedium)
+                }
                 uiState.paymentMethods.forEach { method ->
-                    Row(modifier = Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.SpaceBetween) {
+                    Row(modifier = Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                         Column(modifier = Modifier.weight(1f)) {
-                            Text(method.name.ifBlank { method.provider }, fontWeight = FontWeight.SemiBold)
+                            Text(method.name.ifBlank { method.provider.ifBlank { method.type.uppercase() } }, fontWeight = FontWeight.SemiBold)
                             Text(listOf(method.type.uppercase(), method.provider, method.accountNumber).filter { it.isNotBlank() }.joinToString(" · "), style = MaterialTheme.typography.bodySmall)
                             if (!method.instructions.isNullOrBlank()) Text(method.instructions, style = MaterialTheme.typography.bodySmall)
                             if (!method.imageUrl.isNullOrBlank()) AsyncImage(model = method.imageUrl, contentDescription = "QR pembayaran", modifier = Modifier.size(88.dp))
+                            Text(if (method.isActive) "Aktif" else "Nonaktif", style = MaterialTheme.typography.labelSmall)
                         }
                         Column(horizontalAlignment = Alignment.End) {
-                            Text(if (method.isActive) "Aktif" else "Nonaktif", style = MaterialTheme.typography.labelSmall)
+                            TextButton(onClick = {
+                                editingPaymentId = method.id
+                                paymentName = method.name
+                                paymentType = method.type
+                                paymentProvider = method.provider
+                                paymentAccountName = method.accountName
+                                paymentAccountNumber = method.accountNumber
+                                paymentInstructions = method.instructions
+                                paymentImageUrl = method.imageUrl
+                                showPaymentForm = true
+                            }) { Text("Edit") }
                             TextButton(onClick = { viewModel.deletePaymentMethod(method.id) }) { Text("Hapus") }
                         }
                     }
                     HorizontalDivider()
                 }
-                Text("Tambah metode pembayaran", fontWeight = FontWeight.SemiBold)
-                Row(modifier = Modifier.fillMaxWidth().horizontalScroll(rememberScrollState()), horizontalArrangement = Arrangement.spacedBy(6.dp)) {
-                    listOf("cash" to "Tunai", "bank" to "Bank", "bank_transfer" to "Transfer", "ewallet" to "E-Wallet", "qris" to "QRIS", "card" to "Kartu", "other" to "Lainnya").forEach { (code, label) ->
-                        FilterChip(selected = paymentType == code, onClick = { paymentType = code }, label = { Text(label) })
+                if (!showPaymentForm) {
+                    Button(onClick = {
+                        editingPaymentId = null
+                        paymentName = ""
+                        paymentType = "qris"
+                        paymentProvider = ""
+                        paymentAccountName = ""
+                        paymentAccountNumber = ""
+                        paymentInstructions = ""
+                        paymentImageUrl = null
+                        showPaymentForm = true
+                    }, modifier = Modifier.fillMaxWidth()) {
+                        Text("Tambah Metode Pembayaran")
+                    }
+                } else {
+                    Text(if (editingPaymentId == null) "Tambah metode pembayaran baru" else "Edit metode pembayaran", style = MaterialTheme.typography.titleSmall, fontWeight = FontWeight.SemiBold)
+                    Row(modifier = Modifier.fillMaxWidth().horizontalScroll(rememberScrollState()), horizontalArrangement = Arrangement.spacedBy(6.dp)) {
+                        listOf("cash" to "Cash / Tunai", "ewallet" to "E-Wallet", "qris" to "QRIS", "bank_transfer" to "Transfer Bank", "other" to "Lainnya").forEach { (code, label) ->
+                            FilterChip(selected = paymentType == code, onClick = { paymentType = code }, label = { Text(label) })
+                        }
+                    }
+                    OutlinedTextField(value = paymentName, onValueChange = { paymentName = it }, label = { Text("Nama metode pembayaran") }, modifier = Modifier.fillMaxWidth(), singleLine = true)
+                    OutlinedTextField(value = paymentProvider, onValueChange = { paymentProvider = it }, label = { Text("Provider / nama bank (mis. BCA, GoPay)") }, modifier = Modifier.fillMaxWidth(), singleLine = true)
+                    OutlinedTextField(value = paymentAccountName, onValueChange = { paymentAccountName = it }, label = { Text("Nama pemilik rekening (opsional)") }, modifier = Modifier.fillMaxWidth(), singleLine = true)
+                    OutlinedTextField(value = paymentAccountNumber, onValueChange = { paymentAccountNumber = it }, label = { Text("Nomor rekening / nomor e-wallet (opsional)") }, modifier = Modifier.fillMaxWidth(), singleLine = true)
+                    OutlinedTextField(value = paymentInstructions, onValueChange = { paymentInstructions = it }, label = { Text("Instruksi pembayaran") }, modifier = Modifier.fillMaxWidth(), minLines = 2)
+                    Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                        OutlinedButton(onClick = { paymentImagePicker.launch("image/*") }, enabled = !paymentImageUploading) {
+                            Text(if (paymentImageUploading) "Mengunggah gambar..." else "Pilih foto / QRIS")
+                        }
+                        if (!paymentImageUrl.isNullOrBlank()) AsyncImage(model = paymentImageUrl, contentDescription = "QRIS", modifier = Modifier.size(76.dp))
+                    }
+                    Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                        OutlinedButton(onClick = { showPaymentForm = false; editingPaymentId = null }, modifier = Modifier.weight(1f)) {
+                            Text("Batal")
+                        }
+                        Button(
+                            onClick = {
+                                if (paymentName.isBlank()) return@Button
+                                val existingMethod = uiState.paymentMethods.firstOrNull { it.id == editingPaymentId }
+                                viewModel.savePaymentMethod(PaymentMethod(
+                                    id = editingPaymentId ?: "",
+                                    code = existingMethod?.code ?: "",
+                                    name = paymentName.trim(),
+                                    type = paymentType,
+                                    provider = paymentProvider.trim(),
+                                    accountName = paymentAccountName.trim(),
+                                    accountNumber = paymentAccountNumber.trim(),
+                                    instructions = paymentInstructions.trim(),
+                                    imageUrl = paymentImageUrl,
+                                    isActive = existingMethod?.isActive ?: true,
+                                    sortOrder = existingMethod?.sortOrder ?: uiState.paymentMethods.size
+                                ))
+                                paymentName = ""
+                                paymentProvider = ""
+                                paymentAccountName = ""
+                                paymentAccountNumber = ""
+                                paymentInstructions = ""
+                                paymentImageUrl = null
+                                editingPaymentId = null
+                                showPaymentForm = false
+                            },
+                            enabled = paymentName.isNotBlank() && !paymentImageUploading,
+                            modifier = Modifier.weight(1f)
+                        ) { Text("Simpan Metode") }
                     }
                 }
-                OutlinedTextField(value = paymentName, onValueChange = { paymentName = it }, label = { Text("Nama metode (mis. QRIS Kereta Malam)") }, modifier = Modifier.fillMaxWidth(), singleLine = true)
-                OutlinedTextField(value = paymentProvider, onValueChange = { paymentProvider = it }, label = { Text("Bank / penyedia (mis. BCA, GoPay)") }, modifier = Modifier.fillMaxWidth(), singleLine = true)
-                OutlinedTextField(value = paymentAccountName, onValueChange = { paymentAccountName = it }, label = { Text("Nama pemilik rekening (opsional)") }, modifier = Modifier.fillMaxWidth(), singleLine = true)
-                OutlinedTextField(value = paymentAccountNumber, onValueChange = { paymentAccountNumber = it }, label = { Text("Nomor rekening / nomor tujuan") }, modifier = Modifier.fillMaxWidth(), singleLine = true)
-                OutlinedTextField(value = paymentInstructions, onValueChange = { paymentInstructions = it }, label = { Text("Instruksi pembayaran") }, modifier = Modifier.fillMaxWidth(), minLines = 2)
-                Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                    OutlinedButton(onClick = { paymentImagePicker.launch("image/*") }, enabled = !paymentImageUploading) {
-                        Text(if (paymentImageUploading) "Mengunggah gambar..." else "Pilih foto / QRIS")
-                    }
-                    if (!paymentImageUrl.isNullOrBlank()) AsyncImage(model = paymentImageUrl, contentDescription = "QRIS", modifier = Modifier.size(76.dp))
-                }
-                Button(onClick = {
-                    if (paymentName.isBlank()) return@Button
-                    viewModel.savePaymentMethod(PaymentMethod(
-                        name = paymentName.trim(), type = paymentType, provider = paymentProvider.trim(),
-                        accountName = paymentAccountName.trim(), accountNumber = paymentAccountNumber.trim(),
-                        instructions = paymentInstructions.trim(), imageUrl = paymentImageUrl, isActive = true,
-                        sortOrder = uiState.paymentMethods.size
-                    ))
-                    paymentName = ""; paymentProvider = ""; paymentAccountName = ""; paymentAccountNumber = ""; paymentInstructions = ""; paymentImageUrl = null
-                }, enabled = paymentName.isNotBlank() && !paymentImageUploading) { Text("Simpan Metode Pembayaran") }
             }
         }
     }

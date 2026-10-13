@@ -314,7 +314,7 @@ class PosViewModel(application: Application) : AndroidViewModel(application) {
 
     fun addStaffProfile(fullName: String, email: String, role: StaffRole) {
         if (_uiState.value.backendStatus == BackendIntegrationStatus.ACTIVE_VERIFIED) {
-            showNotice("Penambahan staf live belum tersambung ke endpoint undangan Supabase. Tidak ada staf yang dibuat.", isError = true)
+            showNotice("Fitur undangan staf belum siap di layanan. Staf belum dibuat; hubungi administrator untuk mengaktifkan undangan.", isError = true)
             return
         }
         if (fullName.isBlank() || email.isBlank()) {
@@ -1324,7 +1324,7 @@ class PosViewModel(application: Application) : AndroidViewModel(application) {
 
     fun updateOutletSettings(settings: OutletSettings) {
         if (_uiState.value.backendStatus == BackendIntegrationStatus.ACTIVE_VERIFIED) {
-            showNotice("Penyimpanan pengaturan outlet live belum tersambung ke Supabase. Pengaturan tidak diubah.", isError = true)
+            showNotice("Pengaturan outlet belum dapat disimpan. Periksa koneksi akun, lalu coba lagi.", isError = true)
             return
         }
         _uiState.update {

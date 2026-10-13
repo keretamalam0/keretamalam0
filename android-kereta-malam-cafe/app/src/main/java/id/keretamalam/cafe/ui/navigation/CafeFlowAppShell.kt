@@ -303,9 +303,8 @@ fun CafeFlowAppShell(
                     )
                 },
                 bottomBar = {
-                    // Navigasi Bawah khusus layar HP untuk akses cepat 1 tangan
-                    {
-                        NavigationBar(
+                    // Navigasi bawah tetap tampil dalam mode portrait maupun landscape
+                    NavigationBar(
                             containerColor = if (uiState.darkTheme) androidx.compose.ui.graphics.Color(0xFF080A0D) else androidx.compose.ui.graphics.Color(0xFFFFFFFF),
                             contentColor = if (uiState.darkTheme) androidx.compose.ui.graphics.Color(0xFFF5F7FA) else androidx.compose.ui.graphics.Color(0xFF334155)
                         ) {

@@ -2170,6 +2170,10 @@ export default function App() {
                   onClick={() => {
                     const trimmed = newCategoryName.trim();
                     if (!trimmed) return;
+                    if (backendMode === 'LIVE_SUPABASE') {
+                      showNotice('error', 'Tambah kategori belum terhubung ke penyimpanan Supabase. Tidak ada perubahan disimpan.');
+                      return;
+                    }
                     setCategories((prev) => [
                       ...prev,
                       { id: `cat-${Date.now()}`, name: trimmed, sort_order: prev.length + 1 },
@@ -2319,6 +2323,10 @@ export default function App() {
                     type="button"
                     onClick={() => {
                       if (!newTableName.trim() || !newTableCode.trim()) return;
+                      if (backendMode === 'LIVE_SUPABASE') {
+                        showNotice('error', 'Tambah meja belum terhubung ke penyimpanan Supabase. Tidak ada perubahan disimpan.');
+                        return;
+                      }
                       const created: RestaurantTable = {
                         id: `tbl-${Date.now()}`,
                         name: newTableName.trim(),
@@ -2444,6 +2452,10 @@ export default function App() {
                     showNotice('error', 'Alasan mutasi stok wajib diisi.');
                     return;
                   }
+                  if (backendMode === 'LIVE_SUPABASE') {
+                    showNotice('error', 'Mutasi stok LIVE belum aman: harus lewat RPC server yang memvalidasi outlet dan stok. Tidak ada perubahan disimpan.');
+                    return;
+                  }
                   const signedDelta = invType === 'out' ? -Math.abs(qtyNum) : qtyNum;
                   setProducts((prev) =>
                     prev.map((p) =>
@@ -2563,6 +2575,10 @@ export default function App() {
                 onSubmit={(e) => {
                   e.preventDefault();
                   if (!promoName.trim()) return;
+                  if (backendMode === 'LIVE_SUPABASE') {
+                    showNotice('error', 'Pembuatan promosi belum terhubung ke penyimpanan Supabase. Tidak ada perubahan disimpan.');
+                    return;
+                  }
                   const created: Promotion = {
                     id: `promo-${Date.now()}`,
                     name: promoName.trim(),

@@ -356,12 +356,12 @@ private fun DashboardComposeScreen(
             }
         }
         item {
-            val metrics = listOf(
-                Triple("Total Penjualan", RupiahFormatter.format(revenue), "Omzet pesanan lunas") to PosModuleRoute.LAPORAN,
-                Triple("Pesanan Lunas", paid.size.toString(), "Transaksi berhasil") to PosModuleRoute.PESANAN,
-                Triple("Rata-rata Pesanan", RupiahFormatter.format(average), "Per transaksi lunas") to PosModuleRoute.LAPORAN,
-                Triple("Jam Tersibuk", peak?.let { "%02d.00–%02d.00".format(it, (it + 1) % 24) } ?: "—", if (peak == null) "Belum ada pesanan" else hours[peak].toInt().toString() + " pesanan") to PosModuleRoute.LAPORAN
-            )
+            val metrics = buildList {
+                if (uiState.staffProfile.canAccessDashboardMetric("dashboard.total_sales")) add(Triple("Total Penjualan", RupiahFormatter.format(revenue), "Omzet pesanan lunas") to PosModuleRoute.LAPORAN)
+                if (uiState.staffProfile.canAccessDashboardMetric("dashboard.paid_orders")) add(Triple("Pesanan Lunas", paid.size.toString(), "Transaksi berhasil") to PosModuleRoute.PESANAN)
+                if (uiState.staffProfile.canAccessDashboardMetric("dashboard.average_transaction")) add(Triple("Rata-rata Pesanan", RupiahFormatter.format(average), "Per transaksi lunas") to PosModuleRoute.LAPORAN)
+                if (uiState.staffProfile.canAccessDashboardMetric("dashboard.peak_hour")) add(Triple("Jam Tersibuk", peak?.let { "%02d.00–%02d.00".format(it, (it + 1) % 24) } ?: "—", if (peak == null) "Belum ada pesanan" else hours[peak].toInt().toString() + " pesanan") to PosModuleRoute.LAPORAN)
+            }
             Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
                 metrics.chunked(if (isTabletOrWide) 4 else 2).forEach { row ->
                     Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
@@ -392,7 +392,7 @@ private fun DashboardComposeScreen(
                 }
             }
         }
-        item {
+        if (uiState.staffProfile.canAccessDashboardMetric("dashboard.trend_chart")) item {
             OutlinedCard(Modifier.fillMaxWidth()) {
                 Column(Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
                     Text("Tren Omzet", style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold)
@@ -402,7 +402,7 @@ private fun DashboardComposeScreen(
                 }
             }
         }
-        item {
+        if (uiState.staffProfile.canAccessDashboardMetric("dashboard.hourly_activity")) item {
             OutlinedCard(Modifier.fillMaxWidth()) {
                 Column(Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
                     Text("Aktivitas per Jam", style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold)
@@ -411,7 +411,7 @@ private fun DashboardComposeScreen(
                 }
             }
         }
-        item {
+        if (uiState.staffProfile.canAccessDashboardMetric("dashboard.best_sellers")) item {
             OutlinedCard(Modifier.fillMaxWidth()) {
                 Column(Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(10.dp)) {
                     Text("Menu Terlaris", style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold)

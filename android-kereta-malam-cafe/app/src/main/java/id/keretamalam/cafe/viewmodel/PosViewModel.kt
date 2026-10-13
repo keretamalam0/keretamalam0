@@ -43,6 +43,7 @@ data class PosUiState(
     val inventoryMovements: List<InventoryMovement> = SandboxSeedData.initialInventoryMovements,
     val auditLogs: List<AuditLog> = SandboxSeedData.initialAuditLogs,
     val outletSettings: OutletSettings = OutletSettings(),
+    val paymentMethods: List<PaymentMethod> = emptyList(),
     val aiReplyText: String? = null,
     // Kasir & Keranjang State
     val selectedCategoryId: String = "ALL",
@@ -313,10 +314,6 @@ class PosViewModel(application: Application) : AndroidViewModel(application) {
     }
 
     fun addStaffProfile(fullName: String, email: String, role: StaffRole) {
-        if (_uiState.value.backendStatus == BackendIntegrationStatus.ACTIVE_VERIFIED) {
-            showNotice("Fitur undangan staf belum siap di layanan. Staf belum dibuat; hubungi administrator untuk mengaktifkan undangan.", isError = true)
-            return
-        }
         if (fullName.isBlank() || email.isBlank()) {
             showNotice("Nama lengkap dan email pegawai wajib diisi.", isError = true)
             return
@@ -324,33 +321,52 @@ class PosViewModel(application: Application) : AndroidViewModel(application) {
         val defaultPerms = when (role) {
             StaffRole.SUPER_ADMIN, StaffRole.OWNER -> PermissionKey.entries.associate { it.key to true }
             StaffRole.MANAGER -> PermissionKey.entries.associate { it.key to (it != PermissionKey.SETTINGS) }
-            StaffRole.CASHIER -> mapOf(
-                "dashboard" to true,
-                "orders" to true,
-                "payments" to true,
-                "tables" to true,
-                "customers" to true,
-                "products" to false,
-                "inventory" to false,
-                "reports" to false,
-                "promotions" to false,
-                "settings" to false
-            )
+            StaffRole.CASHIER -> mapOf("dashboard" to true, "orders" to true, "payments" to true, "tables" to true, "customers" to true, "products" to false, "inventory" to false, "reports" to false, "promotions" to false, "settings" to false)
         }
-        val created = StaffProfile(
-            userId = "usr-${System.currentTimeMillis()}",
-            ownerId = "usr-owner-01",
-            fullName = fullName.trim(),
-            email = email.trim(),
-            role = role,
-            isActive = true,
-            permissions = defaultPerms
-        )
-        _uiState.update {
-            it.copy(
-                staffList = it.staffList + created,
-                successMessage = "Pegawai ${created.fullName} (${role.labelId}) berhasil ditambahkan."
-            )
+        if (_uiState.value.backendStatus == BackendIntegrationStatus.ACTIVE_VERIFIED) {
+            viewModelScope.launch {
+                _uiState.update { it.copy(isLoading = true, errorMessage = null, successMessage = null) }
+                runCatching { repository.inviteStaff(fullName, email, if (role == StaffRole.MANAGER) "manager" else "cashier", defaultPerms) }
+                    .onSuccess {
+                        _uiState.update { it.copy(isLoading = false, successMessage = "Undangan staf dikirim ke $email. Minta staf membuka email untuk mengaktifkan akun.") }
+                        syncAllDataFromBackend()
+                    }
+                    .onFailure {
+                        _uiState.update { it.copy(isLoading = false, errorMessage = "Undangan staf gagal dikirim. Pastikan akun Anda owner dan email belum terdaftar.") }
+                    }
+            }
+            return
+        }
+        val created = StaffProfile(userId = "usr-${System.currentTimeMillis()}", ownerId = "usr-owner-01", fullName = fullName.trim(), email = email.trim(), role = role, isActive = true, permissions = defaultPerms)
+        _uiState.update { it.copy(staffList = it.staffList + created, successMessage = "Pegawai ${created.fullName} berhasil ditambahkan dalam mode simulasi.") }
+    }
+
+    fun savePaymentMethod(method: PaymentMethod) {
+        if (_uiState.value.backendStatus != BackendIntegrationStatus.ACTIVE_VERIFIED) {
+            showNotice("Metode pembayaran hanya bisa disimpan saat layanan aktif.", isError = true)
+            return
+        }
+        viewModelScope.launch {
+            _uiState.update { it.copy(isLoading = true, errorMessage = null) }
+            runCatching { repository.savePaymentMethod(method) }
+                .onSuccess { saved -> _uiState.update { state -> state.copy(isLoading = false, paymentMethods = (state.paymentMethods.filterNot { it.id == saved.id } + saved).sortedBy { it.sortOrder }, successMessage = "Metode pembayaran berhasil disimpan.") } }
+                .onFailure { _uiState.update { it.copy(isLoading = false, errorMessage = "Metode pembayaran gagal disimpan. Periksa koneksi dan akses akun.") } }
+        }
+    }
+
+    fun deletePaymentMethod(id: String) {
+        viewModelScope.launch {
+            runCatching { repository.deletePaymentMethod(id) }
+                .onSuccess { _uiState.update { s -> s.copy(paymentMethods = s.paymentMethods.filterNot { it.id == id }, successMessage = "Metode pembayaran dihapus.") } }
+                .onFailure { _uiState.update { it.copy(errorMessage = "Metode pembayaran gagal dihapus.") } }
+        }
+    }
+
+    fun uploadPaymentPhoto(bytes: ByteArray, mime: String, ext: String, onDone: (String?) -> Unit) {
+        viewModelScope.launch {
+            runCatching { repository.uploadPaymentMethodImage(bytes, mime, ext) }
+                .onSuccess { onDone(it) }
+                .onFailure { _uiState.update { it.copy(errorMessage = "Gambar QR gagal diunggah. Gunakan JPG, PNG, atau WebP maksimal 8 MB.") }; onDone(null) }
         }
     }
 
@@ -494,6 +510,7 @@ class PosViewModel(application: Application) : AndroidViewModel(application) {
                 val promotions = repository.fetchPromotions()
                 val orders = repository.fetchOrders()
                 val settings = repository.fetchOutletSettings()
+                val paymentMethods = repository.fetchPaymentMethods()
                 val shifts = repository.fetchStaffShifts()
                 val expenses = repository.fetchExpenses()
                 val logs = repository.fetchAuditLogs()
@@ -508,6 +525,7 @@ class PosViewModel(application: Application) : AndroidViewModel(application) {
                         promotions = promotions,
                         orders = orders,
                         outletSettings = settings,
+                        paymentMethods = paymentMethods,
                         shifts = shifts,
                         expenses = expenses,
                         auditLogs = logs,
@@ -532,7 +550,7 @@ class PosViewModel(application: Application) : AndroidViewModel(application) {
                         expenses = emptyList(),
                         inventoryMovements = emptyList(),
                         auditLogs = emptyList(),
-                        errorMessage = "Sinkronisasi Supabase gagal. Sesi dihentikan agar data simulasi tidak dianggap data produksi. " + (err.message ?: "Periksa koneksi, skema, dan izin akses.")
+                        errorMessage = "Sinkronisasi gagal. Sesi dihentikan agar data simulasi tidak dianggap data produksi. Periksa koneksi dan akses akun."
                     )
                 }
             }
@@ -1331,7 +1349,7 @@ class PosViewModel(application: Application) : AndroidViewModel(application) {
                         _uiState.update { it.copy(outletSettings = settings, isLoading = false, successMessage = "Pengaturan outlet berhasil disimpan.") }
                     }
                     .onFailure { error ->
-                        _uiState.update { it.copy(isLoading = false, errorMessage = error.message ?: "Pengaturan outlet gagal disimpan.") }
+                        _uiState.update { it.copy(isLoading = false, errorMessage = "Pengaturan outlet gagal disimpan. Periksa koneksi dan akses akun.") }
                     }
             }
             return

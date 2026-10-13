@@ -335,18 +335,11 @@ fun MejaQrComposeScreen(
                     }) {
                         Text("Salin URL QR Valid")
                     }
-                    if (targetTable != null) {
+                    if (targetTable != null && uiState.tables.size > 1) {
                         OutlinedButton(onClick = {
-                            viewModel.simulateIncomingQrOrder(targetTable)
+                            viewModel.deleteRestaurantTable(targetTable.id)
                         }) {
-                            Text("Simulasi Order QR Masuk")
-                        }
-                        if (uiState.tables.size > 1) {
-                            OutlinedButton(onClick = {
-                                viewModel.deleteRestaurantTable(targetTable.id)
-                            }) {
-                                Text("Hapus Meja")
-                            }
+                            Text("Hapus Meja")
                         }
                     }
                 }

@@ -82,7 +82,8 @@ data class StaffProfile(
 
     fun canPerform(permissionKey: String): Boolean {
         if (!isActive || role == StaffRole.SUPER_ADMIN) return false
-        return role == StaffRole.OWNER || permissions[permissionKey] == true
+        if (role == StaffRole.OWNER) return true
+        return permissions[permissionKey] ?: (StaffPermissionCatalog.defaultsFor(role)[permissionKey] == true)
     }
 }
 

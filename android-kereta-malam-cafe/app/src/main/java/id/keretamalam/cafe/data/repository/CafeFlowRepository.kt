@@ -629,6 +629,8 @@ class CafeFlowRepository(private val context: Context) {
             put("phone", settings.phone)
             put("tax_rate", settings.taxRate)
             put("service_rate", settings.serviceRate)
+            put("service_fee_mode", settings.serviceFeeMode)
+            put("service_fixed_amount", settings.serviceFixedAmount)
             put("tax_enabled", settings.taxEnabled)
             put("service_enabled", settings.serviceEnabled)
             put("cash_enabled", settings.cashEnabled)

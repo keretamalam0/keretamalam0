@@ -932,7 +932,6 @@ fun PengaturanOutletComposeScreen(viewModel: PosViewModel, uiState: PosUiState) 
         }
     }
     val paymentImagePicker = rememberLauncherForActivityResult(ActivityResultContracts.GetContent()) { uri: Uri? ->
-    val paymentImagePicker = rememberLauncherForActivityResult(ActivityResultContracts.GetContent()) { uri: Uri? ->
         if (uri != null) {
             paymentImageUploading = true
             val mime = context.contentResolver.getType(uri) ?: "image/jpeg"

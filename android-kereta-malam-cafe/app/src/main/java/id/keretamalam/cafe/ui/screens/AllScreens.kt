@@ -168,32 +168,33 @@ fun RenderModuleScreen(
             .padding(if (isTabletOrWide) 16.dp else 12.dp),
         verticalArrangement = Arrangement.spacedBy(12.dp)
     ) {
-        // Notifikasi Sukses / Error
+        // Notifikasi sebagai dialog tengah agar tombol mudah dijangkau.
         val activeMsg = uiState.errorMessage ?: uiState.successMessage
         if (activeMsg != null) {
-            Surface(
-                shape = RoundedCornerShape(12.dp),
-                color = if (uiState.errorMessage != null) MaterialTheme.colorScheme.errorContainer else MaterialTheme.colorScheme.primary,
-                modifier = Modifier.fillMaxWidth()
-            ) {
-                Row(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .padding(horizontal = 16.dp, vertical = 10.dp),
-                    horizontalArrangement = Arrangement.SpaceBetween,
-                    verticalAlignment = Alignment.CenterVertically
+            Dialog(onDismissRequest = { viewModel.clearBannerMessages() }) {
+                Surface(
+                    shape = RoundedCornerShape(18.dp),
+                    color = MaterialTheme.colorScheme.surface,
+                    tonalElevation = 6.dp,
+                    modifier = Modifier.fillMaxWidth()
                 ) {
-                    Text(
-                        text = activeMsg,
-                        style = MaterialTheme.typography.bodyMedium,
-                        color = if (uiState.errorMessage != null) MaterialTheme.colorScheme.onErrorContainer else MaterialTheme.colorScheme.onPrimary,
-                        modifier = Modifier.weight(1f)
-                    )
-                    TextButton(onClick = { viewModel.clearBannerMessages() }) {
+                    Column(
+                        modifier = Modifier.padding(20.dp),
+                        verticalArrangement = Arrangement.spacedBy(16.dp)
+                    ) {
                         Text(
-                            text = "Tutup",
-                            color = if (uiState.errorMessage != null) MaterialTheme.colorScheme.onErrorContainer else MaterialTheme.colorScheme.onPrimary
+                            text = if (uiState.errorMessage != null) "Belum berhasil" else "Berhasil",
+                            style = MaterialTheme.typography.titleMedium,
+                            fontWeight = FontWeight.Bold
                         )
+                        Text(
+                            text = activeMsg,
+                            style = MaterialTheme.typography.bodyMedium,
+                            color = MaterialTheme.colorScheme.onSurface
+                        )
+                        Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.End) {
+                            Button(onClick = { viewModel.clearBannerMessages() }) { Text("Tutup") }
+                        }
                     }
                 }
             }

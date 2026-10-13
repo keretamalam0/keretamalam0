@@ -1550,7 +1550,14 @@ class PosViewModel(application: Application) : AndroidViewModel(application) {
                         _uiState.update { it.copy(outletSettings = settings, isLoading = false, successMessage = "Pengaturan outlet berhasil disimpan.") }
                     }
                     .onFailure { error ->
-                        _uiState.update { it.copy(isLoading = false, errorMessage = "Pengaturan outlet gagal disimpan. Periksa koneksi dan akses akun.") }
+                        val detail = error.message?.replace("\n", " ")?.replace("\r", " ")?.take(220)?.takeIf { it.isNotBlank() }
+                        _uiState.update {
+                            it.copy(
+                                isLoading = false,
+                                errorMessage = if (detail == null) "Pengaturan outlet gagal disimpan. Periksa koneksi."
+                                else "Pengaturan outlet gagal disimpan: $detail"
+                            )
+                        }
                     }
             }
             return

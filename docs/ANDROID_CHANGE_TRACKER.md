@@ -26,9 +26,12 @@ Project directory: `android-kereta-malam-cafe/`
 - [ ] Outlet settings, localization, taxes, service charges, rounding
 - [ ] Payment methods and QRIS/bank/e-wallet configuration
 - [ ] Bluetooth printer discovery and receipt printing
-- [ ] Remove Website Management from Android; secure Super Admin separation
+- [x] Removed Website Management UI, local CMS state/actions, and unused CMS models from Android. [ ] Secure Super Admin separation remains pending.
 
 ## Work log
+- `3cd38f63e61d5daaa1c2250bb18fcc5545ae8871`: removed unused native website CMS data models after deleting the inaccessible Website Management screen and local-only save/publish actions.
+- `ba7c0f5b68df3d843393add1ab8176a53aaece0e`: removed Website CMS state and local-only mutations from `PosViewModel`.
+- `a8452ca11882486ae2410639ca191f3020064e87`: removed the unused Website Management screen from `ManagementScreens.kt`; verified its screen symbol is no longer present in the app source files checked.
 - `cd57604946920c67c61d0fde6db32c3924bf0b2c`: hardened encrypted credential/session storage: if `EncryptedSharedPreferences` fails, Android now fails closed instead of silently falling back to plaintext `SharedPreferences`. This security change requires build/runtime verification, including behavior on devices where the Android Keystore is unavailable or corrupted.
 - `857052dd6ef318cb8b69bde173ff2cfe3c8da41b`: added `.github/workflows/android-native-build.yml` to build `assembleDebug` with JDK 17 on Android project changes/manual dispatch and upload the APK as a 14-day artifact. Build outcome is not yet verified; do not treat workflow creation as a passing build.
 - `1d464676fa72305aae336c5616d95f9cc8efbc8b`: added live-backend guards to 11 operations that previously updated only in-memory state (staff creation, shifts/audit, product QR visibility, table add/delete, inventory movement, promotions, expenses, outlet settings). In live mode these now fail clearly rather than falsely implying persistence. These features remain pending real Supabase write implementations.

@@ -967,6 +967,10 @@ class PosViewModel(application: Application) : AndroidViewModel(application) {
     }
 
     fun updateOrderStatus(order: OrderWithItems, nextStatus: OrderStatus) {
+        if (nextStatus == OrderStatus.CANCELLED && !_uiState.value.staffProfile.canPerform("orders.cancel")) {
+            showNotice("Akun ini tidak memiliki izin membatalkan pesanan.", isError = true)
+            return
+        }
         viewModelScope.launch {
             if (_uiState.value.backendStatus == BackendIntegrationStatus.ACTIVE_VERIFIED) {
                 runCatching { repository.updateOrderStatus(order.id, nextStatus) }
@@ -1304,6 +1308,7 @@ class PosViewModel(application: Application) : AndroidViewModel(application) {
     }
 
     fun saveProductAddon(addon: ProductAddon) {
+        if (!_uiState.value.staffProfile.canPerform("products.edit")) { showNotice("Akun ini tidak memiliki izin mengubah topping.", isError = true); return }
         if (addon.name.isBlank() || addon.productId.isBlank() || addon.price < 0) {
             showNotice("Pilih produk, isi nama topping, dan pastikan harga tidak negatif.", isError = true)
             return
@@ -1321,6 +1326,7 @@ class PosViewModel(application: Application) : AndroidViewModel(application) {
     }
 
     fun deleteProductAddon(id: String) {
+        if (!_uiState.value.staffProfile.canPerform("products.delete")) { showNotice("Akun ini tidak memiliki izin menghapus topping.", isError = true); return }
         viewModelScope.launch {
             if (_uiState.value.backendStatus == BackendIntegrationStatus.ACTIVE_VERIFIED) {
                 runCatching { repository.deleteProductAddon(id) }
@@ -1333,6 +1339,7 @@ class PosViewModel(application: Application) : AndroidViewModel(application) {
     }
 
     fun saveCustomizationOption(option: ProductCustomizationOption) {
+        if (!_uiState.value.staffProfile.canPerform("products.edit")) { showNotice("Akun ini tidak memiliki izin mengubah opsi produk.", isError = true); return }
         if (option.name.isBlank() || option.productId.isBlank() || option.priceDelta < 0 || option.groupKey !in listOf("sugar", "ice", "size")) {
             showNotice("Lengkapi produk, nama opsi, grup, dan harga yang valid.", isError = true)
             return
@@ -1350,6 +1357,7 @@ class PosViewModel(application: Application) : AndroidViewModel(application) {
     }
 
     fun deleteCustomizationOption(id: String) {
+        if (!_uiState.value.staffProfile.canPerform("products.delete")) { showNotice("Akun ini tidak memiliki izin menghapus opsi produk.", isError = true); return }
         viewModelScope.launch {
             if (_uiState.value.backendStatus == BackendIntegrationStatus.ACTIVE_VERIFIED) {
                 runCatching { repository.deleteCustomizationOption(id) }
@@ -1519,6 +1527,7 @@ class PosViewModel(application: Application) : AndroidViewModel(application) {
     }
 
     fun addPromotion(name: String, type: String, value: Double, minPurchase: Double) {
+        if (!_uiState.value.staffProfile.canAccess(PermissionKey.PROMOTIONS)) { showNotice("Akun ini tidak memiliki izin mengelola promosi.", isError = true); return }
         if (_uiState.value.backendStatus == BackendIntegrationStatus.ACTIVE_VERIFIED) {
             showNotice("Pembuatan promosi live belum tersambung ke Supabase. Promosi tidak dibuat.", isError = true)
             return
@@ -1541,6 +1550,7 @@ class PosViewModel(application: Application) : AndroidViewModel(application) {
     }
 
     fun togglePromotionActive(promoId: String) {
+        if (!_uiState.value.staffProfile.canAccess(PermissionKey.PROMOTIONS)) { showNotice("Akun ini tidak memiliki izin mengelola promosi.", isError = true); return }
         _uiState.update { state ->
             state.copy(
                 promotions = state.promotions.map {
@@ -1551,6 +1561,7 @@ class PosViewModel(application: Application) : AndroidViewModel(application) {
     }
 
     fun deletePromotion(promoId: String) {
+        if (!_uiState.value.staffProfile.canAccess(PermissionKey.PROMOTIONS)) { showNotice("Akun ini tidak memiliki izin mengelola promosi.", isError = true); return }
         _uiState.update { state ->
             state.copy(
                 promotions = state.promotions.filterNot { it.id == promoId },

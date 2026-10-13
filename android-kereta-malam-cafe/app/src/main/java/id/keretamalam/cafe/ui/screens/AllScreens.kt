@@ -504,7 +504,7 @@ private fun DashboardLineChart(values: List<Float>, modifier: Modifier = Modifie
         drawPath(path, blue.copy(alpha = 0.14f), style = androidx.compose.ui.graphics.drawscope.Stroke(width = 13.dp.toPx(), cap = androidx.compose.ui.graphics.StrokeCap.Round, join = androidx.compose.ui.graphics.StrokeJoin.Round))
         drawPath(path, blue.copy(alpha = 0.24f), style = androidx.compose.ui.graphics.drawscope.Stroke(width = 7.dp.toPx(), cap = androidx.compose.ui.graphics.StrokeCap.Round, join = androidx.compose.ui.graphics.StrokeJoin.Round))
         drawPath(path, blue, style = androidx.compose.ui.graphics.drawscope.Stroke(width = 3.dp.toPx(), cap = androidx.compose.ui.graphics.StrokeCap.Round, join = androidx.compose.ui.graphics.StrokeJoin.Round))
-        points.forEach { drawCircle(blue, 4.dp.toPx(), it); drawCircle(Color.White, 1.6.dp.toPx(), it) }
+        // Clean curve without permanent point markers.
     }
 }
 

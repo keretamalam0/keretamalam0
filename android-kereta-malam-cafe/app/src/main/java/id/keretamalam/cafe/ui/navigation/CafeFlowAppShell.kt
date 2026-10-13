@@ -239,10 +239,10 @@ fun CafeFlowAppShell(
                 topBar = {
                     TopAppBar(
                         colors = TopAppBarDefaults.topAppBarColors(
-                            containerColor = androidx.compose.ui.graphics.Color(0xFF080A0D),
-                            titleContentColor = androidx.compose.ui.graphics.Color(0xFFF7FAFF),
-                            navigationIconContentColor = androidx.compose.ui.graphics.Color(0xFFF7FAFF),
-                            actionIconContentColor = androidx.compose.ui.graphics.Color(0xFFF7FAFF)
+                            containerColor = if (uiState.darkTheme) androidx.compose.ui.graphics.Color(0xFF080A0D) else androidx.compose.ui.graphics.Color(0xFFFFFFFF),
+                            titleContentColor = if (uiState.darkTheme) androidx.compose.ui.graphics.Color(0xFFF7FAFF) else androidx.compose.ui.graphics.Color(0xFF111827),
+                            navigationIconContentColor = if (uiState.darkTheme) androidx.compose.ui.graphics.Color(0xFFF7FAFF) else androidx.compose.ui.graphics.Color(0xFF111827),
+                            actionIconContentColor = if (uiState.darkTheme) androidx.compose.ui.graphics.Color(0xFFF7FAFF) else androidx.compose.ui.graphics.Color(0xFF111827)
                         ),
                         title = {
                             Column {
@@ -255,17 +255,15 @@ fun CafeFlowAppShell(
                                 Text(
                                     text = "POS & QR Ordering",
                                     style = MaterialTheme.typography.labelMedium,
-                                    color = androidx.compose.ui.graphics.Color(0xFFAAB6C5),
+                                    color = if (uiState.darkTheme) androidx.compose.ui.graphics.Color(0xFFAAB6C5) else androidx.compose.ui.graphics.Color(0xFF64748B),
                                     maxLines = 1,
                                     overflow = TextOverflow.Ellipsis
                                 )
                             }
                         },
                         navigationIcon = {
-                            if (!isTabletOrWide) {
-                                IconButton(onClick = { scope.launch { drawerState.open() } }) {
-                                    Icon(Icons.Outlined.Menu, contentDescription = "Buka Navigasi")
-                                }
+                            IconButton(onClick = { scope.launch { drawerState.open() } }) {
+                                Icon(Icons.Outlined.Menu, contentDescription = "Buka Navigasi")
                             }
                         },
                         actions = {
@@ -306,7 +304,7 @@ fun CafeFlowAppShell(
                 },
                 bottomBar = {
                     // Navigasi Bawah khusus layar HP untuk akses cepat 1 tangan
-                    if (!isTabletOrWide) {
+                    {
                         NavigationBar(
                             containerColor = if (uiState.darkTheme) androidx.compose.ui.graphics.Color(0xFF080A0D) else androidx.compose.ui.graphics.Color(0xFFFFFFFF),
                             contentColor = if (uiState.darkTheme) androidx.compose.ui.graphics.Color(0xFFF5F7FA) else androidx.compose.ui.graphics.Color(0xFF334155)
@@ -383,17 +381,11 @@ fun CafeFlowAppShell(
             }
         }
 
-        if (isTabletOrWide) {
-            PermanentNavigationDrawer(
-                drawerContent = drawerContent,
-                content = mainScaffold
-            )
-        } else {
-            ModalNavigationDrawer(
-                drawerState = drawerState,
-                drawerContent = drawerContent,
-                content = mainScaffold
-            )
-        }
+        ModalNavigationDrawer(
+            drawerState = drawerState,
+            drawerContent = drawerContent,
+            gesturesEnabled = true,
+            content = mainScaffold
+        )
     }
 }

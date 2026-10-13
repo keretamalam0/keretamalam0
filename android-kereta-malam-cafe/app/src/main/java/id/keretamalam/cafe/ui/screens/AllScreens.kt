@@ -756,16 +756,12 @@ private fun KasirComposeScreen(
                             modifier = Modifier.fillMaxSize().padding(8.dp),
                             verticalArrangement = Arrangement.spacedBy(5.dp)
                         ) {
-                            if (!product.imageUrl.isNullOrBlank()) {
-                                AsyncImage(
-                                    model = product.imageUrl,
-                                    contentDescription = "Foto ${product.name}",
-                                    modifier = Modifier.fillMaxWidth().height(92.dp),
-                                    contentScale = androidx.compose.ui.layout.ContentScale.Crop
-                                )
-                            } else {
+                            Box(
+                                modifier = Modifier.fillMaxWidth().height(92.dp),
+                                contentAlignment = Alignment.Center
+                            ) {
                                 Surface(
-                                    modifier = Modifier.fillMaxWidth().height(92.dp),
+                                    modifier = Modifier.fillMaxSize(),
                                     shape = RoundedCornerShape(8.dp),
                                     color = MaterialTheme.colorScheme.surfaceVariant
                                 ) {
@@ -777,6 +773,14 @@ private fun KasirComposeScreen(
                                             modifier = Modifier.size(30.dp)
                                         )
                                     }
+                                }
+                                if (!product.imageUrl.isNullOrBlank()) {
+                                    AsyncImage(
+                                        model = product.imageUrl,
+                                        contentDescription = "Foto ${product.name}",
+                                        modifier = Modifier.fillMaxSize(),
+                                        contentScale = androidx.compose.ui.layout.ContentScale.Crop
+                                    )
                                 }
                             }
                             Text(

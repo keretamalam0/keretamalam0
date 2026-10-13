@@ -1,5 +1,7 @@
 package id.keretamalam.cafe.ui.screens
 
+import coil.compose.AsyncImage
+
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.Canvas
@@ -752,6 +754,14 @@ private fun KasirComposeScreen(
                             horizontalArrangement = Arrangement.SpaceBetween,
                             verticalAlignment = Alignment.CenterVertically
                         ) {
+                            if (!product.imageUrl.isNullOrBlank()) {
+                                AsyncImage(
+                                    model = product.imageUrl,
+                                    contentDescription = "Foto ${product.name}",
+                                    modifier = Modifier.size(84.dp),
+                                    contentScale = androidx.compose.ui.layout.ContentScale.Crop
+                                )
+                            }
                             Column(modifier = Modifier.weight(1f)) {
                                 Text(product.name, style = MaterialTheme.typography.titleMedium)
                                 if (!product.description.isNullOrBlank()) {

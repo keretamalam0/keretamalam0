@@ -4114,6 +4114,19 @@ export default function App() {
                   className="mt-1 w-full rounded-lg border border-zinc-200 bg-zinc-50 px-3 py-2 dark:border-zinc-800 dark:bg-zinc-950"
                 />
               </div>
+              <div>
+                <label className="block text-zinc-500">Foto Produk</label>
+                {editingProduct.image_url && <img src={editingProduct.image_url} alt={editingProduct.name || 'Foto produk'} className="mt-2 size-20 rounded-lg border object-cover" />}
+                <input type="file" accept="image/jpeg,image/png,image/webp,image/avif" onChange={(e) => {
+                  const file = e.target.files?.[0] ?? null;
+                  if (!file) return;
+                  if (file.size > 5 * 1024 * 1024) { showNotice('error', 'Ukuran foto maksimal 5 MB.'); e.currentTarget.value = ''; return; }
+                  if (!['image/jpeg','image/png','image/webp','image/avif'].includes(file.type)) { showNotice('error', 'Format foto harus JPG, PNG, WEBP, atau AVIF.'); e.currentTarget.value = ''; return; }
+                  setProductImageFile(file);
+                  setEditingProduct((prev) => prev ? { ...prev, image_url: URL.createObjectURL(file) } : prev);
+                }} className="mt-1 w-full rounded-lg border bg-zinc-50 px-3 py-2 text-xs dark:bg-zinc-950" />
+                <p className="mt-1 text-[11px] text-zinc-500">Maksimal 5 MB. Foto akan dipakai bersama di Kasir dan QR Order.</p>
+              </div>
               <div className="grid grid-cols-2 gap-2.5">
                 <div>
                   <label className="block text-zinc-500">Harga Jual (Rp)</label>

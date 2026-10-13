@@ -269,6 +269,14 @@ export default function App() {
   const [promoType, setPromoType] = useState<'percentage' | 'fixed'>('percentage');
   const [promoValue, setPromoValue] = useState('10');
   const [promoMinPurchase, setPromoMinPurchase] = useState('50000');
+  const [promoMinQuantity, setPromoMinQuantity] = useState('1');
+  const [promoScope, setPromoScope] = useState<'order' | 'product'>('order');
+  const [promoProductId, setPromoProductId] = useState('');
+  const [promoKind, setPromoKind] = useState<'promotion' | 'voucher' | 'bundle' | 'campaign'>('promotion');
+  const [promoAllowCustomer, setPromoAllowCustomer] = useState(true);
+  const [promoAllowCashier, setPromoAllowCashier] = useState(true);
+  const [promoModalOpen, setPromoModalOpen] = useState(false);
+  const [promoTab, setPromoTab] = useState<'all' | 'active' | 'voucher' | 'bundle' | 'campaign'>('all');
 
   // Keuangan & Laba Rugi State
   const [financeTab, setFinanceTab] = useState<'expenses' | 'pnl'>('expenses');
@@ -2561,125 +2569,44 @@ export default function App() {
       // ======================================================================
       case 'promosi':
         return (
-          <div className="space-y-6">
-            <div className="rounded-xl border border-zinc-200 bg-white p-5 dark:border-zinc-800 dark:bg-zinc-900">
-              <h3 className="text-base font-bold">Buat Promosi / Diskon Baru</h3>
-              <form
-                onSubmit={(e) => {
-                  e.preventDefault();
-                  if (!promoName.trim()) return;
-                  if (backendMode === 'LIVE_SUPABASE') {
-                    showNotice('error', 'Pembuatan promosi belum terhubung ke penyimpanan Supabase. Tidak ada perubahan disimpan.');
-                    return;
-                  }
-                  const created: Promotion = {
-                    id: `promo-${Date.now()}`,
-                    name: promoName.trim(),
-                    type: promoType,
-                    value: Number(promoValue) || 0,
-                    min_purchase: Number(promoMinPurchase) || 0,
-                    min_quantity: 1,
-                    scope: 'order',
-                    product_id: null,
-                    active: true,
-                  };
-                  setPromotions((prev) => [created, ...prev]);
-                  setPromoName('');
-                  showNotice('success', `Promosi "${created.name}" berhasil disimpan.`);
-                }}
-                className="mt-4 grid gap-3 sm:grid-cols-4"
-              >
-                <div>
-                  <label className="block text-xs text-zinc-500">Nama Promosi</label>
-                  <input
-                    type="text"
-                    value={promoName}
-                    onChange={(e) => setPromoName(e.target.value)}
-                    placeholder="Contoh: Diskon Kopi Pagi"
-                    className="mt-1 w-full rounded-lg border border-zinc-200 bg-zinc-50 px-3 py-2 text-xs dark:border-zinc-800 dark:bg-zinc-950"
-                  />
-                </div>
-                <div>
-                  <label className="block text-xs text-zinc-500">Tipe Diskon</label>
-                  <select
-                    value={promoType}
-                    onChange={(e) => setPromoType(e.target.value as 'percentage' | 'fixed')}
-                    className="mt-1 w-full rounded-lg border border-zinc-200 bg-zinc-50 px-3 py-2 text-xs dark:border-zinc-800 dark:bg-zinc-950"
-                  >
-                    <option value="percentage">Persentase (%)</option>
-                    <option value="fixed">Nominal Tetap (Rp)</option>
-                  </select>
-                </div>
-                <div>
-                  <label className="block text-xs text-zinc-500">Nilai Diskon</label>
-                  <input
-                    type="number"
-                    value={promoValue}
-                    onChange={(e) => setPromoValue(e.target.value)}
-                    className="num mt-1 w-full rounded-lg border border-zinc-200 bg-zinc-50 px-3 py-2 text-xs dark:border-zinc-800 dark:bg-zinc-950"
-                  />
-                </div>
-                <div>
-                  <label className="block text-xs text-zinc-500">Minimum Pembelian (Rp)</label>
-                  <input
-                    type="number"
-                    value={promoMinPurchase}
-                    onChange={(e) => setPromoMinPurchase(e.target.value)}
-                    className="num mt-1 w-full rounded-lg border border-zinc-200 bg-zinc-50 px-3 py-2 text-xs dark:border-zinc-800 dark:bg-zinc-950"
-                  />
-                </div>
-                <div className="sm:col-span-4">
-                  <button
-                    type="submit"
-                    className="rounded-lg bg-zinc-900 px-4 py-2 text-xs font-semibold text-white dark:bg-zinc-100 dark:text-zinc-900"
-                  >
-                    Simpan Promosi
-                  </button>
-                </div>
-              </form>
+          <div className="space-y-5">
+            <div className="flex flex-wrap items-center justify-between gap-3">
+              <div><h2 className="text-xl font-bold">Promosi & Diskon</h2><p className="mt-1 text-sm text-zinc-500">Atur diskon, voucher, bundel, dan campaign sesuai strategi outlet.</p></div>
+              <button type="button" onClick={() => setPromoModalOpen(true)} className="rounded-xl bg-zinc-900 px-4 py-2.5 text-sm font-semibold text-white dark:bg-zinc-100 dark:text-zinc-900">+ Buat Promosi</button>
             </div>
-
-            <div className="grid gap-4 sm:grid-cols-2">
-              {promotions.map((p) => (
-                <div
-                  key={p.id}
-                  className="flex items-center justify-between rounded-xl border border-zinc-200 bg-white p-4 dark:border-zinc-800 dark:bg-zinc-900"
-                >
-                  <div>
-                    <h4 className="text-sm font-bold">{p.name}</h4>
-                    <p className="num mt-1 text-xs text-zinc-500">
-                      Potongan: {p.type === 'percentage' ? `${p.value}%` : formatRupiah(p.value)} · Min. Belanja{' '}
-                      {formatRupiah(p.min_purchase)}
-                    </p>
-                  </div>
-                  <div className="flex items-center gap-2">
-                    <button
-                      type="button"
-                      onClick={() => {
-                        if (backendMode === 'LIVE_SUPABASE') {
-                          showNotice('error', 'Ubah status promosi belum terhubung ke Supabase. Tidak ada perubahan disimpan.');
-                          return;
-                        }
-                        setPromotions((prev) =>
-                          prev.map((x) => (x.id === p.id ? { ...x, active: !x.active } : x))
-                        );
-                      }
-                      className={`rounded-lg px-3 py-1 text-xs font-semibold ${
-                        p.active
-                          ? 'bg-zinc-900 text-white dark:bg-zinc-100 dark:text-zinc-900'
-                          : 'border border-zinc-300 text-zinc-500'
-                      }`}
-                    >
-                      {p.active ? 'Aktif' : 'Nonaktif'}
-                    </button>
-                  </div>
-                </div>
-              ))}
+            <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
+              {[
+                {key:'active',label:'Promo Aktif',count:promotions.filter(p=>p.active).length,desc:'Promosi yang sedang berlaku'},
+                {key:'voucher',label:'Voucher',count:promotions.filter(p=>p.campaign_type==='voucher').length,desc:'Diskon yang bisa dipilih'},
+                {key:'bundle',label:'Bundel',count:promotions.filter(p=>p.campaign_type==='bundle').length,desc:'Paket produk'},
+                {key:'campaign',label:'Campaign',count:promotions.filter(p=>p.campaign_type==='campaign').length,desc:'Program promosi khusus'},
+              ].map(card=><button type="button" key={card.key} onClick={()=>setPromoTab(card.key as typeof promoTab)} className={`rounded-xl border p-4 text-left transition ${promoTab===card.key?'border-zinc-900 bg-zinc-100 dark:border-zinc-100 dark:bg-zinc-800':'border-zinc-200 bg-white dark:border-zinc-800 dark:bg-zinc-900'}`}><div className="text-sm text-zinc-500">{card.label}</div><div className="mt-2 text-2xl font-bold">{card.count}</div><div className="mt-1 text-xs text-zinc-500">{card.desc}</div></button>)}
             </div>
+            <div className="rounded-xl border border-zinc-200 bg-white p-4 dark:border-zinc-800 dark:bg-zinc-900">
+              <div className="flex flex-wrap gap-2">{([{key:'all',label:'Semua Promosi'},{key:'active',label:'Promo Aktif'},{key:'voucher',label:'Voucher'},{key:'bundle',label:'Bundel'},{key:'campaign',label:'Campaign'}] as const).map(tab=><button type="button" key={tab.key} onClick={()=>setPromoTab(tab.key)} className={`rounded-lg px-3 py-2 text-xs font-semibold ${promoTab===tab.key?'bg-zinc-900 text-white dark:bg-zinc-100 dark:text-zinc-900':'bg-zinc-100 text-zinc-600 dark:bg-zinc-800 dark:text-zinc-300'}`}>{tab.label}</button>)}</div>
+              <div className="mt-4 space-y-3">
+                {promotions.filter(p=>promoTab==='all'||(promoTab==='active'?p.active:p.campaign_type===promoTab)).map(p=><div key={p.id} className="flex flex-wrap items-center justify-between gap-3 rounded-xl border border-zinc-200 p-4 dark:border-zinc-800">
+                  <div className="min-w-0"><div className="flex flex-wrap items-center gap-2"><h3 className="font-semibold">{p.name}</h3><span className="rounded-full bg-zinc-100 px-2 py-1 text-[10px] dark:bg-zinc-800">{({promotion:'Promosi',voucher:'Voucher',bundle:'Bundel',campaign:'Campaign'} as const)[p.campaign_type||'promotion']}</span><span className={`rounded-full px-2 py-1 text-[10px] ${p.active?'bg-emerald-100 text-emerald-800':'bg-zinc-100 text-zinc-500'}`}>{p.active?'Aktif':'Nonaktif'}</span></div>
+                  <p className="mt-1 text-sm text-zinc-500">{p.type==='percentage'?p.value+'%':formatRupiah(p.value)} · Minimum belanja {formatRupiah(p.min_purchase)}{p.scope==='product'? ` · ${products.find(x=>x.id===p.product_id)?.name||'Produk tertentu'} minimal ${p.min_quantity} item`:' · Berlaku untuk seluruh belanja'}</p>
+                  <p className="mt-1 text-xs text-zinc-500">Bisa dipilih customer: {p.allow_customer===false?'Tidak':'Ya'} · Bisa dipilih kasir: {p.allow_cashier===false?'Tidak':'Ya'}</p></div>
+                  <button type="button" onClick={()=>{if(backendMode==='LIVE_SUPABASE'){showNotice('error','Perubahan status promosi Supabase belum diaktifkan.');return;}setPromotions(prev=>prev.map(x=>x.id===p.id?{...x,active:!x.active}:x));}} className="rounded-lg border border-zinc-300 px-3 py-2 text-xs font-semibold dark:border-zinc-700">{p.active?'Nonaktifkan':'Aktifkan'}</button>
+                </div>)}
+                {promotions.filter(p=>promoTab==='all'||(promoTab==='active'?p.active:p.campaign_type===promoTab)).length===0&&<div className="rounded-xl border border-dashed border-zinc-300 p-8 text-center text-sm text-zinc-500">Belum ada promosi di kategori ini. Klik “Buat Promosi” untuk mulai.</div>}
+              </div>
+            </div>
+            {promoModalOpen&&<div className="fixed inset-0 z-[100] flex items-center justify-center bg-black/50 p-3" onMouseDown={e=>{if(e.target===e.currentTarget)setPromoModalOpen(false);}}><div className="max-h-[92vh] w-full max-w-2xl overflow-y-auto rounded-2xl bg-white p-5 shadow-2xl dark:bg-zinc-900"><div className="flex items-center justify-between"><div><h3 className="text-lg font-bold">Buat Promosi Baru</h3><p className="text-xs text-zinc-500">Atur syarat diskon sebelum disimpan.</p></div><button type="button" onClick={()=>setPromoModalOpen(false)} className="rounded-lg px-3 py-2 text-zinc-500">✕</button></div>
+              <form className="mt-5 space-y-4" onSubmit={e=>{e.preventDefault();if(!promoName.trim()){showNotice('error','Nama promosi wajib diisi.');return;}if(promoScope==='product'&&!promoProductId){showNotice('error','Pilih produk yang mendapat diskon.');return;}if(backendMode==='LIVE_SUPABASE'){showNotice('error','Simpan promosi ke Supabase belum diaktifkan. Form belum menyimpan perubahan.');return;}const created:Promotion={id:`promo-${Date.now()}`,name:promoName.trim(),type:promoType,value:Math.max(0,Number(promoValue)||0),min_purchase:Math.max(0,Number(promoMinPurchase)||0),min_quantity:Math.max(1,Number(promoMinQuantity)||1),scope:promoScope,product_id:promoScope==='product'?promoProductId:null,active:true,campaign_type:promoKind,allow_customer:promoAllowCustomer,allow_cashier:promoAllowCashier};setPromotions(prev=>[created,...prev]);setPromoName('');setPromoModalOpen(false);setPromoTab('all');showNotice('success',`Promosi "${created.name}" berhasil dibuat.`);}}>
+              <div><label className="mb-1 block text-xs font-medium text-zinc-500">Nama Promo</label><input required value={promoName} onChange={e=>setPromoName(e.target.value)} placeholder="Contoh: Belanja 500 ribu diskon 20 ribu" className="w-full rounded-lg border border-zinc-200 bg-zinc-50 px-3 py-2.5 text-sm dark:border-zinc-700 dark:bg-zinc-950"/></div>
+              <div className="grid gap-3 sm:grid-cols-2"><div><label className="mb-1 block text-xs font-medium text-zinc-500">Jenis Promo</label><select value={promoKind} onChange={e=>setPromoKind(e.target.value as typeof promoKind)} className="w-full rounded-lg border border-zinc-200 bg-zinc-50 px-3 py-2.5 text-sm dark:border-zinc-700 dark:bg-zinc-950"><option value="promotion">Promosi / Diskon</option><option value="voucher">Voucher</option><option value="bundle">Bundel</option><option value="campaign">Campaign</option></select></div><div><label className="mb-1 block text-xs font-medium text-zinc-500">Tipe Diskon</label><select value={promoType} onChange={e=>setPromoType(e.target.value as 'percentage'|'fixed')} className="w-full rounded-lg border border-zinc-200 bg-zinc-50 px-3 py-2.5 text-sm dark:border-zinc-700 dark:bg-zinc-950"><option value="percentage">Persentase (%)</option><option value="fixed">Nominal (Rp)</option></select></div></div>
+              <div className="grid gap-3 sm:grid-cols-2"><div><label className="mb-1 block text-xs font-medium text-zinc-500">Nilai Diskon {promoType==='percentage'?'(%)':'(Rp)'}</label><input required type="number" min="0" max={promoType==='percentage'?100:undefined} value={promoValue} onChange={e=>setPromoValue(e.target.value)} className="w-full rounded-lg border border-zinc-200 bg-zinc-50 px-3 py-2.5 text-sm dark:border-zinc-700 dark:bg-zinc-950"/></div><div><label className="mb-1 block text-xs font-medium text-zinc-500">Minimum Total Belanja (Rp)</label><input type="number" min="0" value={promoMinPurchase} onChange={e=>setPromoMinPurchase(e.target.value)} className="w-full rounded-lg border border-zinc-200 bg-zinc-50 px-3 py-2.5 text-sm dark:border-zinc-700 dark:bg-zinc-950"/></div></div>
+              <div><label className="mb-1 block text-xs font-medium text-zinc-500">Berlaku Untuk</label><div className="grid gap-2 sm:grid-cols-2"><label className="flex cursor-pointer items-center gap-2 rounded-lg border p-3 text-sm dark:border-zinc-700"><input type="radio" checked={promoScope==='order'} onChange={()=>setPromoScope('order')} name="promoScope"/> Seluruh belanja</label><label className="flex cursor-pointer items-center gap-2 rounded-lg border p-3 text-sm dark:border-zinc-700"><input type="radio" checked={promoScope==='product'} onChange={()=>setPromoScope('product')} name="promoScope"/> Produk tertentu</label></div></div>
+              {promoScope==='product'&&<div className="grid gap-3 sm:grid-cols-2"><div><label className="mb-1 block text-xs font-medium text-zinc-500">Pilih Produk</label><select required value={promoProductId} onChange={e=>setPromoProductId(e.target.value)} className="w-full rounded-lg border border-zinc-200 bg-zinc-50 px-3 py-2.5 text-sm dark:border-zinc-700 dark:bg-zinc-950"><option value="">Pilih produk…</option>{products.map(p=><option key={p.id} value={p.id}>{p.name}</option>)}</select></div><div><label className="mb-1 block text-xs font-medium text-zinc-500">Minimal Jumlah Produk</label><input type="number" min="1" required value={promoMinQuantity} onChange={e=>setPromoMinQuantity(e.target.value)} className="w-full rounded-lg border border-zinc-200 bg-zinc-50 px-3 py-2.5 text-sm dark:border-zinc-700 dark:bg-zinc-950"/></div></div>}
+              <div className="rounded-xl bg-zinc-50 p-3 text-sm dark:bg-zinc-800"><div className="font-semibold">Cara penggunaan</div><p className="mt-1 text-xs text-zinc-500">Pelanggan atau kasir dapat memilih promo secara manual. Promo tidak otomatis dipaksakan ke transaksi.</p><div className="mt-3 flex flex-wrap gap-4"><label className="flex items-center gap-2 text-xs"><input type="checkbox" checked={promoAllowCustomer} onChange={e=>setPromoAllowCustomer(e.target.checked)}/> Bisa dipilih customer</label><label className="flex items-center gap-2 text-xs"><input type="checkbox" checked={promoAllowCashier} onChange={e=>setPromoAllowCashier(e.target.checked)}/> Bisa dipilih kasir</label></div></div>
+              <div className="flex justify-end gap-2 border-t pt-4 dark:border-zinc-800"><button type="button" onClick={()=>setPromoModalOpen(false)} className="rounded-lg border px-4 py-2 text-sm dark:border-zinc-700">Batal</button><button type="submit" className="rounded-lg bg-zinc-900 px-4 py-2 text-sm font-semibold text-white dark:bg-zinc-100 dark:text-zinc-900">Simpan Promo</button></div>
+              </form></div></div>}
           </div>
         );
 
-      // ======================================================================
       // 13. PENGELUARAN & LABA RUGI (KEUANGAN)
       // ======================================================================
       case 'keuangan':

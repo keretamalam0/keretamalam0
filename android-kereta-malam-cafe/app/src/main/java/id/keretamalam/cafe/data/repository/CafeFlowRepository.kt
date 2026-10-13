@@ -378,6 +378,22 @@ class CafeFlowRepository(private val context: Context) {
         return json.decodeFromString(raw)
     }
 
+    suspend fun deleteOrders(orderIds: List<String>) {
+        val creds = requireVerifiedCredentials()
+        orderIds.distinct().forEach { orderId ->
+            val encodedId = URLEncoder.encode(orderId, "UTF-8")
+            // Remove child records first so deletion also works if foreign keys are not configured with CASCADE.
+            executeJsonRequest("DELETE", "${creds.supabaseUrl}/rest/v1/order_items?order_id=eq.$encodedId", buildHeaders(creds))
+            executeJsonRequest("DELETE", "${creds.supabaseUrl}/rest/v1/payments?order_id=eq.$encodedId", buildHeaders(creds))
+            executeJsonRequest("DELETE", "${creds.supabaseUrl}/rest/v1/orders?id=eq.$encodedId", buildHeaders(creds))
+        }
+    }
+
+    suspend fun deleteAllOrders() {
+        val orders = fetchOrders(limitCount = 10000)
+        deleteOrders(orders.map { it.id })
+    }
+
     suspend fun fetchOrderById(orderId: String): OrderWithItems? {
         val creds = requireVerifiedCredentials()
         val selectCols = URLEncoder.encode("*,order_items(*),payments(method,amount,cash_received,change_amount),restaurant_tables(name)", "UTF-8")

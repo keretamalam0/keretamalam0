@@ -104,11 +104,23 @@ fun ProdukStokComposeScreen(viewModel: PosViewModel, uiState: PosUiState) {
                                     Text(category, style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
                                     Text(RupiahFormatter.format(p.price), fontWeight = FontWeight.SemiBold)
                                     Text("Stok ${p.stock} · Ambang ${p.lowStockThreshold}", style = MaterialTheme.typography.bodySmall)
-                                    Row(verticalAlignment = Alignment.CenterVertically) {
-                                        Text("Aktif", style = MaterialTheme.typography.labelSmall)
-                                        Switch(checked = p.isActive, onCheckedChange = { viewModel.toggleProductActive(p.id, it) })
-                                        Text("QR", style = MaterialTheme.typography.labelSmall)
-                                        Switch(checked = p.showOnMenu, onCheckedChange = { viewModel.toggleProductQrMenu(p.id, it) })
+                                    Row(
+                                        modifier = Modifier.fillMaxWidth(),
+                                        horizontalArrangement = Arrangement.spacedBy(6.dp),
+                                        verticalAlignment = Alignment.CenterVertically
+                                    ) {
+                                        FilterChip(
+                                            selected = p.isActive,
+                                            onClick = { viewModel.toggleProductActive(p.id, !p.isActive) },
+                                            label = { Text(if (p.isActive) "Aktif" else "Nonaktif", style = MaterialTheme.typography.labelSmall) },
+                                            modifier = Modifier.height(32.dp)
+                                        )
+                                        FilterChip(
+                                            selected = p.showOnMenu,
+                                            onClick = { viewModel.toggleProductQrMenu(p.id, !p.showOnMenu) },
+                                            label = { Text(if (p.showOnMenu) "QR tampil" else "QR disembunyikan", style = MaterialTheme.typography.labelSmall) },
+                                            modifier = Modifier.height(32.dp)
+                                        )
                                     }
                                 }
                                 Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {

@@ -174,7 +174,7 @@ class PosViewModel(application: Application) : AndroidViewModel(application) {
                 val knownIds = currentOrders.map { it.id }.toSet()
                 val hasNewIncomingOrder = latestOrders.any { order ->
                     order.id !in knownIds &&
-                        (order.status == OrderStatus.NEW || order.status == OrderStatus.PENDING)
+                        (order.status == OrderStatus.NEW)
                 }
                 if (hasNewIncomingOrder) playOrderAlertSound()
             } else {

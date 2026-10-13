@@ -35,6 +35,8 @@ data class PosUiState(
     val staffProfile: StaffProfile = SandboxSeedData.staffList.first(),
     val categories: List<Category> = SandboxSeedData.categories,
     val products: List<Product> = SandboxSeedData.products,
+    val productAddons: List<ProductAddon> = emptyList(),
+    val customizationOptions: List<ProductCustomizationOption> = emptyList(),
     val tables: List<RestaurantTable> = SandboxSeedData.tables,
     val promotions: List<Promotion> = SandboxSeedData.promotions,
     val orders: List<OrderWithItems> = SandboxSeedData.initialOrders,
@@ -507,6 +509,8 @@ class PosViewModel(application: Application) : AndroidViewModel(application) {
                 val staffProfiles = repository.fetchStaffProfiles()
                 val categories = repository.fetchCategories()
                 val products = repository.fetchProducts()
+                val productAddons = repository.fetchProductAddons()
+                val customizationOptions = repository.fetchCustomizationOptions()
                 val tables = repository.fetchTables()
                 val promotions = repository.fetchPromotions()
                 val orders = repository.fetchOrders()
@@ -523,6 +527,8 @@ class PosViewModel(application: Application) : AndroidViewModel(application) {
                         staffList = staffProfiles,
                         categories = categories,
                         products = products,
+                        productAddons = productAddons,
+                        customizationOptions = customizationOptions,
                         tables = tables,
                         promotions = promotions,
                         orders = orders,
@@ -545,6 +551,8 @@ class PosViewModel(application: Application) : AndroidViewModel(application) {
                         selectedTableId = null,
                         categories = emptyList(),
                         products = emptyList(),
+                        productAddons = emptyList(),
+                        customizationOptions = emptyList(),
                         tables = emptyList(),
                         promotions = emptyList(),
                         orders = emptyList(),
@@ -1119,16 +1127,23 @@ class PosViewModel(application: Application) : AndroidViewModel(application) {
     fun addCategory(name: String) {
         val trimmed = name.trim()
         if (trimmed.isEmpty()) return
-        val newCat = Category(
-            id = "cat-${System.currentTimeMillis()}",
-            name = trimmed,
-            sortOrder = _uiState.value.categories.size + 1
-        )
-        _uiState.update {
-            it.copy(
-                categories = it.categories + newCat,
-                successMessage = "Kategori \"$trimmed\" ditambahkan."
-            )
+        if (_uiState.value.categories.any { it.name.equals(trimmed, ignoreCase = true) }) {
+            showNotice("Kategori sudah ada.", isError = true)
+            return
+        }
+        val newCat = Category(name = trimmed, sortOrder = _uiState.value.categories.size + 1)
+        viewModelScope.launch {
+            if (_uiState.value.backendStatus == BackendIntegrationStatus.ACTIVE_VERIFIED) {
+                runCatching { repository.saveCategory(newCat) }
+                    .onSuccess { saved ->
+                        _uiState.update { it.copy(categories = (it.categories + saved).distinctBy(Category::id)) }
+                        showNotice("Kategori \"$trimmed\" disimpan.")
+                    }
+                    .onFailure { showNotice(it.message ?: "Kategori gagal disimpan.", isError = true) }
+            } else {
+                val local = newCat.copy(id = "cat-${System.currentTimeMillis()}")
+                _uiState.update { it.copy(categories = it.categories + local, successMessage = "Kategori \"$trimmed\" ditambahkan (mode lokal).") }
+            }
         }
     }
 
@@ -1197,16 +1212,80 @@ class PosViewModel(application: Application) : AndroidViewModel(application) {
     }
 
     fun toggleProductQrMenu(productId: String, show: Boolean) {
-        if (_uiState.value.backendStatus == BackendIntegrationStatus.ACTIVE_VERIFIED) {
-            showNotice("Pengaturan tampil/sembunyi produk di QR belum tersambung ke Supabase. Perubahan tidak disimpan.", isError = true)
+        val product = _uiState.value.products.firstOrNull { it.id == productId } ?: return
+        saveProductItem(product.copy(showOnMenu = show))
+    }
+
+    fun toggleProductActive(productId: String, active: Boolean) {
+        val product = _uiState.value.products.firstOrNull { it.id == productId } ?: return
+        saveProductItem(product.copy(isActive = active))
+    }
+
+    fun saveProductAddon(addon: ProductAddon) {
+        if (addon.name.isBlank() || addon.productId.isBlank() || addon.price < 0) {
+            showNotice("Pilih produk, isi nama topping, dan pastikan harga tidak negatif.", isError = true)
             return
         }
-        _uiState.update { state ->
-            state.copy(
-                products = state.products.map {
-                    if (it.id == productId) it.copy(showOnMenu = show) else it
-                }
-            )
+        viewModelScope.launch {
+            if (_uiState.value.backendStatus == BackendIntegrationStatus.ACTIVE_VERIFIED) {
+                runCatching { repository.saveProductAddon(addon) }
+                    .onSuccess { syncProductOptions(); showNotice("Topping tersimpan.") }
+                    .onFailure { showNotice(it.message ?: "Topping gagal disimpan.", isError = true) }
+            } else {
+                val saved = addon.copy(id = addon.id.ifBlank { "addon-${System.currentTimeMillis()}" })
+                _uiState.update { state -> state.copy(productAddons = if (addon.id.isBlank()) state.productAddons + saved else state.productAddons.map { if (it.id == addon.id) saved else it }, successMessage = "Topping disimpan (mode lokal).") }
+            }
+        }
+    }
+
+    fun deleteProductAddon(id: String) {
+        viewModelScope.launch {
+            if (_uiState.value.backendStatus == BackendIntegrationStatus.ACTIVE_VERIFIED) {
+                runCatching { repository.deleteProductAddon(id) }
+                    .onSuccess { syncProductOptions(); showNotice("Topping dihapus.") }
+                    .onFailure { showNotice(it.message ?: "Topping gagal dihapus.", isError = true) }
+            } else {
+                _uiState.update { it.copy(productAddons = it.productAddons.filterNot { item -> item.id == id }) }
+            }
+        }
+    }
+
+    fun saveCustomizationOption(option: ProductCustomizationOption) {
+        if (option.name.isBlank() || option.productId.isBlank() || option.priceDelta < 0 || option.groupKey !in listOf("sugar", "ice", "size")) {
+            showNotice("Lengkapi produk, nama opsi, grup, dan harga yang valid.", isError = true)
+            return
+        }
+        viewModelScope.launch {
+            if (_uiState.value.backendStatus == BackendIntegrationStatus.ACTIVE_VERIFIED) {
+                runCatching { repository.saveCustomizationOption(option) }
+                    .onSuccess { syncProductOptions(); showNotice("Opsi kustomisasi tersimpan.") }
+                    .onFailure { showNotice(it.message ?: "Opsi kustomisasi gagal disimpan.", isError = true) }
+            } else {
+                val saved = option.copy(id = option.id.ifBlank { "custom-${System.currentTimeMillis()}" })
+                _uiState.update { state -> state.copy(customizationOptions = if (option.id.isBlank()) state.customizationOptions + saved else state.customizationOptions.map { if (it.id == option.id) saved else it }, successMessage = "Opsi disimpan (mode lokal).") }
+            }
+        }
+    }
+
+    fun deleteCustomizationOption(id: String) {
+        viewModelScope.launch {
+            if (_uiState.value.backendStatus == BackendIntegrationStatus.ACTIVE_VERIFIED) {
+                runCatching { repository.deleteCustomizationOption(id) }
+                    .onSuccess { syncProductOptions(); showNotice("Opsi kustomisasi dihapus.") }
+                    .onFailure { showNotice(it.message ?: "Opsi gagal dihapus.", isError = true) }
+            } else {
+                _uiState.update { it.copy(customizationOptions = it.customizationOptions.filterNot { item -> item.id == id }) }
+            }
+        }
+    }
+
+    private fun syncProductOptions() {
+        viewModelScope.launch {
+            runCatching {
+                repository.fetchProductAddons() to repository.fetchCustomizationOptions()
+            }.onSuccess { (addons, options) ->
+                _uiState.update { it.copy(productAddons = addons, customizationOptions = options) }
+            }.onFailure { showNotice(it.message ?: "Gagal memuat opsi produk.", isError = true) }
         }
     }
 

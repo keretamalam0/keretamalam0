@@ -687,6 +687,34 @@ class CafeFlowRepository(private val context: Context) {
         }
     }
 
+    suspend fun updateStaffProfile(userId: String, isActive: Boolean? = null, permissions: Map<String, Boolean>? = null): StaffProfile {
+        val creds = requireVerifiedCredentials()
+        require(userId.isNotBlank() && userId != creds.authenticatedUserId) { "ID staf tidak valid atau merupakan akun owner." }
+        val payload = buildJsonObject {
+            isActive?.let { put("is_active", it) }
+            permissions?.let { map -> putJsonObject("permissions") { map.forEach { (key, value) -> put(key, value) } } }
+        }
+        require(payload.isNotEmpty()) { "Tidak ada perubahan untuk disimpan." }
+        val user = URLEncoder.encode(userId, "UTF-8")
+        val owner = URLEncoder.encode(creds.authenticatedUserId, "UTF-8")
+        val raw = executeJsonRequest("PATCH",
+            "${creds.supabaseUrl}/rest/v1/staff_profiles?user_id=eq.$user&owner_id=eq.$owner&select=user_id,owner_id,full_name,role,is_active,permissions",
+            buildHeaders(creds, "return=representation"),
+            json.encodeToString(JsonObject.serializer(), payload))
+        return json.decodeFromString<List<StaffProfile>>(raw).firstOrNull()
+            ?: throw IllegalStateException("Profil staf tidak berubah. Periksa izin UPDATE dan RLS Supabase.")
+    }
+
+    suspend fun deleteStaffProfile(userId: String) {
+        val creds = requireVerifiedCredentials()
+        require(userId.isNotBlank() && userId != creds.authenticatedUserId) { "ID staf tidak valid atau merupakan akun owner." }
+        val user = URLEncoder.encode(userId, "UTF-8")
+        val owner = URLEncoder.encode(creds.authenticatedUserId, "UTF-8")
+        executeJsonRequest("DELETE",
+            "${creds.supabaseUrl}/rest/v1/staff_profiles?user_id=eq.$user&owner_id=eq.$owner",
+            buildHeaders(creds, "return=minimal"))
+    }
+
     suspend fun fetchPaymentMethods(): List<PaymentMethod> {
         val creds = requireVerifiedCredentials()
         val raw = executeJsonRequest("GET",

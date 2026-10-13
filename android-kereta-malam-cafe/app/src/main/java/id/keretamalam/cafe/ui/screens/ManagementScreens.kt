@@ -797,76 +797,60 @@ fun PegawaiComposeScreen(viewModel: PosViewModel, uiState: PosUiState) {
     var newName by remember { mutableStateOf("") }
     var newEmail by remember { mutableStateOf("") }
     var newRole by remember { mutableStateOf(StaffRole.CASHIER) }
-
-    LazyColumn(
-        modifier = Modifier.fillMaxSize(),
-        verticalArrangement = Arrangement.spacedBy(10.dp)
-    ) {
+    var pendingDelete by remember { mutableStateOf<StaffProfile?>(null) }
+    val isOwner = uiState.staffProfile.role == StaffRole.OWNER && uiState.staffProfile.isActive
+    val modules = listOf("dashboard" to "Dashboard", "orders" to "Kasir & Pesanan", "payments" to "Pembayaran", "products" to "Produk & Stok", "inventory" to "Inventory", "tables" to "Meja & QR Menu", "reports" to "Laporan Penjualan", "customers" to "Pelanggan", "promotions" to "Promosi & Diskon", "settings" to "Pengaturan Outlet", "export_data" to "Export / Download Data")
+    val metrics = listOf("dashboard.total_sales" to "Total penjualan", "dashboard.paid_orders" to "Jumlah transaksi lunas", "dashboard.average_transaction" to "Rata-rata transaksi", "dashboard.peak_hour" to "Jam tersibuk", "dashboard.trend_chart" to "Grafik tren omzet", "dashboard.hourly_activity" to "Aktivitas per jam", "dashboard.best_sellers" to "Menu terlaris", "dashboard.quick_actions" to "Akses cepat")
+    pendingDelete?.let { target -> AlertDialog(onDismissRequest = { pendingDelete = null }, title = { Text("Hapus profil staf?") }, text = { Text("Profil ${target.fullName} dihapus dari daftar POS. User Supabase Auth tidak ikut terhapus; penghapusan permanen perlu fungsi admin server.") }, confirmButton = { Button(onClick = { viewModel.deleteStaffProfile(target.userId); pendingDelete = null }, enabled = isOwner && !uiState.isLoading) { Text("Hapus profil") } }, dismissButton = { TextButton(onClick = { pendingDelete = null }) { Text("Batal") } }) }
+    LazyColumn(Modifier.fillMaxSize(), verticalArrangement = Arrangement.spacedBy(10.dp)) {
         item {
-            OutlinedCard(modifier = Modifier.fillMaxWidth()) {
-                Column(modifier = Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                    Text("Tambah Pegawai / Akun Staf Baru", style = MaterialTheme.typography.titleMedium)
-                    Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                        OutlinedTextField(value = newName, onValueChange = { newName = it }, label = { Text("Nama Lengkap") }, modifier = Modifier.weight(1f), singleLine = true)
-                        OutlinedTextField(value = newEmail, onValueChange = { newEmail = it }, label = { Text("Email Staf") }, modifier = Modifier.weight(1f), singleLine = true)
-                    }
-                    Row(horizontalArrangement = Arrangement.spacedBy(6.dp)) {
-                        listOf(StaffRole.OWNER, StaffRole.MANAGER, StaffRole.CASHIER).forEach { r ->
-                            FilterChip(selected = newRole == r, onClick = { newRole = r }, label = { Text(r.labelId) })
-                        }
-                    }
-                    Button(onClick = {
-                        viewModel.addStaffProfile(newName, newEmail, newRole)
-                        newName = ""
-                        newEmail = ""
-                    }) { Text("+ Tambah Staf") }
+            OutlinedCard(Modifier.fillMaxWidth()) { Column(Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                Text("Pegawai & Shift", style = MaterialTheme.typography.titleLarge, fontWeight = FontWeight.Bold)
+                Text("Hijau berarti shift sedang terbuka/pegawai bekerja. Akun aktif tidak otomatis berarti sedang bekerja.", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                if (!isOwner) Text("Pengelolaan pegawai hanya tersedia untuk Owner.", color = MaterialTheme.colorScheme.error)
+                Text("Tambah Pegawai / Akun Staf Baru", style = MaterialTheme.typography.titleMedium)
+                Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                    OutlinedTextField(value = newName, onValueChange = { newName = it }, label = { Text("Nama Lengkap") }, modifier = Modifier.weight(1f), singleLine = true, enabled = isOwner && !uiState.isLoading)
+                    OutlinedTextField(value = newEmail, onValueChange = { newEmail = it }, label = { Text("Email Staf") }, modifier = Modifier.weight(1f), singleLine = true, enabled = isOwner && !uiState.isLoading)
                 }
-            }
+                Row(horizontalArrangement = Arrangement.spacedBy(6.dp)) { listOf(StaffRole.MANAGER, StaffRole.CASHIER).forEach { role -> FilterChip(selected = newRole == role, onClick = { newRole = role }, enabled = isOwner, label = { Text(role.labelId) }) } }
+                Button(enabled = isOwner && !uiState.isLoading && newName.isNotBlank() && newEmail.isNotBlank(), onClick = { viewModel.addStaffProfile(newName, newEmail, newRole); newName = ""; newEmail = "" }) { Text("+ Tambah Staf") }
+            } }
         }
-
         items(uiState.staffList, key = { it.userId }) { st ->
             val isCurrent = st.userId == uiState.staffProfile.userId
-            OutlinedCard(modifier = Modifier.fillMaxWidth()) {
-                Column(modifier = Modifier.padding(14.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                    Row(
-                        modifier = Modifier.fillMaxWidth(),
-                        horizontalArrangement = Arrangement.SpaceBetween,
-                        verticalAlignment = Alignment.CenterVertically
-                    ) {
-                        Column(modifier = Modifier.weight(1f)) {
-                            Text(st.fullName, fontWeight = FontWeight.Bold)
-                            Text("Role: ${st.role.labelId} · ${st.email}")
-                        }
-                        Button(
-                            enabled = !isCurrent && uiState.backendStatus == BackendIntegrationStatus.LOCAL_SANDBOX_UI,
-                            onClick = { viewModel.switchActiveStaffProfile(st) }
-                        ) {
-                            Text(if (isCurrent) "Sedang Aktif" else "Gunakan Profil")
+            val working = uiState.shifts.any { it.staffUserId == st.userId && it.status.equals("open", true) }
+            OutlinedCard(Modifier.fillMaxWidth()) { Column(Modifier.padding(14.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween, verticalAlignment = Alignment.CenterVertically) {
+                    Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(4.dp)) {
+                        Text(st.fullName, fontWeight = FontWeight.Bold)
+                        Text("Role: ${st.role.labelId} · ${st.email}", style = MaterialTheme.typography.bodySmall)
+                        Surface(color = when { working -> androidx.compose.ui.graphics.Color(0xFFDCFCE7); st.isActive -> MaterialTheme.colorScheme.secondaryContainer; else -> MaterialTheme.colorScheme.errorContainer }, shape = RoundedCornerShape(50)) {
+                            Text(when { working -> "● Sedang bekerja"; st.isActive -> "● Akun aktif · tidak sedang shift"; else -> "● Nonaktif" }, Modifier.padding(horizontal = 9.dp, vertical = 5.dp), color = when { working -> androidx.compose.ui.graphics.Color(0xFF166534); st.isActive -> MaterialTheme.colorScheme.onSecondaryContainer; else -> MaterialTheme.colorScheme.onErrorContainer }, style = MaterialTheme.typography.labelSmall)
                         }
                     }
-
-                    Text("Hak Akses Modul (RBAC):", style = MaterialTheme.typography.labelMedium)
-                    Row(
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .horizontalScroll(rememberScrollState()),
-                        horizontalArrangement = Arrangement.spacedBy(6.dp)
-                    ) {
-                        PermissionKey.entries.forEach { perm ->
-                            val allowed = st.canAccess(perm)
-                            FilterChip(
-                                selected = allowed,
-                                onClick = { viewModel.toggleStaffPermission(st.userId, perm.key) },
-                                label = { Text(perm.key) }
-                            )
-                        }
-                    }
+                    if (uiState.backendStatus == BackendIntegrationStatus.LOCAL_SANDBOX_UI) TextButton(onClick = { viewModel.switchActiveStaffProfile(st) }, enabled = !isCurrent && st.isActive) { Text(if (isCurrent) "Profil ini" else "Uji profil") }
                 }
-            }
+                if (!isCurrent && isOwner) Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                    OutlinedButton(onClick = { viewModel.setStaffActive(st.userId, !st.isActive) }, modifier = Modifier.weight(1f), enabled = !uiState.isLoading) { Text(if (st.isActive) "Nonaktifkan" else "Aktifkan") }
+                    OutlinedButton(onClick = { pendingDelete = st }, modifier = Modifier.weight(1f), enabled = !uiState.isLoading) { Text("Delete") }
+                }
+                Text("Hak akses menu", style = MaterialTheme.typography.titleSmall, fontWeight = FontWeight.Bold)
+                modules.forEach { (key, label) -> PermissionToggleRow(label, st.permissions[key] == true, isOwner && !isCurrent && st.role != StaffRole.OWNER && !uiState.isLoading) { viewModel.toggleStaffPermission(st.userId, key) } }
+                HorizontalDivider()
+                Text("Detail Dashboard", style = MaterialTheme.typography.titleSmall, fontWeight = FontWeight.Bold)
+                metrics.forEach { (key, label) -> val allowed = if (st.permissions.containsKey(key)) st.permissions[key] == true else st.permissions["dashboard"] == true; PermissionToggleRow(label, allowed, isOwner && !isCurrent && st.role != StaffRole.OWNER && !uiState.isLoading) { viewModel.toggleStaffPermission(st.userId, key) } }
+            } }
         }
     }
 }
-
+@Composable
+private fun PermissionToggleRow(label: String, allowed: Boolean, enabled: Boolean, onToggle: () -> Unit) {
+    Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.SpaceBetween) {
+        Text(label, Modifier.weight(1f), style = MaterialTheme.typography.bodyMedium)
+        Switch(checked = allowed, onCheckedChange = { onToggle() }, enabled = enabled)
+    }
+}
 // ============================================================================
 // 16. PENGATURAN OUTLET SCREEN
 // ============================================================================

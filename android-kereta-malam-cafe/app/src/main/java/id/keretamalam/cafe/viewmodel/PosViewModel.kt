@@ -1,6 +1,7 @@
 package id.keretamalam.cafe.viewmodel
 
 import android.app.Application
+import android.media.MediaPlayer
 import androidx.lifecycle.AndroidViewModel
 import androidx.lifecycle.viewModelScope
 import id.keretamalam.cafe.data.config.BackendIntegrationStatus
@@ -125,6 +126,8 @@ data class PosUiState(
 class PosViewModel(application: Application) : AndroidViewModel(application) {
 
     private val repository = CafeFlowRepository(application)
+    private var orderBaselineInitialized = false
+    private var lastPlayedOrderAlertAt = 0L
     val printerManager = EscPosBluetoothManager(application)
     private val checkoutMutex = Mutex()
     private val orderRefreshMutex = Mutex()
@@ -166,6 +169,17 @@ class PosViewModel(application: Application) : AndroidViewModel(application) {
         if (!orderRefreshMutex.tryLock()) return
         try {
             val latestOrders = repository.fetchOrders(limitCount = 500)
+            val currentOrders = _uiState.value.orders
+            if (orderBaselineInitialized) {
+                val knownIds = currentOrders.map { it.id }.toSet()
+                val hasNewIncomingOrder = latestOrders.any { order ->
+                    order.id !in knownIds &&
+                        (order.status == OrderStatus.NEW || order.status == OrderStatus.PENDING)
+                }
+                if (hasNewIncomingOrder) playOrderAlertSound()
+            } else {
+                orderBaselineInitialized = true
+            }
             _uiState.update { current ->
                 if (
                     current.isLoggedIn &&
@@ -552,6 +566,53 @@ class PosViewModel(application: Application) : AndroidViewModel(application) {
         }
     }
 
+    private fun playOrderAlertSound() {
+        val now = System.currentTimeMillis()
+        if (now - lastPlayedOrderAlertAt < 2_000L) return
+        val soundUrl = getApplication<Application>()
+            .getSharedPreferences("order_alert_settings", android.content.Context.MODE_PRIVATE)
+            .getString("sound_url", null)
+            ?.takeIf { it.startsWith("https://") || it.startsWith("http://") }
+            ?: return
+        lastPlayedOrderAlertAt = now
+        runCatching {
+            MediaPlayer().apply {
+                setDataSource(soundUrl)
+                setOnPreparedListener { player -> runCatching { player.start() }.onFailure { player.release() } }
+                setOnCompletionListener { player -> player.release() }
+                setOnErrorListener { player, _, _ -> player.release(); true }
+                prepareAsync()
+            }
+        }
+    }
+
+    fun changePassword(newPassword: String) {
+        if (newPassword.length < 8) {
+            showNotice("Password baru minimal 8 karakter.", isError = true)
+            return
+        }
+        viewModelScope.launch {
+            runCatching { repository.changePassword(newPassword) }
+                .onSuccess { showNotice("Password berhasil diganti.") }
+                .onFailure { showNotice(it.message ?: "Gagal mengganti password. Coba login ulang lalu ulangi.", isError = true) }
+        }
+    }
+
+    fun uploadOrderAlertSound(bytes: ByteArray, mimeType: String, extension: String, onUploaded: (String) -> Unit) {
+        if (_uiState.value.backendStatus != BackendIntegrationStatus.ACTIVE_VERIFIED) {
+            showNotice("Upload suara memerlukan koneksi Supabase aktif.", isError = true)
+            return
+        }
+        viewModelScope.launch {
+            runCatching { repository.uploadOrderAlertSound(bytes, mimeType, extension) }
+                .onSuccess { url ->
+                    onUploaded(url)
+                    showNotice("Suara pesanan berhasil diunggah. Alarm aktif di perangkat ini.")
+                }
+                .onFailure { showNotice(it.message ?: "Gagal mengunggah suara pesanan.", isError = true) }
+        }
+    }
+
     fun loginWithSupabaseAuth(email: String, password: String) {
         if (email.isBlank() || password.isBlank()) {
             showNotice("Email dan password wajib diisi.", isError = true)
@@ -608,6 +669,7 @@ class PosViewModel(application: Application) : AndroidViewModel(application) {
                 val expenses = repository.fetchExpenses()
                 val logs = repository.fetchAuditLogs()
 
+                orderBaselineInitialized = true
                 _uiState.update {
                     it.copy(
                         isLoading = false,

@@ -327,11 +327,11 @@ fun CafeFlowAppShell(
                     // Floating Bottom-Right Zoom Control (- 100% +)
                     Surface(
                         shape = RoundedCornerShape(24.dp),
-                        color = MaterialTheme.colorScheme.surface,
+                        color = androidx.compose.ui.graphics.Color.Transparent,
+                        shadowElevation = 0.dp,
                         modifier = Modifier
                             .align(Alignment.BottomEnd)
-                            .padding(12.dp)
-                            .border(1.dp, MaterialTheme.colorScheme.outline, RoundedCornerShape(24.dp))
+                            .padding(4.dp)
                     ) {
                         Row(
                             verticalAlignment = Alignment.CenterVertically,

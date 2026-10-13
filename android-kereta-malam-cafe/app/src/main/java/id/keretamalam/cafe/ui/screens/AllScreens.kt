@@ -1622,7 +1622,7 @@ private fun AuditShiftComposeScreen(viewModel: PosViewModel, uiState: PosUiState
                 items(filtered, key = { it.id }) { shift ->
                     val variance = (shift.closingCash ?: 0.0) - (shift.expectedCash ?: 0.0)
                     val suspicious = shift.status.equals("closed", true) && kotlin.math.abs(variance) >= 1.0
-                    OutlinedCard(Modifier.fillMaxWidth(), onClick = { selectedShift = shift }) {
+                    OutlinedCard(onClick = { selectedShift = shift }, modifier = Modifier.fillMaxWidth()) {
                         Column(Modifier.fillMaxWidth().padding(14.dp), verticalArrangement = Arrangement.spacedBy(6.dp)) {
                             Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween, verticalAlignment = Alignment.CenterVertically) {
                                 Column(Modifier.weight(1f)) {

@@ -71,6 +71,16 @@ enum class PosModuleRoute(
     PRINTER("printer", "Printer", "MANAJEMEN", PermissionKey.SETTINGS, Icons.Outlined.Print),
 }
 
+
+private fun localizedRouteTitle(text: String, language: String): String {
+    if (language == "id") return text
+    val en = mapOf("Dashboard" to "Dashboard", "AI Assistant" to "AI Assistant", "Kasir" to "Cashier", "Pesanan" to "Orders", "History" to "History", "Opening & Closing" to "Opening & Closing", "Audit Shift" to "Shift Audit", "Log Aktivitas" to "Activity Log", "Produk & Stok" to "Products & Stock", "Meja & QR Menu" to "Tables & QR Menu", "Inventory" to "Inventory", "Promosi & Diskon" to "Promotions & Discounts", "Pengeluaran & Laba Rugi" to "Expenses & Profit/Loss", "Laporan Penjualan" to "Sales Reports", "Pegawai & Shift" to "Staff & Shifts", "Pengaturan Outlet" to "Outlet Settings", "Printer" to "Printer")
+    val zh = mapOf("Dashboard" to "仪表盘", "AI Assistant" to "AI 助手", "Kasir" to "收银台", "Pesanan" to "订单", "History" to "历史记录", "Opening & Closing" to "交接班", "Audit Shift" to "班次审计", "Log Aktivitas" to "活动日志", "Produk & Stok" to "商品与库存", "Meja & QR Menu" to "桌台与二维码菜单", "Inventory" to "库存管理", "Promosi & Diskon" to "促销与折扣", "Pengeluaran & Laba Rugi" to "支出与损益", "Laporan Penjualan" to "销售报表", "Pegawai & Shift" to "员工与班次", "Pengaturan Outlet" to "门店设置", "Printer" to "打印机")
+    val th = mapOf("Dashboard" to "แดชบอร์ด", "AI Assistant" to "ผู้ช่วย AI", "Kasir" to "แคชเชียร์", "Pesanan" to "คำสั่งซื้อ", "History" to "ประวัติ", "Opening & Closing" to "เปิดและปิดกะ", "Audit Shift" to "ตรวจสอบกะ", "Log Aktivitas" to "บันทึกกิจกรรม", "Produk & Stok" to "สินค้าและสต็อก", "Meja & QR Menu" to "โต๊ะและเมนู QR", "Inventory" to "คลังสินค้า", "Promosi & Diskon" to "โปรโมชันและส่วนลด", "Pengeluaran & Laba Rugi" to "ค่าใช้จ่ายและกำไรขาดทุน", "Laporan Penjualan" to "รายงานยอดขาย", "Pegawai & Shift" to "พนักงานและกะ", "Pengaturan Outlet" to "ตั้งค่าร้าน", "Printer" to "เครื่องพิมพ์")
+    val vi = mapOf("Dashboard" to "Tổng quan", "AI Assistant" to "Trợ lý AI", "Kasir" to "Thu ngân", "Pesanan" to "Đơn hàng", "History" to "Lịch sử", "Opening & Closing" to "Mở và đóng ca", "Audit Shift" to "Kiểm tra ca", "Log Aktivitas" to "Nhật ký hoạt động", "Produk & Stok" to "Sản phẩm & tồn kho", "Meja & QR Menu" to "Bàn & menu QR", "Inventory" to "Kho hàng", "Promosi & Diskon" to "Khuyến mãi & giảm giá", "Pengeluaran & Laba Rugi" to "Chi phí & lãi lỗ", "Laporan Penjualan" to "Báo cáo bán hàng", "Pegawai & Shift" to "Nhân viên & ca", "Pengaturan Outlet" to "Cài đặt cửa hàng", "Printer" to "Máy in")
+    return when (language) { "en" -> en[text] ?: text; "zh" -> zh[text] ?: text; "th" -> th[text] ?: text; "vi" -> vi[text] ?: text; else -> text }
+}
+
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun CafeFlowAppShell(
@@ -156,12 +166,12 @@ fun CafeFlowAppShell(
                                     NavigationDrawerItem(
                                         label = {
                                             Text(
-                                                text = item.titleId,
+                                                text = localizedRouteTitle(item.titleId, uiState.outletSettings.appLanguage),
                                                 maxLines = 1,
                                                 overflow = TextOverflow.Ellipsis
                                             )
                                         },
-                                        icon = { Icon(item.icon, contentDescription = item.titleId, tint = moduleIconTint(item)) },
+                                        icon = { Icon(item.icon, contentDescription = localizedRouteTitle(item.titleId, uiState.outletSettings.appLanguage), tint = moduleIconTint(item)) },
                                         badge = badgeText?.let { b ->
                                             {
                                                 Badge { Text(b) }
@@ -219,7 +229,7 @@ fun CafeFlowAppShell(
                         title = {
                             Column {
                                 Text(
-                                    text = activeModule.titleId,
+                                    text = localizedRouteTitle(activeModule.titleId, uiState.outletSettings.appLanguage),
                                     style = MaterialTheme.typography.titleMedium,
                                     maxLines = 1,
                                     overflow = TextOverflow.Ellipsis
@@ -280,8 +290,8 @@ fun CafeFlowAppShell(
                                 NavigationBarItem(
                                     selected = activeModule == route,
                                     onClick = { activeModule = route },
-                                    icon = { Icon(route.icon, contentDescription = route.titleId, tint = moduleIconTint(route)) },
-                                    label = { Text(route.titleId, maxLines = 1, overflow = TextOverflow.Ellipsis) }
+                                    icon = { Icon(route.icon, contentDescription = localizedRouteTitle(route.titleId, uiState.outletSettings.appLanguage), tint = moduleIconTint(route)) },
+                                    label = { Text(localizedRouteTitle(route.titleId, uiState.outletSettings.appLanguage), maxLines = 1, overflow = TextOverflow.Ellipsis) }
                                 )
                             }
                             NavigationBarItem(

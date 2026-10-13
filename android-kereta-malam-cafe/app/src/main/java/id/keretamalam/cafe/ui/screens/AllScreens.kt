@@ -278,7 +278,7 @@ private fun DashboardComposeScreen(
     var selectedDateRange by remember { mutableStateOf("today") }
     var dateRangeMenuExpanded by remember { mutableStateOf(false) }
     val today = java.time.LocalDate.now()
-    val filteredPaidOrders = filteredPaidOrders.filter { order ->
+    val filteredPaidOrders = uiState.paidOrders.filter { order ->
         val orderDate = runCatching { java.time.LocalDate.parse(order.createdAt.take(10)) }.getOrNull()
         when (selectedDateRange) {
             "today" -> orderDate == today

@@ -247,31 +247,6 @@ data class InventoryMovement(
     @SerialName("created_at") val createdAt: String = ""
 )
 
-@Serializable
-data class WebsitePageItem(
-    val id: String,
-    val slug: String,
-    val title: String,
-    val status: String,
-    val updatedAt: String
-)
-
-@Serializable
-data class WebsiteCmsModel(
-    val siteName: String = "Kereta Malam Cafe",
-    val tagline: String = "Specialty Coffee, Roastery & Night Space",
-    val heroHeadline: String = "Seduhan Terbaik di Setiap Perjalanan Malam Anda",
-    val whatsapp: String = "6281234567890",
-    val instagram: String = "@keretamalam.cafe",
-    val openingHours: String = "Setiap Hari · 08:00 – 01:00 WIB",
-    val pages: List<WebsitePageItem> = listOf(
-        WebsitePageItem("pg-1", "home", "Beranda Utama", "published", "2026-10-10"),
-        WebsitePageItem("pg-2", "about", "Tentang Kereta Malam", "published", "2026-10-09"),
-        WebsitePageItem("pg-3", "menu", "Katalog QR Menu Digital", "published", "2026-10-11"),
-        WebsitePageItem("pg-4", "careers", "Karier & Barista", "draft", "2026-10-05")
-    )
-)
-
 data class CartItem(
     val cartItemId: String,
     val product: Product,

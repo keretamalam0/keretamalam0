@@ -1421,6 +1421,17 @@ export default function App() {
                       }`}
                     >
                       <div>
+                        {product.image_url ? (
+                          <div className="mb-3 flex h-36 w-full items-center justify-center overflow-hidden rounded-lg bg-zinc-100 dark:bg-zinc-800">
+                            <img
+                              src={product.image_url}
+                              alt={product.name}
+                              loading="lazy"
+                              className="h-full w-full object-cover"
+                              onError={(e) => { e.currentTarget.style.display = 'none'; }}
+                            />
+                          </div>
+                        ) : null}
                         <div className="flex items-start justify-between gap-2">
                           <h4 className="text-sm font-bold">{product.name}</h4>
                           <span className="num text-sm font-bold">{formatRupiah(product.price)}</span>

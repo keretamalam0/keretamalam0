@@ -237,6 +237,36 @@ class CafeFlowRepository(private val context: Context) {
         return list.firstOrNull()?.copy(email = creds.authenticatedEmail)
     }
 
+    suspend fun updateStaffProfile(profile: StaffProfile): StaffProfile {
+        val creds = requireVerifiedCredentials()
+        require(profile.userId.isNotBlank()) { "ID pegawai tidak valid." }
+        require(profile.userId != creds.authenticatedUserId || profile.isActive) { "Owner tidak boleh menonaktifkan akun sendiri." }
+        val encodedId = URLEncoder.encode(profile.userId, "UTF-8")
+        val payload = buildJsonObject {
+            put("is_active", profile.isActive)
+            putJsonObject("permissions") { profile.permissions.forEach { (key, value) -> put(key, value) } }
+        }
+        val raw = executeJsonRequest(
+            method = "PATCH",
+            url = "${creds.supabaseUrl}/rest/v1/staff_profiles?user_id=eq.$encodedId&select=user_id,owner_id,full_name,role,is_active,permissions",
+            headers = buildHeaders(creds, "return=representation"),
+            bodyJson = json.encodeToString(JsonObject.serializer(), payload)
+        )
+        return json.decodeFromString<List<StaffProfile>>(raw).firstOrNull()?.copy(email = profile.email)
+            ?: throw IllegalStateException("Profil pegawai tidak diperbarui. Periksa izin UPDATE dan RLS.")
+    }
+
+    suspend fun deleteStaffProfile(userId: String) {
+        val creds = requireVerifiedCredentials()
+        require(userId.isNotBlank() && userId != creds.authenticatedUserId) { "Tidak boleh menghapus akun yang sedang digunakan." }
+        val encodedId = URLEncoder.encode(userId, "UTF-8")
+        executeJsonRequest(
+            method = "DELETE",
+            url = "${creds.supabaseUrl}/rest/v1/staff_profiles?user_id=eq.$encodedId",
+            headers = buildHeaders(creds, "return=minimal")
+        )
+    }
+
     // ========================================================================
     // 2. KATEGORI, PRODUK, DAN MEJA
     // ========================================================================

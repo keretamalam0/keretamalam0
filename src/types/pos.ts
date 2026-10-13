@@ -132,7 +132,7 @@ export interface OutletSettings {
   qris_enabled: boolean;
   transfer_enabled: boolean;
   ewallet_enabled: boolean;
-  app_language: 'id' | 'en';
+  app_language: 'id' | 'en' | 'zh' | 'th' | 'vi';
   public_web_base_url: string;
 }
 

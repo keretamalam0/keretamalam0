@@ -279,7 +279,11 @@ private fun DashboardComposeScreen(
     var dateRangeMenuExpanded by remember { mutableStateOf(false) }
     val today = java.time.LocalDate.now()
     val filteredPaidOrders = uiState.paidOrders.filter { order ->
-        val orderDate = runCatching { java.time.LocalDate.parse(order.createdAt.take(10)) }.getOrNull()
+        val orderDate = runCatching {
+            val instant = runCatching { java.time.Instant.parse(order.createdAt) }
+                .getOrElse { java.time.OffsetDateTime.parse(order.createdAt).toInstant() }
+            instant.atZone(java.time.ZoneId.systemDefault()).toLocalDate()
+        }.getOrNull()
         when (selectedDateRange) {
             "today" -> orderDate == today
             "7days" -> orderDate != null && !orderDate.isBefore(today.minusDays(6)) && !orderDate.isAfter(today)

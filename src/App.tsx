@@ -696,6 +696,7 @@ export default function App() {
         await syncFromLiveSupabase(supabaseConfig);
         setConfirmCheckoutModalOpen(false);
         setCart([]);
+        setSelectedPromoId('');
         setCustomerName('');
         setOrderNotes('');
         setCashReceivedInput('');
@@ -783,6 +784,7 @@ export default function App() {
 
       setConfirmCheckoutModalOpen(false);
       setCart([]);
+      setSelectedPromoId('');
       setCustomerName('');
       setOrderNotes('');
       setCashReceivedInput('');

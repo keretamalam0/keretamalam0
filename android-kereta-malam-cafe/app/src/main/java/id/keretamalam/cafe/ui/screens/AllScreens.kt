@@ -743,7 +743,7 @@ private fun KasirComposeScreen(
             }
 
             LazyRow(
-                modifier = Modifier.weight(1f).fillMaxWidth(),
+                modifier = Modifier.fillMaxWidth().height(218.dp),
                 horizontalArrangement = Arrangement.spacedBy(10.dp),
                 contentPadding = PaddingValues(end = 8.dp, bottom = 4.dp)
             ) {

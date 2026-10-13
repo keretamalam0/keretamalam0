@@ -251,14 +251,24 @@ fun CafeFlowAppShell(
                             }
                         },
                         actions = {
-                            if (isTabletOrWide) {
-                                listOf(40, 50, 60, 80, 100).forEach { scale ->
-                                    TextButton(onClick = { viewModel.setUiScale(scale) }) {
-                                        Text(
-                                            text = "$scale%",
-                                            fontWeight = if (uiState.uiScalePercent == scale) FontWeight.Bold else FontWeight.Normal
-                                        )
-                                    }
+                            // Kontrol skala dipindah ke header, berdampingan dengan toggle tema.
+                            Row(verticalAlignment = Alignment.CenterVertically) {
+                                IconButton(
+                                    onClick = { viewModel.setUiScale(uiState.uiScalePercent - 10) },
+                                    enabled = uiState.uiScalePercent > 40
+                                ) {
+                                    Icon(Icons.Outlined.Remove, contentDescription = "Perkecil tampilan")
+                                }
+                                Text(
+                                    text = "${uiState.uiScalePercent}%",
+                                    style = MaterialTheme.typography.labelMedium,
+                                    fontWeight = FontWeight.Bold
+                                )
+                                IconButton(
+                                    onClick = { viewModel.setUiScale(uiState.uiScalePercent + 10) },
+                                    enabled = uiState.uiScalePercent < 120
+                                ) {
+                                    Icon(Icons.Outlined.Add, contentDescription = "Perbesar tampilan")
                                 }
                             }
                             IconButton(onClick = { viewModel.setThemeMode(!uiState.darkTheme) }) {
@@ -334,34 +344,6 @@ fun CafeFlowAppShell(
                         uiState = uiState
                     )
 
-                    // Floating Bottom-Right Zoom Control (- 100% +)
-                    Surface(
-                        shape = RoundedCornerShape(24.dp),
-                        color = androidx.compose.ui.graphics.Color.Transparent,
-                        shadowElevation = 0.dp,
-                        modifier = Modifier
-                            .align(Alignment.BottomEnd)
-                            .padding(4.dp)
-                    ) {
-                        Row(
-                            verticalAlignment = Alignment.CenterVertically,
-                            modifier = Modifier.padding(horizontal = 8.dp, vertical = 2.dp)
-                        ) {
-                            TextButton(
-                                onClick = { viewModel.setUiScale(uiState.uiScalePercent - 10) },
-                                enabled = uiState.uiScalePercent > 40
-                            ) { Text("-") }
-                            Text(
-                                text = "${uiState.uiScalePercent}%",
-                                style = MaterialTheme.typography.labelMedium,
-                                fontWeight = FontWeight.Bold
-                            )
-                            TextButton(
-                                onClick = { viewModel.setUiScale(uiState.uiScalePercent + 10) },
-                                enabled = uiState.uiScalePercent < 120
-                            ) { Text("+") }
-                        }
-                    }
                 }
             }
         }

@@ -3732,8 +3732,8 @@ export default function App() {
         </div>
       </div>
 
-      {/* Floating Bottom-Right Zoom Control (Matching Cafe Flow AppShell.tsx) */}
-      <div className="fixed right-3 bottom-3 z-40 flex items-center gap-1 rounded-full border border-zinc-200 bg-white/90 px-2 py-1 shadow-sm backdrop-blur-xs dark:border-zinc-800 dark:bg-zinc-900/90">
+      {/* Minimal floating zoom controls; transparent and kept clear of primary navigation. */}
+      <div className="fixed right-2 bottom-2 z-40 flex items-center gap-1 bg-transparent p-0">
         <button
           type="button"
           onClick={() => handleSetZoom(screenZoom - 10)}

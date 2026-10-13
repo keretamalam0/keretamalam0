@@ -10,6 +10,7 @@ import androidx.compose.foundation.border
 import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
@@ -741,53 +742,75 @@ private fun KasirComposeScreen(
                 }
             }
 
-            LazyColumn(
-                modifier = Modifier.weight(1f),
-                verticalArrangement = Arrangement.spacedBy(8.dp)
+            LazyRow(
+                modifier = Modifier.weight(1f).fillMaxWidth(),
+                horizontalArrangement = Arrangement.spacedBy(10.dp),
+                contentPadding = PaddingValues(end = 8.dp, bottom = 4.dp)
             ) {
                 items(filteredProducts, key = { it.id }) { product ->
-                    OutlinedCard(modifier = Modifier.fillMaxWidth()) {
-                        Row(
-                            modifier = Modifier
-                                .fillMaxWidth()
-                                .padding(12.dp),
-                            horizontalArrangement = Arrangement.SpaceBetween,
-                            verticalAlignment = Alignment.CenterVertically
+                    OutlinedCard(
+                        modifier = Modifier.width(156.dp).fillMaxHeight(),
+                        shape = RoundedCornerShape(12.dp)
+                    ) {
+                        Column(
+                            modifier = Modifier.fillMaxSize().padding(8.dp),
+                            verticalArrangement = Arrangement.spacedBy(5.dp)
                         ) {
                             if (!product.imageUrl.isNullOrBlank()) {
                                 AsyncImage(
                                     model = product.imageUrl,
                                     contentDescription = "Foto ${product.name}",
-                                    modifier = Modifier.size(84.dp),
+                                    modifier = Modifier.fillMaxWidth().height(92.dp),
                                     contentScale = androidx.compose.ui.layout.ContentScale.Crop
                                 )
-                            }
-                            Column(modifier = Modifier.weight(1f)) {
-                                Text(product.name, style = MaterialTheme.typography.titleMedium)
-                                if (!product.description.isNullOrBlank()) {
-                                    Text(
-                                        text = product.description,
-                                        style = MaterialTheme.typography.bodyMedium,
-                                        color = MaterialTheme.colorScheme.onSurfaceVariant
-                                    )
+                            } else {
+                                Surface(
+                                    modifier = Modifier.fillMaxWidth().height(92.dp),
+                                    shape = RoundedCornerShape(8.dp),
+                                    color = MaterialTheme.colorScheme.surfaceVariant
+                                ) {
+                                    Box(contentAlignment = Alignment.Center) {
+                                        androidx.compose.material3.Icon(
+                                            imageVector = Icons.Outlined.Inventory2,
+                                            contentDescription = "Foto belum tersedia",
+                                            tint = MaterialTheme.colorScheme.onSurfaceVariant,
+                                            modifier = Modifier.size(30.dp)
+                                        )
+                                    }
                                 }
-                                Text(
-                                    text = "${RupiahFormatter.format(product.price)} · ${
-                                        when {
-                                            product.isOutOfStock -> "HABIS"
-                                            product.isLowStock -> "Stok Menipis: ${product.stock}"
-                                            else -> "Stok: ${product.stock}"
-                                        }
-                                    }",
-                                    style = MaterialTheme.typography.labelMedium,
-                                    color = if (product.isOutOfStock || product.isLowStock)
-                                        MaterialTheme.colorScheme.error
-                                    else MaterialTheme.colorScheme.onSurfaceVariant
-                                )
                             }
-                            Row(horizontalArrangement = Arrangement.spacedBy(6.dp)) {
+                            Text(
+                                text = product.name,
+                                style = MaterialTheme.typography.titleSmall,
+                                fontWeight = FontWeight.SemiBold,
+                                maxLines = 2,
+                                minLines = 1
+                            )
+                            Text(
+                                text = RupiahFormatter.format(product.price),
+                                style = MaterialTheme.typography.labelLarge,
+                                fontWeight = FontWeight.Bold,
+                                maxLines = 1
+                            )
+                            Text(
+                                text = when {
+                                    product.isOutOfStock -> "HABIS"
+                                    product.isLowStock -> "Stok menipis: ${product.stock}"
+                                    else -> "Stok: ${product.stock}"
+                                },
+                                style = MaterialTheme.typography.labelSmall,
+                                color = if (product.isOutOfStock || product.isLowStock)
+                                    MaterialTheme.colorScheme.error
+                                else MaterialTheme.colorScheme.onSurfaceVariant,
+                                maxLines = 1
+                            )
+                            Spacer(modifier = Modifier.weight(1f))
+                            Row(
+                                modifier = Modifier.fillMaxWidth(),
+                                horizontalArrangement = Arrangement.spacedBy(4.dp),
+                                verticalAlignment = Alignment.CenterVertically
+                            ) {
                                 OutlinedButton(
-                                    enabled = !product.isOutOfStock,
                                     onClick = {
                                         customizingProduct = product
                                         customSugar = "Normal Sugar"
@@ -796,15 +819,20 @@ private fun KasirComposeScreen(
                                         customExtraShot = false
                                         customOatMilk = false
                                         customNote = ""
-                                    }
+                                    },
+                                    enabled = !product.isOutOfStock,
+                                    modifier = Modifier.weight(1f),
+                                    contentPadding = PaddingValues(horizontal = 4.dp, vertical = 0.dp)
                                 ) {
-                                    Text("Opsi")
+                                    Text("Opsi", style = MaterialTheme.typography.labelSmall)
                                 }
                                 Button(
+                                    onClick = { viewModel.addToCart(product) },
                                     enabled = !product.isOutOfStock,
-                                    onClick = { viewModel.addToCart(product) }
+                                    modifier = Modifier.weight(1f),
+                                    contentPadding = PaddingValues(horizontal = 4.dp, vertical = 0.dp)
                                 ) {
-                                    Text("+ Tambah")
+                                    Text("+", style = MaterialTheme.typography.titleMedium)
                                 }
                             }
                         }

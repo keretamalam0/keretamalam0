@@ -350,6 +350,7 @@ class PosViewModel(application: Application) : AndroidViewModel(application) {
     }
 
     fun savePaymentMethod(method: PaymentMethod) {
+        if (!_uiState.value.staffProfile.canPerform("settings.manage")) { showNotice("Akun ini tidak memiliki izin mengubah pengaturan pembayaran.", isError = true); return }
         if (_uiState.value.backendStatus != BackendIntegrationStatus.ACTIVE_VERIFIED) {
             showNotice("Metode pembayaran hanya bisa disimpan saat layanan aktif.", isError = true)
             return
@@ -363,6 +364,7 @@ class PosViewModel(application: Application) : AndroidViewModel(application) {
     }
 
     fun deletePaymentMethod(id: String) {
+        if (!_uiState.value.staffProfile.canPerform("settings.manage")) { showNotice("Akun ini tidak memiliki izin mengubah pengaturan pembayaran.", isError = true); return }
         viewModelScope.launch {
             runCatching { repository.deletePaymentMethod(id) }
                 .onSuccess { _uiState.update { s -> s.copy(paymentMethods = s.paymentMethods.filterNot { it.id == id }, successMessage = "Metode pembayaran dihapus.") } }
@@ -380,6 +382,7 @@ class PosViewModel(application: Application) : AndroidViewModel(application) {
 
     fun toggleStaffPermission(userId: String, permKey: String) {
         val state = _uiState.value
+        if (!state.staffProfile.canPerform("staff.manage")) { showNotice("Akun ini tidak memiliki izin mengelola pegawai.", isError = true); return }
         val target = state.staffList.firstOrNull { it.userId == userId } ?: return
         if (target.role == StaffRole.OWNER || target.role == StaffRole.SUPER_ADMIN) {
             showNotice("Hak akses Owner / Super Admin tidak bisa dibatasi dari profil staf biasa.", isError = true)
@@ -417,6 +420,7 @@ class PosViewModel(application: Application) : AndroidViewModel(application) {
 
     fun setStaffActive(userId: String, active: Boolean) {
         val state = _uiState.value
+        if (!state.staffProfile.canPerform("staff.manage")) { showNotice("Akun ini tidak memiliki izin mengelola pegawai.", isError = true); return }
         val target = state.staffList.firstOrNull { it.userId == userId } ?: return
         if (target.userId == state.staffProfile.userId) {
             showNotice("Akun yang sedang dipakai tidak bisa dinonaktifkan.", isError = true)
@@ -438,6 +442,7 @@ class PosViewModel(application: Application) : AndroidViewModel(application) {
 
     fun deleteStaffProfile(userId: String) {
         val state = _uiState.value
+        if (!state.staffProfile.canPerform("staff.manage")) { showNotice("Akun ini tidak memiliki izin mengelola pegawai.", isError = true); return }
         val target = state.staffList.firstOrNull { it.userId == userId } ?: return
         if (target.userId == state.staffProfile.userId || target.role == StaffRole.OWNER || target.role == StaffRole.SUPER_ADMIN) {
             showNotice("Akun yang sedang dipakai atau akun Owner/Super Admin tidak bisa dihapus dari sini.", isError = true)
@@ -922,6 +927,7 @@ class PosViewModel(application: Application) : AndroidViewModel(application) {
     // PESANAN & QR ORDERING
     // ========================================================================
     fun deleteOrders(orderIds: List<String>) {
+        if (!_uiState.value.staffProfile.canPerform("history.delete")) { showNotice("Akun ini tidak memiliki izin menghapus transaksi.", isError = true); return }
         if (orderIds.isEmpty()) return
         viewModelScope.launch {
             if (_uiState.value.backendStatus == BackendIntegrationStatus.ACTIVE_VERIFIED) {
@@ -942,6 +948,7 @@ class PosViewModel(application: Application) : AndroidViewModel(application) {
     }
 
     fun deleteAllOrders() {
+        if (!_uiState.value.staffProfile.canPerform("history.delete")) { showNotice("Akun ini tidak memiliki izin menghapus transaksi.", isError = true); return }
         viewModelScope.launch {
             if (_uiState.value.backendStatus == BackendIntegrationStatus.ACTIVE_VERIFIED) {
                 runCatching { repository.deleteAllOrders() }
@@ -1109,6 +1116,7 @@ class PosViewModel(application: Application) : AndroidViewModel(application) {
     // SHIFT KASIR & AUDIT SHIFT
     // ========================================================================
     fun openNewShift(openingCash: Double) {
+        if (!_uiState.value.staffProfile.canPerform("shift.manage")) { showNotice("Akun ini tidak memiliki izin mengelola shift.", isError = true); return }
         if (_uiState.value.backendStatus == BackendIntegrationStatus.ACTIVE_VERIFIED) {
             showNotice("Pencatatan shift live belum tersambung ke penyimpanan Supabase. Shift tidak dibuat agar data tidak hanya tersimpan lokal.", isError = true)
             return
@@ -1134,6 +1142,7 @@ class PosViewModel(application: Application) : AndroidViewModel(application) {
     }
 
     fun closeActiveShift(shiftId: String, closingCash: Double, expectedCash: Double, notes: String) {
+        if (!_uiState.value.staffProfile.canPerform("shift.manage")) { showNotice("Akun ini tidak memiliki izin mengelola shift.", isError = true); return }
         if (_uiState.value.backendStatus == BackendIntegrationStatus.ACTIVE_VERIFIED) {
             showNotice("Penutupan shift live belum tersambung ke Supabase. Data kas tidak diubah.", isError = true)
             return
@@ -1234,6 +1243,7 @@ class PosViewModel(application: Application) : AndroidViewModel(application) {
     }
 
     fun saveProductItem(product: Product) {
+        if (!_uiState.value.staffProfile.canPerform("products.edit")) { showNotice("Akun ini tidak memiliki izin mengubah produk.", isError = true); return }
         if (product.name.isBlank() || product.price <= 0) {
             showNotice("Nama produk dan harga jual wajib valid.", isError = true)
             return
@@ -1263,6 +1273,7 @@ class PosViewModel(application: Application) : AndroidViewModel(application) {
     }
 
     fun deleteProductItem(productId: String) {
+        if (!_uiState.value.staffProfile.canPerform("products.delete")) { showNotice("Akun ini tidak memiliki izin menghapus produk.", isError = true); return }
         viewModelScope.launch {
             if (_uiState.value.backendStatus == BackendIntegrationStatus.ACTIVE_VERIFIED) {
                 runCatching { repository.deleteProduct(productId) }
@@ -1474,6 +1485,7 @@ class PosViewModel(application: Application) : AndroidViewModel(application) {
     }
 
     fun recordInventoryMovement(productId: String, type: String, qty: Int, reason: String) {
+        if (!_uiState.value.staffProfile.canPerform("inventory.edit")) { showNotice("Akun ini tidak memiliki izin mengubah stok.", isError = true); return }
         if (_uiState.value.backendStatus == BackendIntegrationStatus.ACTIVE_VERIFIED) {
             showNotice("Mutasi stok live belum tersambung ke Supabase. Stok tidak diubah.", isError = true)
             return
@@ -1574,6 +1586,7 @@ class PosViewModel(application: Application) : AndroidViewModel(application) {
     }
 
     fun updateOutletSettings(settings: OutletSettings) {
+        if (!_uiState.value.staffProfile.canPerform("settings.manage")) { showNotice("Akun ini tidak memiliki izin mengubah pengaturan outlet.", isError = true); return }
         if (_uiState.value.backendStatus == BackendIntegrationStatus.ACTIVE_VERIFIED) {
             viewModelScope.launch {
                 _uiState.update { it.copy(isLoading = true, errorMessage = null, successMessage = null) }

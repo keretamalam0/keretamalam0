@@ -13,6 +13,17 @@ import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.*
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.outlined.AccountBalanceWallet
+import androidx.compose.material.icons.outlined.CheckCircle
+import androidx.compose.material.icons.outlined.Schedule
+import androidx.compose.material.icons.outlined.ReceiptLong
+import androidx.compose.material.icons.outlined.PointOfSale
+import androidx.compose.material.icons.outlined.Inventory2
+import androidx.compose.material.icons.outlined.TableRestaurant
+import androidx.compose.material.icons.outlined.TrendingUp
+import androidx.compose.material.icons.outlined.AutoAwesome
+import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.graphics.Color
@@ -537,11 +548,35 @@ private fun DashboardDonutChart(values: List<Float>, modifier: Modifier = Modifi
     }
 }
 
+private fun kpiIconFor(title: String): Pair<ImageVector, Color> = when {
+    title.contains("Penjualan", ignoreCase = true) -> Icons.Outlined.AccountBalanceWallet to Color(0xFF6489B8)
+    title.contains("Lunas", ignoreCase = true) -> Icons.Outlined.CheckCircle to Color(0xFF659B83)
+    title.contains("Rata-rata", ignoreCase = true) -> Icons.Outlined.ReceiptLong to Color(0xFF8B80B8)
+    title.contains("Jam", ignoreCase = true) -> Icons.Outlined.Schedule to Color(0xFFC09A63)
+    title.contains("Pesanan", ignoreCase = true) -> Icons.Outlined.ReceiptLong to Color(0xFF6489B8)
+    title.contains("Stok", ignoreCase = true) || title.contains("Persediaan", ignoreCase = true) -> Icons.Outlined.Inventory2 to Color(0xFF659B83)
+    title.contains("Meja", ignoreCase = true) -> Icons.Outlined.TableRestaurant to Color(0xFF8B80B8)
+    title.contains("AI", ignoreCase = true) -> Icons.Outlined.AutoAwesome to Color(0xFF8B80B8)
+    else -> Icons.Outlined.TrendingUp to Color(0xFF6489B8)
+}
+
 @Composable
 private fun DashboardKpiCard(modifier: Modifier = Modifier, title: String, value: String, subtitle: String, onClick: () -> Unit) {
+    val (icon, tint) = kpiIconFor(title)
     OutlinedCard(onClick = onClick, modifier = modifier) {
-        Column(Modifier.fillMaxWidth().padding(12.dp), verticalArrangement = Arrangement.spacedBy(4.dp)) {
-            Text(title, style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant, maxLines = 2)
+        Column(Modifier.fillMaxWidth().padding(12.dp), verticalArrangement = Arrangement.spacedBy(5.dp)) {
+            Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(7.dp)) {
+                Surface(
+                    shape = RoundedCornerShape(9.dp),
+                    color = tint.copy(alpha = 0.11f),
+                    modifier = Modifier.size(30.dp)
+                ) {
+                    Box(contentAlignment = Alignment.Center) {
+                        Icon(imageVector = icon, contentDescription = null, tint = tint, modifier = Modifier.size(18.dp))
+                    }
+                }
+                Text(title, style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant, maxLines = 2)
+            }
             Text(value, style = MaterialTheme.typography.titleLarge, fontWeight = FontWeight.Bold, maxLines = 2)
             Text(subtitle, style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.onSurfaceVariant, maxLines = 2)
         }

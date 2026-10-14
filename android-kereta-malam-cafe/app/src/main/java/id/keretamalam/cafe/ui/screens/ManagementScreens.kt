@@ -9,6 +9,9 @@ import coil.compose.AsyncImage
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.horizontalScroll
+import androidx.compose.foundation.gestures.detectHorizontalDragGestures
+import androidx.compose.foundation.gestures.detectTapGestures
+import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
@@ -16,6 +19,9 @@ import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.*
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.outlined.DateRange
+import androidx.compose.material.icons.outlined.FileDownload
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -736,14 +742,26 @@ private fun reportMoney(value: Double) = RupiahFormatter.format(value)
 @Composable
 fun LaporanPenjualanComposeScreen(viewModel: PosViewModel, uiState: PosUiState, selectedSection: String = "Ringkasan Laporan", onSelectedSectionChange: (String) -> Unit = {}) {
     val context = LocalContext.current
-    val sections = listOf("Ringkasan Laporan", "Penjualan Harian", "Penjualan Produk", "Penjualan per Jam", "Laporan Pembayaran", "Laporan Kanal", "Detail Pesanan")
     var period by remember { mutableStateOf("7 Hari") }
     var search by remember { mutableStateOf("") }
+    var showStartDatePicker by remember { mutableStateOf(false) }
+    var showEndDatePicker by remember { mutableStateOf(false) }
+    var customStartMillis by remember { mutableStateOf<Long?>(null) }
+    var customEndMillis by remember { mutableStateOf<Long?>(null) }
     val today = java.time.LocalDate.now()
-    val orders = remember(uiState.orders, period, today) {
+    val utc = java.time.ZoneOffset.UTC
+    val customStart = customStartMillis?.let { java.time.Instant.ofEpochMilli(it).atZone(utc).toLocalDate() }
+    val customEnd = customEndMillis?.let { java.time.Instant.ofEpochMilli(it).atZone(utc).toLocalDate() }
+    val orders = remember(uiState.orders, period, today, customStart, customEnd) {
         uiState.orders.filter { o ->
             val date = reportDate(o.createdAt)?.toLocalDate()
-            when (period) { "Hari Ini" -> date == today; "7 Hari" -> date != null && !date.isBefore(today.minusDays(6)) && !date.isAfter(today); "30 Hari" -> date != null && !date.isBefore(today.minusDays(29)) && !date.isAfter(today); else -> true }
+            when (period) {
+                "Hari Ini" -> date == today
+                "7 Hari" -> date != null && !date.isBefore(today.minusDays(6)) && !date.isAfter(today)
+                "30 Hari" -> date != null && !date.isBefore(today.minusDays(29)) && !date.isAfter(today)
+                "Custom" -> date != null && customStart != null && customEnd != null && !date.isBefore(minOf(customStart, customEnd)) && !date.isAfter(maxOf(customStart, customEnd))
+                else -> true
+            }
         }
     }
     val paid = orders.filter { it.isPaid && it.status != OrderStatus.CANCELLED }
@@ -762,15 +780,40 @@ fun LaporanPenjualanComposeScreen(viewModel: PosViewModel, uiState: PosUiState, 
             .onFailure { viewModel.showNotice(it.message ?: "Gagal menyimpan CSV.", isError = true) }
     }
     Column(Modifier.fillMaxSize(), verticalArrangement = Arrangement.spacedBy(10.dp)) {
-        OutlinedCard(Modifier.fillMaxWidth()) {
-            Column(Modifier.padding(12.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween, verticalAlignment = Alignment.CenterVertically) {
-                    Column(Modifier.weight(1f)) { Text(selectedSection, style = MaterialTheme.typography.titleLarge, fontWeight = FontWeight.Bold); Text("Laporan owner & manager · data transaksi aplikasi", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant) }
-                    OutlinedButton(onClick = { csv.launch("laporan-${selectedSection.lowercase().replace(" ", "-")}.csv") }) { Text("Ekspor CSV") }
-                }
-                Row(Modifier.horizontalScroll(rememberScrollState()), horizontalArrangement = Arrangement.spacedBy(5.dp)) { listOf("Hari Ini", "7 Hari", "30 Hari", "Semua Data").forEach { FilterChip(selected = period == it, onClick = { period = it }, label = { Text(it) }) } }
-                Row(Modifier.horizontalScroll(rememberScrollState()), horizontalArrangement = Arrangement.spacedBy(5.dp)) { sections.forEach { FilterChip(selected = selectedSection == it, onClick = { onSelectedSectionChange(it) }, label = { Text(it) }) } }
+        Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(6.dp), verticalAlignment = Alignment.CenterVertically) {
+            Row(Modifier.weight(1f).horizontalScroll(rememberScrollState()), horizontalArrangement = Arrangement.spacedBy(5.dp), verticalAlignment = Alignment.CenterVertically) {
+                listOf("Hari Ini", "7 Hari", "30 Hari", "Semua Data").forEach { FilterChip(selected = period == it, onClick = { period = it }, label = { Text(it) }) }
             }
+            OutlinedButton(onClick = { period = "Custom"; showStartDatePicker = true }, contentPadding = PaddingValues(horizontal = 10.dp, vertical = 7.dp)) {
+                Icon(Icons.Outlined.DateRange, contentDescription = null, modifier = Modifier.size(17.dp))
+                Spacer(Modifier.width(4.dp))
+                Text("Custom", maxLines = 1)
+            }
+            OutlinedButton(onClick = { csv.launch("laporan-${selectedSection.lowercase().replace(" ", "-")}.csv") }, contentPadding = PaddingValues(horizontal = 10.dp, vertical = 7.dp)) {
+                Icon(Icons.Outlined.FileDownload, contentDescription = null, modifier = Modifier.size(17.dp))
+            }
+        }
+        if (period == "Custom") {
+            Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp), verticalAlignment = Alignment.CenterVertically) {
+                OutlinedButton(onClick = { showStartDatePicker = true }, modifier = Modifier.weight(1f)) {
+                    Text("Dari: ${customStart?.format(java.time.format.DateTimeFormatter.ofPattern("dd MMM yyyy")) ?: "Pilih tanggal"}")
+                }
+                OutlinedButton(onClick = { showEndDatePicker = true }, modifier = Modifier.weight(1f)) {
+                    Text("Sampai: ${customEnd?.format(java.time.format.DateTimeFormatter.ofPattern("dd MMM yyyy")) ?: "Pilih tanggal"}")
+                }
+            }
+        }
+        if (showStartDatePicker) {
+            val picker = rememberDatePickerState(initialSelectedDateMillis = customStartMillis ?: today.atStartOfDay(utc).toInstant().toEpochMilli())
+            DatePickerDialog(onDismissRequest = { showStartDatePicker = false }, confirmButton = {
+                TextButton(onClick = { customStartMillis = picker.selectedDateMillis; showStartDatePicker = false; if (customEndMillis == null) showEndDatePicker = true }) { Text("Pilih") }
+            }, dismissButton = { TextButton(onClick = { showStartDatePicker = false }) { Text("Batal") } }) { DatePicker(state = picker) }
+        }
+        if (showEndDatePicker) {
+            val picker = rememberDatePickerState(initialSelectedDateMillis = customEndMillis ?: customStartMillis ?: today.atStartOfDay(utc).toInstant().toEpochMilli())
+            DatePickerDialog(onDismissRequest = { showEndDatePicker = false }, confirmButton = {
+                TextButton(onClick = { customEndMillis = picker.selectedDateMillis; showEndDatePicker = false; period = "Custom" }) { Text("Pilih") }
+            }, dismissButton = { TextButton(onClick = { showEndDatePicker = false }) { Text("Batal") } }) { DatePicker(state = picker) }
         }
         Column(Modifier.weight(1f).fillMaxWidth().verticalScroll(rememberScrollState()), verticalArrangement = Arrangement.spacedBy(10.dp)) {
             when (selectedSection) {
@@ -814,28 +857,69 @@ fun LaporanPenjualanComposeScreen(viewModel: PosViewModel, uiState: PosUiState, 
     OutlinedCard(modifier) { Column(Modifier.padding(12.dp), verticalArrangement = Arrangement.spacedBy(5.dp)) { Text(title, style = MaterialTheme.typography.labelMedium, color = MaterialTheme.colorScheme.onSurfaceVariant); Text(value, style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold) } }
 }
 @Composable private fun ReportLineChart(values: List<Float>, modifier: Modifier = Modifier) {
+    var selected by remember(values) { mutableIntStateOf(-1) }
     val grid = MaterialTheme.colorScheme.outlineVariant
-    Canvas(modifier) {
-        if (values.isEmpty()) return@Canvas
-        val l=8.dp.toPx(); val r=size.width-8.dp.toPx(); val t=10.dp.toPx(); val b=size.height-10.dp.toPx(); val max=(values.maxOrNull() ?: 0f).coerceAtLeast(1f)
-        repeat(4) { i -> val y=t+(b-t)*i/3f; drawLine(grid, androidx.compose.ui.geometry.Offset(l,y), androidx.compose.ui.geometry.Offset(r,y), 1.dp.toPx()) }
-        val pts=values.mapIndexed { i,v -> androidx.compose.ui.geometry.Offset(if(values.size==1)(l+r)/2 else l+(r-l)*i/(values.size-1).toFloat(), b-v/max*(b-t)) }
-        if(pts.size>1) { val path=androidx.compose.ui.graphics.Path().apply { moveTo(pts.first().x,pts.first().y); pts.drop(1).forEach { lineTo(it.x,it.y) } }; drawPath(path,ReportChartPalette[0],style=androidx.compose.ui.graphics.drawscope.Stroke(3.dp.toPx())) }
-        pts.forEach { drawCircle(ReportChartPalette[0],4.dp.toPx(),it) }
+    Box(modifier) {
+        Canvas(Modifier.fillMaxSize().pointerInput(values) {
+            detectTapGestures { selected = ((it.x / size.width.coerceAtLeast(1f)) * values.size).toInt().coerceIn(0, (values.size - 1).coerceAtLeast(0)) }
+        }.pointerInput(values) {
+            detectHorizontalDragGestures { change, _ -> change.consume(); selected = ((change.position.x / size.width.coerceAtLeast(1f)) * values.size).toInt().coerceIn(0, (values.size - 1).coerceAtLeast(0)) }
+        }) {
+            if (values.isEmpty()) return@Canvas
+            val l=8.dp.toPx(); val r=size.width-8.dp.toPx(); val t=10.dp.toPx(); val b=size.height-10.dp.toPx(); val max=(values.maxOrNull() ?: 0f).coerceAtLeast(1f)
+            repeat(4) { i -> val y=t+(b-t)*i/3f; drawLine(grid, androidx.compose.ui.geometry.Offset(l,y), androidx.compose.ui.geometry.Offset(r,y), 1.dp.toPx()) }
+            val pts=values.mapIndexed { i,v -> androidx.compose.ui.geometry.Offset(if(values.size==1)(l+r)/2 else l+(r-l)*i/(values.size-1).toFloat(), b-v/max*(b-t)) }
+            if(pts.size>1) {
+                val path=androidx.compose.ui.graphics.Path().apply { moveTo(pts.first().x,pts.first().y); pts.drop(1).forEach { lineTo(it.x,it.y) } }
+                val shadow=androidx.compose.ui.graphics.Path().apply { moveTo(pts.first().x,pts.first().y+5.dp.toPx()); pts.drop(1).forEach { lineTo(it.x,it.y+5.dp.toPx()) } }
+                drawPath(shadow, ReportChartPalette[0].copy(alpha=.18f), style=androidx.compose.ui.graphics.drawscope.Stroke(7.dp.toPx(), cap=androidx.compose.ui.graphics.StrokeCap.Round))
+                drawPath(path,ReportChartPalette[0],style=androidx.compose.ui.graphics.drawscope.Stroke(3.dp.toPx(), cap=androidx.compose.ui.graphics.StrokeCap.Round))
+                if (selected in pts.indices) { val p=pts[selected]; drawLine(ReportChartPalette[0].copy(alpha=.4f), androidx.compose.ui.geometry.Offset(p.x,t), androidx.compose.ui.geometry.Offset(p.x,b), 1.dp.toPx()); drawCircle(ReportChartPalette[0],5.dp.toPx(),p) }
+            }
+        }
+        if (selected in values.indices) Surface(Modifier.align(Alignment.TopStart).padding(4.dp), color=MaterialTheme.colorScheme.surface, shape=RoundedCornerShape(8.dp), shadowElevation=3.dp) {
+            Text("Titik ${selected+1}: ${reportMoney(values[selected].toDouble())}", Modifier.padding(horizontal=8.dp, vertical=5.dp), style=MaterialTheme.typography.labelSmall)
+        }
     }
 }
 @Composable private fun ReportBarChart(values: List<Float>, modifier: Modifier = Modifier) {
-    Canvas(modifier) {
-        if(values.isEmpty()) return@Canvas
-        val max=(values.maxOrNull() ?: 0f).coerceAtLeast(1f); val gap=3.dp.toPx(); val w=((size.width-gap*(values.size+1))/values.size).coerceAtLeast(2.dp.toPx())
-        values.forEachIndexed { i,v -> val h=v/max*(size.height-8.dp.toPx()); drawRoundRect(ReportChartPalette[i%ReportChartPalette.size], androidx.compose.ui.geometry.Offset(gap+i*(w+gap),size.height-h), androidx.compose.ui.geometry.Size(w,h.coerceAtLeast(2.dp.toPx())), androidx.compose.ui.geometry.CornerRadius(3.dp.toPx())) }
+    var selected by remember(values) { mutableIntStateOf(-1) }
+    Box(modifier) {
+        Canvas(Modifier.fillMaxSize().pointerInput(values) {
+            detectTapGestures { selected = ((it.x / size.width.coerceAtLeast(1f)) * values.size).toInt().coerceIn(0, (values.size - 1).coerceAtLeast(0)) }
+        }.pointerInput(values) {
+            detectHorizontalDragGestures { change, _ -> change.consume(); selected = ((change.position.x / size.width.coerceAtLeast(1f)) * values.size).toInt().coerceIn(0, (values.size - 1).coerceAtLeast(0)) }
+        }) {
+            if(values.isEmpty()) return@Canvas
+            val max=(values.maxOrNull() ?: 0f).coerceAtLeast(1f); val gap=3.dp.toPx(); val w=((size.width-gap*(values.size+1))/values.size).coerceAtLeast(2.dp.toPx())
+            values.forEachIndexed { i,v ->
+                val h=v/max*(size.height-8.dp.toPx()); val x=gap+i*(w+gap)
+                drawRoundRect(ReportChartPalette[0].copy(alpha=.14f), androidx.compose.ui.geometry.Offset(x,size.height-h+4.dp.toPx()), androidx.compose.ui.geometry.Size(w,h.coerceAtLeast(2.dp.toPx())), androidx.compose.ui.geometry.CornerRadius(3.dp.toPx()))
+                drawRoundRect(if(i==selected) ReportChartPalette[0] else ReportChartPalette[0].copy(alpha=.82f), androidx.compose.ui.geometry.Offset(x,size.height-h), androidx.compose.ui.geometry.Size(w,h.coerceAtLeast(2.dp.toPx())), androidx.compose.ui.geometry.CornerRadius(3.dp.toPx()))
+            }
+        }
+        if (selected in values.indices) Surface(Modifier.align(Alignment.TopStart).padding(4.dp), color=MaterialTheme.colorScheme.surface, shape=RoundedCornerShape(8.dp), shadowElevation=3.dp) {
+            Text("Data ${selected+1}: ${reportMoney(values[selected].toDouble())}", Modifier.padding(horizontal=8.dp, vertical=5.dp), style=MaterialTheme.typography.labelSmall)
+        }
     }
 }
 @Composable private fun ReportDonut(values: List<Float>, modifier: Modifier = Modifier) {
-    Canvas(modifier) {
-        val total=values.sum().coerceAtLeast(1f); val d=(minOf(size.width,size.height)-24.dp.toPx()).coerceAtLeast(1.dp.toPx()); val x=(size.width-d)/2; val y=(size.height-d)/2; var start=-90f
-        values.forEachIndexed { i,v -> val sweep=v.coerceAtLeast(0f)/total*360f; drawArc(ReportChartPalette[i%ReportChartPalette.size],start,sweep,false,androidx.compose.ui.geometry.Offset(x,y),androidx.compose.ui.geometry.Size(d,d),style=androidx.compose.ui.graphics.drawscope.Stroke(24.dp.toPx())); start+=sweep }
+    var selected by remember(values) { mutableIntStateOf(-1) }
+    Box(modifier) {
+        Canvas(Modifier.fillMaxSize().pointerInput(values) {
+            detectTapGestures { selected = ((it.x / size.width.coerceAtLeast(1f)) * values.size).toInt().coerceIn(0, (values.size - 1).coerceAtLeast(0)) }
+        }.pointerInput(values) {
+            detectHorizontalDragGestures { change, _ -> change.consume(); selected = ((change.position.x / size.width.coerceAtLeast(1f)) * values.size).toInt().coerceIn(0, (values.size - 1).coerceAtLeast(0)) }
+        }) {
+            val total=values.sum().coerceAtLeast(1f); val d=(minOf(size.width,size.height)-24.dp.toPx()).coerceAtLeast(1.dp.toPx()); val x=(size.width-d)/2; val y=(size.height-d)/2; var start=-90f
+            values.forEachIndexed { i,v -> val sweep=v.coerceAtLeast(0f)/total*360f; drawArc(ReportChartPalette[i%ReportChartPalette.size].copy(alpha=if(selected==-1 || selected==i) 1f else .45f),start,sweep,false,androidx.compose.ui.geometry.Offset(x,y),androidx.compose.ui.geometry.Size(d,d),style=androidx.compose.ui.graphics.drawscope.Stroke(if(selected==i) 30.dp.toPx() else 24.dp.toPx())); start+=sweep }
+        }
+        if (selected in values.indices) Surface(Modifier.align(Alignment.TopCenter).padding(4.dp), color=MaterialTheme.colorScheme.surface, shape=RoundedCornerShape(8.dp), shadowElevation=3.dp) {
+            Text("Bagian ${selected+1}: ${reportMoney(values[selected].toDouble())}", Modifier.padding(horizontal=8.dp, vertical=5.dp), style=MaterialTheme.typography.labelSmall)
+        }
     }
+}
+
 }
 
 // ============================================================================

@@ -1139,11 +1139,13 @@ class PosViewModel(application: Application) : AndroidViewModel(application) {
             }
 
             val method = paymentMethod.lowercase()
-            if (method == "cash" && (cashReceived == null || cashReceived < order.total)) {
+            val configuredMethod = _uiState.value.paymentMethods.firstOrNull { it.code.equals(method, true) }
+            val isCash = method == "cash" || configuredMethod?.type.equals("cash", true)
+            if (isCash && (cashReceived == null || cashReceived < order.total)) {
                 showNotice("Uang diterima belum mencukupi.", isError = true)
                 return@launch
             }
-            val received = if (method == "cash") cashReceived else null
+            val received = if (isCash) cashReceived else null
             val change = if (received != null) received - order.total else null
             _uiState.update { state ->
                 state.copy(

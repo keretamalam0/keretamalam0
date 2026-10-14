@@ -503,6 +503,14 @@ Deno.serve(async (req) => {
       ? KERETA_MALAM_KNOWLEDGE_BASE
       : KNOWLEDGE_BASE;
     const messages = clean(body?.messages);
+    const imageBase64 = typeof body?.image_base64 === "string" ? body.image_base64 : "";
+    const imageMimeType = typeof body?.image_mime_type === "string" &&
+      ["image/jpeg", "image/png", "image/webp"].includes(body.image_mime_type)
+      ? body.image_mime_type
+      : "image/jpeg";
+    if (imageBase64.length > 12_000_000) {
+      return json({ error: "Gambar terlalu besar. Pilih screenshot yang lebih kecil (maksimum sekitar 8 MB)." }, 413);
+    }
     const chatId =
       typeof body?.chat_id === "string" && body.chat_id.length <= 120
         ? body.chat_id
@@ -606,6 +614,22 @@ ATURAN TAMBAHAN:
 - Jika pengguna meminta informasi yang belum tersedia, jelaskan keterbatasannya dengan jujur.
 `;
 
+    const groqMessages = [
+      { role: "system", content: systemPrompt },
+      ...messages.map((message, index) => {
+        if (index === messages.length - 1 && message.role === "user" && imageBase64) {
+          return {
+            role: "user",
+            content: [
+              { type: "text", text: message.content || "Tolong analisis screenshot ini dalam konteks aplikasi Kereta Malam Cafe." },
+              { type: "image_url", image_url: { url: `data:${imageMimeType};base64,${imageBase64}` } },
+            ],
+          };
+        }
+        return message;
+      }),
+    ];
+
     const groqResponse = await fetch(
       "https://api.groq.com/openai/v1/chat/completions",
       {
@@ -616,10 +640,7 @@ ATURAN TAMBAHAN:
         },
         body: JSON.stringify({
           model: MODEL,
-          messages: [
-            { role: "system", content: systemPrompt },
-            ...messages,
-          ],
+          messages: groqMessages,
           temperature: 0.2,
           top_p: 0.8,
           reasoning_effort: "none",

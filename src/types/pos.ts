@@ -94,6 +94,7 @@ export interface OrderWithItems {
   total: number;
   is_paid: boolean;
   payment_method: string | null;
+  promotion_id?: string | null;
   payment_status: PaymentStatus;
   created_at: string;
   updated_at: string;

@@ -683,6 +683,18 @@ class CafeFlowRepository(private val context: Context) {
 
     suspend fun updateOrderStatus(orderId: String, newStatus: OrderStatus) {
         val creds = requireVerifiedCredentials()
+        if (newStatus == OrderStatus.CANCELLED) {
+            // The database function locks the order and restores stock atomically,
+            // only once even if the cashier taps cancel repeatedly.
+            val payload = buildJsonObject { put("p_order_id", orderId) }
+            executeJsonRequest(
+                method = "POST",
+                url = "${creds.supabaseUrl}/rest/v1/rpc/cancel_order_and_restore_stock",
+                headers = buildHeaders(creds),
+                bodyJson = json.encodeToString(JsonObject.serializer(), payload)
+            )
+            return
+        }
         val encodedId = URLEncoder.encode(orderId, "UTF-8")
         val payload = buildJsonObject { put("status", newStatus.raw) }
         executeJsonRequest(

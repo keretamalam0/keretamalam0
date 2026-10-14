@@ -40,6 +40,9 @@ import androidx.compose.material.icons.outlined.History
 import androidx.compose.material.icons.outlined.Refresh
 import androidx.compose.material.icons.outlined.Search
 import androidx.compose.material.icons.outlined.WarningAmber
+import androidx.compose.material.icons.outlined.Delete
+import androidx.compose.material.icons.outlined.DeleteSweep
+import androidx.compose.material.icons.outlined.FileDownload
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.runtime.*
@@ -1753,27 +1756,22 @@ private fun AuditShiftComposeScreen(viewModel: PosViewModel, uiState: PosUiState
             }
         )
     }
-    Column(Modifier.fillMaxSize(), verticalArrangement = Arrangement.spacedBy(10.dp)) {
-        Row(Modifier.fillMaxWidth().horizontalScroll(rememberScrollState()), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-            DashboardKpiCard(Modifier.widthIn(min = 140.dp).weight(1f), "Semua Shift", "${uiState.shifts.size}", "Tercatat", onClick = { filter = "SEMUA" })
-            DashboardKpiCard(Modifier.widthIn(min = 140.dp).weight(1f), "Perlu Diperiksa", "$needsReview", "Belum diverifikasi", onClick = { filter = "PERLU" })
-            DashboardKpiCard(Modifier.widthIn(min = 140.dp).weight(1f), "Shift Aktif", "$activeCount", "Sedang berjalan", onClick = { filter = "AKTIF" })
+    Column(Modifier.fillMaxSize(), verticalArrangement = Arrangement.spacedBy(5.dp)) {
+        // Compact fixed controls; only the shift rows scroll.
+        Row(Modifier.fillMaxWidth().horizontalScroll(rememberScrollState()), horizontalArrangement = Arrangement.spacedBy(6.dp), verticalAlignment = Alignment.CenterVertically) {
+            FilterChip(selected = filter == "SEMUA", onClick = { filter = "SEMUA" }, label = { Text("Semua ${uiState.shifts.size}", style = MaterialTheme.typography.labelSmall) }, modifier = Modifier.height(34.dp))
+            FilterChip(selected = filter == "PERLU", onClick = { filter = "PERLU" }, label = { Text("Perlu dicek $needsReview", style = MaterialTheme.typography.labelSmall) }, modifier = Modifier.height(34.dp))
+            FilterChip(selected = filter == "AKTIF", onClick = { filter = "AKTIF" }, label = { Text("Aktif $activeCount", style = MaterialTheme.typography.labelSmall) }, modifier = Modifier.height(34.dp))
         }
-        Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp), verticalAlignment = Alignment.CenterVertically) {
-            OutlinedTextField(value = search, onValueChange = { search = it }, label = { Text("Cari nama kasir / ID / catatan") },
-                leadingIcon = { Icon(Icons.Outlined.Search, contentDescription = null) }, modifier = Modifier.weight(1f), singleLine = true)
-            OutlinedButton(onClick = { viewModel.syncAllDataFromBackend() }, enabled = !uiState.isLoading) {
-                Icon(Icons.Outlined.Refresh, contentDescription = null)
-                Spacer(Modifier.width(4.dp))
-                Text(if (uiState.isLoading) "Memuat" else "Refresh")
+        Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(6.dp), verticalAlignment = Alignment.CenterVertically) {
+            OutlinedTextField(value = search, onValueChange = { search = it }, label = { Text("Cari nama kasir / ID") },
+                leadingIcon = { Icon(Icons.Outlined.Search, contentDescription = null, modifier = Modifier.size(18.dp)) },
+                modifier = Modifier.weight(1f).heightIn(max = 56.dp), singleLine = true, textStyle = MaterialTheme.typography.bodySmall)
+            IconButton(onClick = { viewModel.syncAllDataFromBackend() }, enabled = !uiState.isLoading, modifier = Modifier.size(40.dp)) {
+                Icon(Icons.Outlined.Refresh, contentDescription = "Refresh", tint = Color(0xFF2878F0))
             }
         }
-        Row(Modifier.fillMaxWidth().horizontalScroll(rememberScrollState()), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-            listOf("SEMUA" to "Semua Shift", "PERLU" to "Perlu Diperiksa", "AKTIF" to "Shift Aktif").forEach { (key, label) ->
-                FilterChip(selected = filter == key, onClick = { filter = key }, label = { Text(label) })
-            }
-        }
-        Text("Riwayat Opening & Closing", style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold)
+        Text("Riwayat shift", style = MaterialTheme.typography.labelLarge, fontWeight = FontWeight.SemiBold)
         if (filtered.isEmpty()) {
             Box(Modifier.weight(1f).fillMaxWidth(), contentAlignment = Alignment.Center) { Text("Tidak ada shift yang cocok dengan filter.") }
         } else {

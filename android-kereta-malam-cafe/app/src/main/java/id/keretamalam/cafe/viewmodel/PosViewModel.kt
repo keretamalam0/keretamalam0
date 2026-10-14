@@ -692,12 +692,16 @@ class PosViewModel(application: Application) : AndroidViewModel(application) {
                     )
                 }
             }.onFailure { err ->
-                // Never leave seeded sandbox records visible after a failed production sync.
-                SupabaseConfigManager.clearAuthSession(getApplication())
+                // A table/RLS/network error is not proof that the login session is invalid.
+                // Keep the real session unless Supabase explicitly rejects the token (401).
+                val authRejected = err.message?.contains("HTTP 401") == true
+                if (authRejected) {
+                    SupabaseConfigManager.clearAuthSession(getApplication())
+                }
                 _uiState.update {
                     it.copy(
                         isLoading = false,
-                        isLoggedIn = false,
+                        isLoggedIn = !authRejected,
                         cart = emptyList(),
                         selectedTableId = null,
                         categories = emptyList(),
@@ -711,7 +715,11 @@ class PosViewModel(application: Application) : AndroidViewModel(application) {
                         expenses = emptyList(),
                         inventoryMovements = emptyList(),
                         auditLogs = emptyList(),
-                        errorMessage = "Sinkronisasi gagal. Sesi dihentikan agar data simulasi tidak dianggap data produksi. Periksa koneksi dan akses akun."
+                        errorMessage = if (authRejected) {
+                            "Sesi login ditolak server. Silakan login kembali."
+                        } else {
+                            "Sinkronisasi gagal. Sesi tetap aktif; data produksi belum dimuat. Detail: ${err.message?.take(180) ?: "koneksi atau akses database bermasalah"}"
+                        }
                     )
                 }
             }

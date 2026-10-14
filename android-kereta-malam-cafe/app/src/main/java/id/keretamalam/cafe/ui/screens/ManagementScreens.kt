@@ -1331,8 +1331,17 @@ fun PengaturanOutletComposeScreen(viewModel: PosViewModel, uiState: PosUiState) 
     var alertSoundUrl by remember { mutableStateOf<String?>(null) }
     val context = LocalContext.current
     LaunchedEffect(Unit) {
-        alertSoundUrl = context.getSharedPreferences("order_alert_settings", android.content.Context.MODE_PRIVATE)
+        val localUrl = context.getSharedPreferences("order_alert_settings", android.content.Context.MODE_PRIVATE)
             .getString("sound_url", null)
+        // Server copy is the source of truth so the choice survives logout and app restarts.
+        viewModel.loadOrderAlertSoundUrl { remoteUrl ->
+            val resolved = remoteUrl ?: localUrl
+            alertSoundUrl = resolved
+            if (!resolved.isNullOrBlank()) {
+                context.getSharedPreferences("order_alert_settings", android.content.Context.MODE_PRIVATE)
+                    .edit().putString("sound_url", resolved).apply()
+            }
+        }
     }
     val alertSoundPicker = rememberLauncherForActivityResult(ActivityResultContracts.GetContent()) { uri: Uri? ->
         if (uri != null) {

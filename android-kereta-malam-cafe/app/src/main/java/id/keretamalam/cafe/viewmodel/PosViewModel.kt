@@ -1029,12 +1029,8 @@ class PosViewModel(application: Application) : AndroidViewModel(application) {
                         cashReceived = if (currentState.paymentMethodType == "cash") currentState.cashReceivedValue else null,
                         items = currentState.cart
                     )
-                    printerManager.getSavedPrinter(PrinterRole.CASHIER)?.let {
-                        if (it.autoPrint) printerManager.printCashierReceipt(confirmedOrder)
-                    }
-                    printerManager.getSavedPrinter(PrinterRole.KITCHEN)?.let {
-                        if (it.autoPrint) printerManager.printKitchenTicket(confirmedOrder)
-                    }
+                    // Printing is intentionally manual only. Staff choose "Cetak" for kitchen
+                    // tickets or "Struk" -> "Cetak Struk" for customer receipts.
                     _uiState.update {
                         it.copy(
                             isCheckoutProcessing = false,
@@ -1997,7 +1993,7 @@ class PosViewModel(application: Application) : AndroidViewModel(application) {
             result.onSuccess {
                 showNotice("Berhasil mengirim struk ESC/POS ke ${role.labelId}.")
             }.onFailure { err ->
-                showNotice("Preview ESC/POS diperbarui (${err.message}).")
+                showNotice("Gagal mencetak ke ${role.labelId}: ${err.message ?: "periksa printer dan koneksi Bluetooth"}.", isError = true)
             }
         }
     }

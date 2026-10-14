@@ -530,58 +530,198 @@ fun PromosiComposeScreen(viewModel: PosViewModel, uiState: PosUiState) {
     var name by remember { mutableStateOf("") }
     var type by remember { mutableStateOf("percentage") }
     var value by remember { mutableStateOf("10") }
-    var minPurchase by remember { mutableStateOf("50000") }
+    var minPurchase by remember { mutableStateOf("0") }
+    var minQuantity by remember { mutableStateOf("1") }
+    var scope by remember { mutableStateOf("order") }
+    var productId by remember { mutableStateOf("") }
+    var campaignType by remember { mutableStateOf("promotion") }
+    var allowCustomer by remember { mutableStateOf(true) }
+    var allowCashier by remember { mutableStateOf(true) }
+    var selectedTab by remember { mutableStateOf("all") }
+    var productDropdownExpanded by remember { mutableStateOf(false) }
+
+    val filteredPromotions = uiState.promotions.filter { promo ->
+        when (selectedTab) {
+            "active" -> promo.active
+            "voucher", "bundle", "campaign" -> promo.campaignType == selectedTab
+            else -> true
+        }
+    }
 
     LazyColumn(
         modifier = Modifier.fillMaxSize(),
         verticalArrangement = Arrangement.spacedBy(10.dp)
     ) {
         item {
-            OutlinedCard(modifier = Modifier.fillMaxWidth()) {
-                Column(modifier = Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                    Text("Buat Promosi / Diskon Baru", style = MaterialTheme.typography.titleMedium)
-                    OutlinedTextField(value = name, onValueChange = { name = it }, label = { Text("Nama Promosi") }, modifier = Modifier.fillMaxWidth(), singleLine = true)
-                    Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                        FilterChip(selected = type == "percentage", onClick = { type = "percentage" }, label = { Text("Persentase (%)") })
-                        FilterChip(selected = type == "fixed", onClick = { type = "fixed" }, label = { Text("Potongan Tetap (Rp)") })
+            Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                Text("Promosi & Diskon", style = MaterialTheme.typography.titleLarge, fontWeight = FontWeight.Bold)
+                Text("Kelola promo aktif, voucher, bundel, dan campaign. Promo yang tidak memenuhi syarat tidak bisa diterapkan di Kasir.")
+                Row(
+                    modifier = Modifier.fillMaxWidth().horizontalScroll(rememberScrollState()),
+                    horizontalArrangement = Arrangement.spacedBy(6.dp)
+                ) {
+                    listOf(
+                        "active" to "Promo Aktif (${uiState.promotions.count { it.active }})",
+                        "voucher" to "Voucher (${uiState.promotions.count { it.campaignType == "voucher" }})",
+                        "bundle" to "Bundle (${uiState.promotions.count { it.campaignType == "bundle" }})",
+                        "campaign" to "Campaign (${uiState.promotions.count { it.campaignType == "campaign" }})",
+                        "all" to "Semua"
+                    ).forEach { (key, label) ->
+                        FilterChip(selected = selectedTab == key, onClick = { selectedTab = key }, label = { Text(label) })
                     }
-                    Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                        OutlinedTextField(value = value, onValueChange = { value = it }, label = { Text("Nilai Diskon") }, modifier = Modifier.weight(1f), singleLine = true)
-                        OutlinedTextField(value = minPurchase, onValueChange = { minPurchase = it }, label = { Text("Minimum Belanja (Rp)") }, modifier = Modifier.weight(1f), singleLine = true)
-                    }
-                    Button(onClick = {
-                        viewModel.addPromotion(name, type, value.toDoubleOrNull() ?: 0.0, minPurchase.toDoubleOrNull() ?: 0.0)
-                        name = ""
-                    }) { Text("Simpan Promosi") }
                 }
             }
         }
-
-        items(uiState.promotions, key = { it.id }) { promo ->
+        item {
             OutlinedCard(modifier = Modifier.fillMaxWidth()) {
-                Row(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .padding(14.dp),
-                    horizontalArrangement = Arrangement.SpaceBetween,
-                    verticalAlignment = Alignment.CenterVertically
-                ) {
-                    Column(modifier = Modifier.weight(1f)) {
-                        Text(promo.name, fontWeight = FontWeight.Bold)
-                        Text(
-                            text = "Potongan: ${if (promo.type == "percentage") "${promo.value.toInt()}%" else RupiahFormatter.format(promo.value)} · Min: ${RupiahFormatter.format(promo.minPurchase)}",
-                            style = MaterialTheme.typography.bodyMedium
+                Column(modifier = Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(10.dp)) {
+                    Text("Buat Promo Baru", style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold)
+                    OutlinedTextField(
+                        value = name,
+                        onValueChange = { name = it },
+                        label = { Text("Nama Promo") },
+                        placeholder = { Text("Contoh: Es Maca hemat Rp3.000") },
+                        modifier = Modifier.fillMaxWidth(),
+                        singleLine = true
+                    )
+                    Text("Kategori Promo", style = MaterialTheme.typography.labelMedium)
+                    Row(Modifier.fillMaxWidth().horizontalScroll(rememberScrollState()), horizontalArrangement = Arrangement.spacedBy(6.dp)) {
+                        listOf("promotion" to "Promo", "voucher" to "Voucher", "bundle" to "Bundle", "campaign" to "Campaign").forEach { (key, label) ->
+                            FilterChip(selected = campaignType == key, onClick = { campaignType = key }, label = { Text(label) })
+                        }
+                    }
+                    Text("Jenis Diskon", style = MaterialTheme.typography.labelMedium)
+                    Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                        FilterChip(selected = type == "percentage", onClick = { type = "percentage" }, label = { Text("Persentase (%)") })
+                        FilterChip(selected = type == "fixed", onClick = { type = "fixed" }, label = { Text("Nominal (Rp)") })
+                    }
+                    Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                        OutlinedTextField(
+                            value = value,
+                            onValueChange = { value = it.filter { ch -> ch.isDigit() || ch == '.' } },
+                            label = { Text(if (type == "percentage") "Nilai Diskon (%)" else "Nilai Diskon (Rp)") },
+                            modifier = Modifier.weight(1f),
+                            singleLine = true
+                        )
+                        OutlinedTextField(
+                            value = minPurchase,
+                            onValueChange = { minPurchase = it.filter { ch -> ch.isDigit() || ch == '.' } },
+                            label = { Text("Minimal Belanja (Rp)") },
+                            modifier = Modifier.weight(1f),
+                            singleLine = true
                         )
                     }
-                    Row(horizontalArrangement = Arrangement.spacedBy(6.dp)) {
+                    Text("Berlaku Untuk", style = MaterialTheme.typography.labelMedium)
+                    Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                        FilterChip(selected = scope == "order", onClick = { scope = "order"; productId = "" }, label = { Text("Seluruh Belanja") })
+                        FilterChip(selected = scope == "product", onClick = { scope = "product" }, label = { Text("Produk Tertentu") })
+                    }
+                    if (scope == "product") {
+                        Box(Modifier.fillMaxWidth()) {
+                            OutlinedButton(onClick = { productDropdownExpanded = true }, modifier = Modifier.fillMaxWidth()) {
+                                Text(uiState.products.firstOrNull { it.id == productId }?.name ?: "Pilih Produk Promo", modifier = Modifier.weight(1f))
+                                Text("▾")
+                            }
+                            DropdownMenu(expanded = productDropdownExpanded, onDismissRequest = { productDropdownExpanded = false }) {
+                                uiState.products.filter { it.isActive }.forEach { product ->
+                                    DropdownMenuItem(
+                                        text = { Text(product.name) },
+                                        onClick = { productId = product.id; productDropdownExpanded = false }
+                                    )
+                                }
+                            }
+                        }
+                        OutlinedTextField(
+                            value = minQuantity,
+                            onValueChange = { minQuantity = it.filter(Char::isDigit) },
+                            label = { Text("Minimal Jumlah Produk (cup/item)") },
+                            modifier = Modifier.fillMaxWidth(),
+                            singleLine = true
+                        )
+                    }
+                    Text("Pemakaian Promo", style = MaterialTheme.typography.labelMedium)
+                    Row(verticalAlignment = Alignment.CenterVertically) {
+                        Checkbox(checked = allowCashier, onCheckedChange = { allowCashier = it })
+                        Text("Bisa dipilih kasir")
+                    }
+                    Row(verticalAlignment = Alignment.CenterVertically) {
+                        Checkbox(checked = allowCustomer, onCheckedChange = { allowCustomer = it })
+                        Text("Bisa dipilih customer di QR Menu")
+                    }
+                    Button(
+                        onClick = {
+                            viewModel.addPromotion(
+                                name = name,
+                                type = type,
+                                value = value.toDoubleOrNull() ?: 0.0,
+                                minPurchase = minPurchase.toDoubleOrNull() ?: 0.0,
+                                minQuantity = minQuantity.toIntOrNull() ?: 1,
+                                scope = scope,
+                                productId = productId.takeIf { scope == "product" },
+                                campaignType = campaignType,
+                                allowCustomer = allowCustomer,
+                                allowCashier = allowCashier
+                            )
+                            if (name.isNotBlank() && (value.toDoubleOrNull() ?: 0.0) > 0.0 && (type != "percentage" || (value.toDoubleOrNull() ?: 0.0) <= 100.0) && (scope != "product" || productId.isNotBlank())) {
+                                name = ""
+                            }
+                        },
+                        modifier = Modifier.fillMaxWidth()
+                    ) { Text("Simpan Promo") }
+                }
+            }
+        }
+        items(filteredPromotions, key = { it.id }) { promo ->
+            OutlinedCard(modifier = Modifier.fillMaxWidth()) {
+                Column(modifier = Modifier.padding(14.dp), verticalArrangement = Arrangement.spacedBy(6.dp)) {
+                    Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween, verticalAlignment = Alignment.CenterVertically) {
+                        Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(2.dp)) {
+                            Text(promo.name, fontWeight = FontWeight.Bold)
+                            Text(
+                                "${when (promo.campaignType) { "voucher" -> "Voucher"; "bundle" -> "Bundle"; "campaign" -> "Campaign"; else -> "Promo" }} · ${if (promo.type == "percentage") "${promo.value.toInt()}%" else RupiahFormatter.format(promo.value)}",
+                                style = MaterialTheme.typography.bodyMedium
+                            )
+                        }
+                        Surface(
+                            shape = RoundedCornerShape(50),
+                            color = if (promo.active) Color(0xFFE0F2E8) else MaterialTheme.colorScheme.surfaceVariant
+                        ) {
+                            Text(
+                                if (promo.active) "AKTIF" else "NONAKTIF",
+                                modifier = Modifier.padding(horizontal = 9.dp, vertical = 5.dp),
+                                style = MaterialTheme.typography.labelSmall,
+                                color = if (promo.active) Color(0xFF166534) else MaterialTheme.colorScheme.onSurfaceVariant
+                            )
+                        }
+                    }
+                    Text(
+                        text = if (promo.scope == "product") {
+                            "${uiState.products.firstOrNull { it.id == promo.productId }?.name ?: "Produk tertentu"} · minimal ${promo.minQuantity} item · minimal belanja ${RupiahFormatter.format(promo.minPurchase)}"
+                        } else {
+                            "Seluruh belanja · minimal belanja ${RupiahFormatter.format(promo.minPurchase)}"
+                        },
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                    )
+                    Text(
+                        "Customer: ${if (promo.allowCustomer) "Boleh" else "Tidak"} · Kasir: ${if (promo.allowCashier) "Boleh" else "Tidak"}",
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                    )
+                    Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                         OutlinedButton(onClick = { viewModel.togglePromotionActive(promo.id) }) {
-                            Text(if (promo.active) "Aktif" else "Nonaktif")
+                            Text(if (promo.active) "Nonaktifkan" else "Aktifkan")
                         }
                         OutlinedButton(onClick = { viewModel.deletePromotion(promo.id) }) {
-                            Text("Hapus")
+                            Text("Hapus", color = MaterialTheme.colorScheme.error)
                         }
                     }
                 }
+            }
+        }
+        if (filteredPromotions.isEmpty()) {
+            item {
+                Text("Belum ada promo pada kategori ini.", modifier = Modifier.fillMaxWidth().padding(20.dp), color = MaterialTheme.colorScheme.onSurfaceVariant)
             }
         }
     }

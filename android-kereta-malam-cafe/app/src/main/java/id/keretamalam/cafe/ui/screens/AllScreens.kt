@@ -56,6 +56,8 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.SpanStyle
+import androidx.compose.ui.text.buildAnnotatedString
 import androidx.compose.ui.text.input.PasswordVisualTransformation
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.window.Dialog
@@ -768,7 +770,7 @@ private fun AiAssistantComposeScreen(viewModel: PosViewModel, uiState: PosUiStat
                                 else MaterialTheme.colorScheme.surfaceVariant
                         ) {
                             Text(
-                                message,
+                                text = remember(message) { formatAssistantMarkdown(message) },
                                 modifier = Modifier.padding(horizontal = 13.dp, vertical = 10.dp),
                                 style = MaterialTheme.typography.bodyMedium,
                                 color = MaterialTheme.colorScheme.onSurface
@@ -868,6 +870,22 @@ private fun AiAssistantComposeScreen(viewModel: PosViewModel, uiState: PosUiStat
                 Text(if (uiState.isLoading) "..." else "Kirim")
             }
         }
+    }
+}
+
+// Render common Markdown bold markers in assistant chat without showing raw ** symbols.
+private fun formatAssistantMarkdown(source: String): androidx.compose.ui.text.AnnotatedString {
+    val boldPattern = Regex("\\*\\*(.+?)\\*\\*")
+    return buildAnnotatedString {
+        var cursor = 0
+        boldPattern.findAll(source).forEach { match ->
+            append(source.substring(cursor, match.range.first))
+            pushStyle(SpanStyle(fontWeight = FontWeight.Bold))
+            append(match.groupValues[1])
+            pop()
+            cursor = match.range.last + 1
+        }
+        append(source.substring(cursor))
     }
 }
 

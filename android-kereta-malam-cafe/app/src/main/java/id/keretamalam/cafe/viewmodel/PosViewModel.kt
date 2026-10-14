@@ -89,6 +89,7 @@ data class PosUiState(
             if (!promo.active) return "Promo ini sedang nonaktif."
             if (!promo.allowCashier) return "Promo ini tidak tersedia untuk kasir."
             if (subtotal < promo.minPurchase) return "Minimum belanja ${RupiahFormatter.format(promo.minPurchase)} belum tercapai."
+            if (promo.maxPurchase > 0.0 && subtotal > promo.maxPurchase) return "Promo hanya berlaku untuk total belanja maksimal ${RupiahFormatter.format(promo.maxPurchase)}."
             val matchingItems = if (promo.scope == "product") cart.filter { it.product.id == promo.productId } else cart
             val matchingQuantity = matchingItems.sumOf { it.quantity }
             if (matchingQuantity < promo.minQuantity.coerceAtLeast(1)) {
@@ -1705,6 +1706,7 @@ class PosViewModel(application: Application) : AndroidViewModel(application) {
         type: String,
         value: Double,
         minPurchase: Double,
+        maxPurchase: Double = 0.0,
         minQuantity: Int = 1,
         scope: String = "order",
         productId: String? = null,
@@ -1720,8 +1722,8 @@ class PosViewModel(application: Application) : AndroidViewModel(application) {
             showNotice("Nilai diskon harus lebih dari 0; persentase maksimal 100%.", isError = true)
             return
         }
-        if (minPurchase < 0.0 || minQuantity < 1) {
-            showNotice("Minimum belanja tidak boleh negatif dan jumlah minimal harus minimal 1.", isError = true)
+        if (minPurchase < 0.0 || maxPurchase < 0.0 || (maxPurchase > 0.0 && maxPurchase < minPurchase) || minQuantity < 1) {
+            showNotice("Minimum/maksimum belanja tidak valid atau jumlah minimal kurang dari 1.", isError = true)
             return
         }
         if (scope == "product" && productId.isNullOrBlank()) {
@@ -1734,6 +1736,7 @@ class PosViewModel(application: Application) : AndroidViewModel(application) {
             type = type,
             value = value,
             minPurchase = minPurchase,
+            maxPurchase = maxPurchase,
             minQuantity = minQuantity,
             scope = scope,
             productId = productId,

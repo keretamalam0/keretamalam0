@@ -1321,41 +1321,32 @@ private fun KasirComposeScreen(
                     val sizeOptions = productOptions.filter { it.groupKey == "size" }
                     val productToppings = uiState.productAddons.filter { it.productId == targetCustom.id && it.isActive }
 
-                    Text("Gula", style = MaterialTheme.typography.labelMedium)
-                    Row(Modifier.fillMaxWidth().horizontalScroll(rememberScrollState()), horizontalArrangement = Arrangement.spacedBy(5.dp)) {
-                        (sugarOptions.ifEmpty { emptyList() }).forEach { option ->
-                            FilterChip(selected = customSugar == option.name, onClick = { customSugar = option.name }, label = { Text(option.name + if (option.priceDelta > 0) " +${RupiahFormatter.format(option.priceDelta)}" else "", style = MaterialTheme.typography.labelSmall) })
-                        }
-                        if (sugarOptions.isEmpty()) listOf("Normal Sugar", "Less Sugar", "No Sugar").forEach { option ->
-                            FilterChip(selected = customSugar == option, onClick = { customSugar = option }, label = { Text(option, style = MaterialTheme.typography.labelSmall) })
-                        }
-                    }
-                    Text("Es / suhu", style = MaterialTheme.typography.labelMedium)
-                    Row(Modifier.fillMaxWidth().horizontalScroll(rememberScrollState()), horizontalArrangement = Arrangement.spacedBy(5.dp)) {
-                        iceOptions.forEach { option ->
-                            FilterChip(selected = customIce == option.name, onClick = { customIce = option.name }, label = { Text(option.name + if (option.priceDelta > 0) " +${RupiahFormatter.format(option.priceDelta)}" else "", style = MaterialTheme.typography.labelSmall) })
-                        }
-                        if (iceOptions.isEmpty()) listOf("Normal Ice", "Less Ice", "Hot / Warm").forEach { option ->
-                            FilterChip(selected = customIce == option, onClick = { customIce = option }, label = { Text(option, style = MaterialTheme.typography.labelSmall) })
-                        }
-                    }
-                    Text("Ukuran cup", style = MaterialTheme.typography.labelMedium)
-                    Row(Modifier.fillMaxWidth().horizontalScroll(rememberScrollState()), horizontalArrangement = Arrangement.spacedBy(5.dp)) {
-                        sizeOptions.forEach { option ->
-                            FilterChip(selected = customCup == option.name, onClick = { customCup = option.name }, label = { Text(option.name + if (option.priceDelta > 0) " +${RupiahFormatter.format(option.priceDelta)}" else "") })
-                        }
-                        if (sizeOptions.isEmpty()) {
-                            FilterChip(selected = customCup == "Regular", onClick = { customCup = "Regular" }, label = { Text("Regular") })
-                            FilterChip(selected = customCup == "Large", onClick = { customCup = "Large" }, label = { Text("Large +Rp5rb") })
-                        }
-                    }
-                    Text("Topping tambahan", style = MaterialTheme.typography.labelMedium)
-                    if (productToppings.isEmpty()) {
+                    if (sugarOptions.isNotEmpty()) {
+                        Text("Tingkat gula", style = MaterialTheme.typography.labelMedium)
                         Row(Modifier.fillMaxWidth().horizontalScroll(rememberScrollState()), horizontalArrangement = Arrangement.spacedBy(5.dp)) {
-                            FilterChip(selected = customExtraShot, onClick = { customExtraShot = !customExtraShot }, label = { Text("Extra Shot +Rp6rb", style = MaterialTheme.typography.labelSmall) })
-                            FilterChip(selected = customOatMilk, onClick = { customOatMilk = !customOatMilk }, label = { Text("Oat Milk +Rp8rb", style = MaterialTheme.typography.labelSmall) })
+                            sugarOptions.forEach { option ->
+                                FilterChip(selected = customSugar == option.name, onClick = { customSugar = option.name }, label = { Text(option.name + if (option.priceDelta > 0) " +${RupiahFormatter.format(option.priceDelta)}" else "", style = MaterialTheme.typography.labelSmall) })
+                            }
                         }
-                    } else {
+                    }
+                    if (iceOptions.isNotEmpty()) {
+                        Text("Es / suhu", style = MaterialTheme.typography.labelMedium)
+                        Row(Modifier.fillMaxWidth().horizontalScroll(rememberScrollState()), horizontalArrangement = Arrangement.spacedBy(5.dp)) {
+                            iceOptions.forEach { option ->
+                                FilterChip(selected = customIce == option.name, onClick = { customIce = option.name }, label = { Text(option.name + if (option.priceDelta > 0) " +${RupiahFormatter.format(option.priceDelta)}" else "", style = MaterialTheme.typography.labelSmall) })
+                            }
+                        }
+                    }
+                    if (sizeOptions.isNotEmpty()) {
+                        Text("Ukuran", style = MaterialTheme.typography.labelMedium)
+                        Row(Modifier.fillMaxWidth().horizontalScroll(rememberScrollState()), horizontalArrangement = Arrangement.spacedBy(5.dp)) {
+                            sizeOptions.forEach { option ->
+                                FilterChip(selected = customCup == option.name, onClick = { customCup = option.name }, label = { Text(option.name + if (option.priceDelta > 0) " +${RupiahFormatter.format(option.priceDelta)}" else "") })
+                            }
+                        }
+                    }
+                    if (productToppings.isNotEmpty()) {
+                        Text("Tambahan", style = MaterialTheme.typography.labelMedium)
                         Column(verticalArrangement = Arrangement.spacedBy(2.dp)) {
                             productToppings.forEach { topping ->
                                 Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
@@ -1367,6 +1358,9 @@ private fun KasirComposeScreen(
                                 }
                             }
                         }
+                    }
+                    if (sugarOptions.isEmpty() && iceOptions.isEmpty() && sizeOptions.isEmpty() && productToppings.isEmpty()) {
+                        Text("Tidak ada opsi tambahan untuk produk ini.", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
                     }
                     OutlinedTextField(
                         value = customNote,
@@ -1405,9 +1399,9 @@ private fun KasirComposeScreen(
                             }
                             viewModel.addToCart(
                                 product = targetCustom,
-                                sugar = customSugar,
-                                ice = customIce,
-                                cupSize = customCup,
+                                sugar = if (sugarOptions.isNotEmpty()) customSugar else "",
+                                ice = if (iceOptions.isNotEmpty()) customIce else "",
+                                cupSize = if (sizeOptions.isNotEmpty()) customCup else "",
                                 addons = addons,
                                 customizationOptions = selectedOptions,
                                 customNote = customNote

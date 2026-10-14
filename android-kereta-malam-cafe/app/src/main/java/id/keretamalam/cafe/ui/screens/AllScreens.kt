@@ -735,7 +735,7 @@ private fun AiAssistantComposeScreen(viewModel: PosViewModel, uiState: PosUiStat
     var lastRenderedReply by remember { mutableStateOf(uiState.aiReplyText) }
     var lastRenderedError by remember { mutableStateOf(uiState.errorMessage) }
 
-    LaunchedEffect(chatMessages.size) {
+    LaunchedEffect(chatMessages.toList()) {
         val array = JSONArray()
         chatMessages.forEach { (text, fromUser) ->
             array.put(JSONObject().put("text", text).put("fromUser", fromUser))

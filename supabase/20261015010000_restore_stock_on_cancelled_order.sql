@@ -3,12 +3,18 @@
 create or replace function public.cancel_order_and_restore_stock(p_order_id uuid)
 returns void
 language plpgsql
-security invoker
+security definer
 set search_path = public
 as $$
 declare
   v_status text;
 begin
+  -- SECURITY DEFINER is required because cashiers may not have direct product-edit
+  -- permission. Explicitly require order-management permission before any write.
+  if not coalesce(public.has_permission('orders'), false) then
+    raise exception 'Tidak memiliki izin untuk membatalkan pesanan.';
+  end if;
+
   -- Lock the order so two cancellation requests cannot restore stock twice.
   select status into v_status
   from public.orders

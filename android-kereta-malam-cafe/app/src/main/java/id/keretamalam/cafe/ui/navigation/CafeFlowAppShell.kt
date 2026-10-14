@@ -111,7 +111,7 @@ fun CafeFlowAppShell(
         val drawerContent: @Composable () -> Unit = {
             ModalDrawerSheet(
                 modifier = Modifier.width(280.dp),
-                drawerContainerColor = androidx.compose.ui.graphics.Color(0xFF080A0D)
+                drawerContainerColor = if (uiState.darkTheme) androidx.compose.ui.graphics.Color(0xFF080A0D) else androidx.compose.ui.graphics.Color(0xFFFFFFFF)
             ) {
                 Column(
                     modifier = Modifier
@@ -241,10 +241,10 @@ fun CafeFlowAppShell(
                     TopAppBar(
                         modifier = Modifier.height(if (isLandscapePhone) 56.dp else 60.dp),
                         colors = TopAppBarDefaults.topAppBarColors(
-                            containerColor = androidx.compose.ui.graphics.Color(0xFF080A0D),
-                            titleContentColor = androidx.compose.ui.graphics.Color(0xFFF7FAFF),
-                            navigationIconContentColor = androidx.compose.ui.graphics.Color(0xFFF7FAFF),
-                            actionIconContentColor = androidx.compose.ui.graphics.Color(0xFFF7FAFF)
+                            containerColor = if (uiState.darkTheme) androidx.compose.ui.graphics.Color(0xFF080A0D) else androidx.compose.ui.graphics.Color(0xFFFFFFFF),
+                            titleContentColor = if (uiState.darkTheme) androidx.compose.ui.graphics.Color(0xFFF7FAFF) else androidx.compose.ui.graphics.Color(0xFF111827),
+                            navigationIconContentColor = if (uiState.darkTheme) androidx.compose.ui.graphics.Color(0xFFF7FAFF) else androidx.compose.ui.graphics.Color(0xFF111827),
+                            actionIconContentColor = if (uiState.darkTheme) androidx.compose.ui.graphics.Color(0xFFF7FAFF) else androidx.compose.ui.graphics.Color(0xFF111827)
                         ),
                         title = {
                             Text(
@@ -301,10 +301,10 @@ fun CafeFlowAppShell(
                 bottomBar = {
                     // Navigasi bawah tetap tampil dalam mode portrait maupun landscape
                     NavigationBar(
-                            modifier = Modifier.navigationBarsPadding().height(if (isLandscapePhone) 54.dp else 68.dp),
+                            modifier = Modifier.navigationBarsPadding().height(if (isLandscapePhone) 44.dp else 58.dp),
                             windowInsets = WindowInsets(0.dp),
-                            containerColor = androidx.compose.ui.graphics.Color(0xFF080A0D),
-                            contentColor = androidx.compose.ui.graphics.Color(0xFFF5F7FA)
+                            containerColor = if (uiState.darkTheme) androidx.compose.ui.graphics.Color(0xFF080A0D) else androidx.compose.ui.graphics.Color(0xFFFFFFFF),
+                            contentColor = if (uiState.darkTheme) androidx.compose.ui.graphics.Color(0xFFF5F7FA) else androidx.compose.ui.graphics.Color(0xFF334155)
                         ) {
                             val quickRoutes = listOf(
                                 PosModuleRoute.DASHBOARD,
@@ -316,25 +316,25 @@ fun CafeFlowAppShell(
                                 NavigationBarItem(
                                     selected = activeModule == route,
                                     colors = NavigationBarItemDefaults.colors(
-                                        selectedIconColor = androidx.compose.ui.graphics.Color(0xFFDCE7F2),
-                                        selectedTextColor = androidx.compose.ui.graphics.Color(0xFFFFFFFF),
-                                        indicatorColor = androidx.compose.ui.graphics.Color(0xFF354A60),
-                                        unselectedIconColor = if (uiState.darkTheme) androidx.compose.ui.graphics.Color(0xFFD1D9E3) else androidx.compose.ui.graphics.Color(0xFF64748B),
-                                        unselectedTextColor = if (uiState.darkTheme) androidx.compose.ui.graphics.Color(0xFFF5F7FA) else androidx.compose.ui.graphics.Color(0xFF334155)
+                                        selectedIconColor = if (uiState.darkTheme) androidx.compose.ui.graphics.Color(0xFFDCE7F2) else androidx.compose.ui.graphics.Color(0xFF526A82),
+                                        selectedTextColor = if (uiState.darkTheme) androidx.compose.ui.graphics.Color(0xFFFFFFFF) else androidx.compose.ui.graphics.Color(0xFF243447),
+                                        indicatorColor = if (uiState.darkTheme) androidx.compose.ui.graphics.Color(0xFF354A60) else androidx.compose.ui.graphics.Color(0xFFE8EDF2)
+                                        unselectedIconColor = if (uiState.darkTheme) androidx.compose.ui.graphics.Color(0xFFD1D9E3) else androidx.compose.ui.graphics.Color(0xFF7B8794),
+                                        unselectedTextColor = if (uiState.darkTheme) androidx.compose.ui.graphics.Color(0xFFF5F7FA) else androidx.compose.ui.graphics.Color(0xFF596575)
                                     ),
                                     onClick = { activeModule = route },
-                                    icon = { Icon(route.icon, contentDescription = localizedRouteTitle(route.titleId, uiState.outletSettings.appLanguage), tint = moduleIconTint(route), modifier = Modifier.size(if (isLandscapePhone) 24.dp else 28.dp)) },
+                                    icon = { Icon(route.icon, contentDescription = localizedRouteTitle(route.titleId, uiState.outletSettings.appLanguage), tint = moduleIconTint(route), modifier = Modifier.size(if (isLandscapePhone) 20.dp else 24.dp)) },
                                     label = if (isLandscapePhone) null else ({ Text(localizedRouteTitle(route.titleId, uiState.outletSettings.appLanguage), fontSize = 10.sp, maxLines = 1, overflow = TextOverflow.Ellipsis) })
                                 )
                             }
                             NavigationBarItem(
                                 selected = activeModule !in quickRoutes,
                                 colors = NavigationBarItemDefaults.colors(
-                                    selectedIconColor = androidx.compose.ui.graphics.Color(0xFFDCE7F2),
-                                    selectedTextColor = androidx.compose.ui.graphics.Color(0xFFFFFFFF),
-                                    indicatorColor = androidx.compose.ui.graphics.Color(0xFF354A60),
-                                    unselectedIconColor = if (uiState.darkTheme) androidx.compose.ui.graphics.Color(0xFFD1D9E3) else androidx.compose.ui.graphics.Color(0xFF64748B),
-                                    unselectedTextColor = if (uiState.darkTheme) androidx.compose.ui.graphics.Color(0xFFF5F7FA) else androidx.compose.ui.graphics.Color(0xFF334155)
+                                    selectedIconColor = if (uiState.darkTheme) androidx.compose.ui.graphics.Color(0xFFDCE7F2) else androidx.compose.ui.graphics.Color(0xFF526A82),
+                                    selectedTextColor = if (uiState.darkTheme) androidx.compose.ui.graphics.Color(0xFFFFFFFF) else androidx.compose.ui.graphics.Color(0xFF243447),
+                                    indicatorColor = if (uiState.darkTheme) androidx.compose.ui.graphics.Color(0xFF354A60) else androidx.compose.ui.graphics.Color(0xFFE8EDF2)
+                                    unselectedIconColor = if (uiState.darkTheme) androidx.compose.ui.graphics.Color(0xFFD1D9E3) else androidx.compose.ui.graphics.Color(0xFF7B8794),
+                                    unselectedTextColor = if (uiState.darkTheme) androidx.compose.ui.graphics.Color(0xFFF5F7FA) else androidx.compose.ui.graphics.Color(0xFF596575)
                                 ),
                                 onClick = { scope.launch { drawerState.open() } },
                                 icon = { Icon(Icons.Outlined.Menu, contentDescription = "Semua Modul", tint = androidx.compose.ui.graphics.Color(0xFF8993A4), modifier = Modifier.size(if (isLandscapePhone) 24.dp else 28.dp)) },

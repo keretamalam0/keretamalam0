@@ -24,7 +24,7 @@ class BackendNotVerifiedException(
 /**
  * Lapisan Repository resmi untuk Kereta Malam Cafe Android Native.
  *
- * Seluruh nama tabel, kolom, dan RPC mengikuti skema produksi `cafe-flow`:
+ * Seluruh nama tabel, kolom, dan RPC mengikuti skema backend produksi yang sudah terhubung:
  * - Tabel: `staff_profiles`, `categories`, `products`, `restaurant_tables`, `orders`,
  *   `order_items`, `payments`, `promotions`, `outlet_settings`, `staff_shifts`,
  *   `audit_logs`, `expenses`, `inventory_movements`, `printer_settings`, `website_settings`.

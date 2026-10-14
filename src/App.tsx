@@ -589,7 +589,7 @@ export default function App() {
   );
 
   const promoEligibility = useMemo(() => {
-    if (!selectedPromo) return { eligible: true, reason: '', eligibleSubtotal: cartSubtotal };
+    if (!selectedPromo) return { eligible: !selectedPromoId, reason: selectedPromoId ? 'Promo tidak aktif atau tidak tersedia untuk kasir.' : '', eligibleSubtotal: cartSubtotal };
     if (cartSubtotal < Number(selectedPromo.min_purchase || 0)) {
       return { eligible: false, reason: `Minimum belanja ${formatRupiah(Number(selectedPromo.min_purchase || 0))} belum tercapai.`, eligibleSubtotal: 0 };
     }

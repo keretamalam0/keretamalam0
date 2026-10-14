@@ -1725,17 +1725,21 @@ private fun ShiftKasirComposeScreen(viewModel: PosViewModel, uiState: PosUiState
 private fun AuditShiftComposeScreen(viewModel: PosViewModel, uiState: PosUiState) {
     var filter by remember { mutableStateOf("SEMUA") }
     var search by remember { mutableStateOf("") }
+    var fromDate by remember { mutableStateOf("") }
+    var toDate by remember { mutableStateOf("") }
     var selectedShift by remember { mutableStateOf<StaffShift?>(null) }
     val activeCount = uiState.shifts.count { it.status.equals("open", true) }
     val needsReview = uiState.shifts.count { !it.auditVerified && it.status.equals("closed", true) }
     val filtered = uiState.shifts.filter { shift ->
         val queryMatch = search.isBlank() || shift.staffName.contains(search, true) || shift.id.contains(search, true) || shift.notes.orEmpty().contains(search, true)
+        val date = shift.openedAt.take(10)
+        val dateMatch = (fromDate.isBlank() || date >= fromDate) && (toDate.isBlank() || date <= toDate)
         val filterMatch = when (filter) {
             "PERLU" -> !shift.auditVerified && shift.status.equals("closed", true)
             "AKTIF" -> shift.status.equals("open", true)
             else -> true
         }
-        queryMatch && filterMatch
+        queryMatch && filterMatch && dateMatch
     }
     selectedShift?.let { shift ->
         val variance = (shift.closingCash ?: 0.0) - (shift.expectedCash ?: 0.0)
@@ -1788,12 +1792,17 @@ private fun AuditShiftComposeScreen(viewModel: PosViewModel, uiState: PosUiState
             FilterChip(selected = filter == "AKTIF", onClick = { filter = "AKTIF" }, label = { Text("Aktif $activeCount", style = MaterialTheme.typography.labelSmall) }, modifier = Modifier.height(34.dp))
         }
         Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(6.dp), verticalAlignment = Alignment.CenterVertically) {
-            OutlinedTextField(value = search, onValueChange = { search = it }, label = { Text("Cari nama kasir / ID") },
+            OutlinedTextField(value = search, onValueChange = { search = it }, label = { Text("Cari kasir / ID") },
                 leadingIcon = { Icon(Icons.Outlined.Search, contentDescription = null, modifier = Modifier.size(18.dp)) },
                 modifier = Modifier.weight(1f).heightIn(max = 56.dp), singleLine = true, textStyle = MaterialTheme.typography.bodySmall)
             IconButton(onClick = { viewModel.syncAllDataFromBackend() }, enabled = !uiState.isLoading, modifier = Modifier.size(40.dp)) {
                 Icon(Icons.Outlined.Refresh, contentDescription = "Refresh", tint = Color(0xFF2878F0))
             }
+        }
+        Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(6.dp), verticalAlignment = Alignment.CenterVertically) {
+            OutlinedTextField(value = fromDate, onValueChange = { fromDate = it.take(10) }, label = { Text("Dari") }, placeholder = { Text("YYYY-MM-DD") }, modifier = Modifier.weight(1f).heightIn(max = 54.dp), singleLine = true, textStyle = MaterialTheme.typography.bodySmall)
+            OutlinedTextField(value = toDate, onValueChange = { toDate = it.take(10) }, label = { Text("Sampai") }, placeholder = { Text("YYYY-MM-DD") }, modifier = Modifier.weight(1f).heightIn(max = 54.dp), singleLine = true, textStyle = MaterialTheme.typography.bodySmall)
+            if (fromDate.isNotBlank() || toDate.isNotBlank()) TextButton(onClick = { fromDate = ""; toDate = "" }, contentPadding = PaddingValues(horizontal = 4.dp, vertical = 0.dp)) { Text("Reset", style = MaterialTheme.typography.labelSmall) }
         }
         Text("Riwayat shift", style = MaterialTheme.typography.labelLarge, fontWeight = FontWeight.SemiBold)
         if (filtered.isEmpty()) {

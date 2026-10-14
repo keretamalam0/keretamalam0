@@ -426,7 +426,7 @@ class PosViewModel(application: Application) : AndroidViewModel(application) {
         }
         val defaultPerms = when (role) {
             StaffRole.SUPER_ADMIN, StaffRole.OWNER -> PermissionKey.entries.associate { it.key to true }
-            StaffRole.MANAGER -> PermissionKey.entries.associate { it.key to (it != PermissionKey.SETTINGS) }
+            StaffRole.MANAGER -> PermissionKey.entries.associate { it.key to (it != PermissionKey.SETTINGS && it != PermissionKey.STAFF_MANAGEMENT && it != PermissionKey.OWNER_MANAGEMENT) }
             StaffRole.CASHIER -> mapOf("dashboard" to true, "orders" to true, "payments" to true, "tables" to true, "customers" to true, "products" to false, "inventory" to false, "reports" to false, "promotions" to false, "settings" to false)
         }
         if (_uiState.value.backendStatus == BackendIntegrationStatus.ACTIVE_VERIFIED) {

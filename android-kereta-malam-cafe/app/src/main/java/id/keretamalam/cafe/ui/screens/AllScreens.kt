@@ -944,7 +944,7 @@ private fun AiAssistantComposeScreen(viewModel: PosViewModel, uiState: PosUiStat
                     }
                 }
             },
-            confirmButton = { TextButton(onClick = { showHistoryDialog = false }) { Text("Tutup") },
+            confirmButton = { TextButton(onClick = { showHistoryDialog = false }) { Text("Tutup") } },
             dismissButton = {
                 if (historyEntries.isNotEmpty()) TextButton(onClick = {
                     historyEntries.clear()

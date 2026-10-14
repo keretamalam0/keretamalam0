@@ -1,5 +1,6 @@
 package id.keretamalam.cafe.ui.navigation
 
+import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.foundation.border
@@ -14,11 +15,13 @@ import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import id.keretamalam.cafe.R
 import id.keretamalam.cafe.data.model.PermissionKey
 import id.keretamalam.cafe.ui.screens.LoginComposeScreen
 import id.keretamalam.cafe.ui.screens.RenderModuleScreen
@@ -126,7 +129,12 @@ fun CafeFlowAppShell(
                         horizontalArrangement = Arrangement.SpaceBetween,
                         verticalAlignment = Alignment.CenterVertically
                     ) {
-                        Column(modifier = Modifier.weight(1f)) {
+                        Column(modifier = Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                            Image(
+                                painter = painterResource(id = R.drawable.launcher_logo),
+                                contentDescription = "Logo Kereta Malam Cafe",
+                                modifier = Modifier.fillMaxWidth().height(108.dp)
+                            )
                             Text(
                                 text = uiState.outletSettings.name,
                                 style = MaterialTheme.typography.titleLarge,

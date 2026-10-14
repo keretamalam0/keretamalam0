@@ -829,6 +829,7 @@ class PosViewModel(application: Application) : AndroidViewModel(application) {
         ice: String = "Normal Ice",
         cupSize: String = "Regular",
         addons: List<ProductAddon> = emptyList(),
+        customizationOptions: List<ProductCustomizationOption> = emptyList(),
         customNote: String = ""
     ) {
         if (!product.isActive || product.isOutOfStock) {
@@ -840,17 +841,34 @@ class PosViewModel(application: Application) : AndroidViewModel(application) {
             if (currentTotalQty + 1 > product.stock) {
                 return@update state.copy(errorMessage = "Stok ${product.name} hanya tersisa ${product.stock}.")
             }
-            val addonSummary = if (addons.isNotEmpty()) "+ ${addons.joinToString(", ") { it.name }}" else null
+            val customizationSummary = if (customizationOptions.isNotEmpty()) {
+                customizationOptions.joinToString(" · ") { option ->
+                    val label = when (option.groupKey) {
+                        "sugar" -> "Gula"
+                        "ice" -> "Es/suhu"
+                        "size" -> "Ukuran cup"
+                        else -> option.groupKey
+                    }
+                    "$label: ${option.name}"
+                }
+            } else {
+                listOfNotNull(
+                    "Gula: $sugar",
+                    "Es/suhu: $ice",
+                    "Ukuran cup: $cupSize"
+                ).joinToString(" · ")
+            }
+            val addonSummary = if (addons.isNotEmpty()) "Topping: ${addons.joinToString(", ") { it.name }}" else null
             val combinedNote = listOfNotNull(
-                sugar.takeIf { it != "Normal Sugar" },
-                ice.takeIf { it != "Normal Ice" },
-                if (cupSize != "Regular") "Cup $cupSize" else null,
+                customizationSummary,
                 addonSummary,
                 customNote.trim().takeIf { it.isNotEmpty() }
             ).joinToString(" · ")
 
             val existingIdx = state.cart.indexOfFirst {
-                it.product.id == product.id && it.note == combinedNote && it.cupSize == cupSize
+                it.product.id == product.id && it.note == combinedNote && it.cupSize == cupSize &&
+                    it.selectedAddons.map { addon -> addon.id }.toSet() == addons.map { addon -> addon.id }.toSet() &&
+                    it.selectedCustomizationOptions.map { option -> option.id }.toSet() == customizationOptions.map { option -> option.id }.toSet()
             }
             val nextCart = if (existingIdx >= 0) {
                 state.cart.toMutableList().apply {
@@ -865,7 +883,8 @@ class PosViewModel(application: Application) : AndroidViewModel(application) {
                     sugarLevel = sugar,
                     iceLevel = ice,
                     cupSize = cupSize,
-                    selectedAddons = addons
+                    selectedAddons = addons,
+                    selectedCustomizationOptions = customizationOptions
                 )
             }
             state.copy(cart = nextCart, errorMessage = null)

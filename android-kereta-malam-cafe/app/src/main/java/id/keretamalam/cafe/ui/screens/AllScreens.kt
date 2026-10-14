@@ -1,6 +1,8 @@
 package id.keretamalam.cafe.ui.screens
 
 import android.net.Uri
+import org.json.JSONArray
+import org.json.JSONObject
 import android.util.Base64
 import coil.compose.AsyncImage
 
@@ -656,23 +658,90 @@ private fun DashboardKpiCard(modifier: Modifier = Modifier, title: String, value
 // ============================================================================
 // 2. AI ASSISTANT SCREEN
 // ============================================================================
+private data class AiChatHistoryEntry(
+    val title: String,
+    val messages: List<Pair<String, Boolean>>
+)
+
+private const val AI_WELCOME_MESSAGE =
+    "Halo, saya AI Assistant dari Alvin Studio. Saya bertugas membantu operasional Kereta Malam Cafe langkah demi langkah—mulai dari kasir, pesanan, produk & stok, QR Ordering, laporan, hingga printer dan pengaturan."
+
+private fun loadAiChatHistory(context: android.content.Context): List<AiChatHistoryEntry> = runCatching {
+    val raw = context.getSharedPreferences("kereta_malam_ai_chat", android.content.Context.MODE_PRIVATE)
+        .getString("history", "[]") ?: "[]"
+    val array = JSONArray(raw)
+    (0 until array.length()).mapNotNull { index ->
+        val item = array.optJSONObject(index) ?: return@mapNotNull null
+        val messagesArray = item.optJSONArray("messages") ?: JSONArray()
+        val messages = (0 until messagesArray.length()).mapNotNull { i ->
+            val message = messagesArray.optJSONObject(i) ?: return@mapNotNull null
+            message.optString("text", "").takeIf { it.isNotBlank() }?.let {
+                it to message.optBoolean("fromUser", false)
+            }
+        }
+        if (messages.isEmpty()) null else AiChatHistoryEntry(
+            item.optString("title", "Percakapan sebelumnya"), messages
+        )
+    }
+}.getOrDefault(emptyList())
+
+private fun saveAiChatHistory(context: android.content.Context, entries: List<AiChatHistoryEntry>) {
+    val array = JSONArray()
+    entries.forEach { entry ->
+        val item = JSONObject().put("title", entry.title)
+        val messages = JSONArray()
+        entry.messages.forEach { (text, fromUser) ->
+            messages.put(JSONObject().put("text", text).put("fromUser", fromUser))
+        }
+        item.put("messages", messages)
+        array.put(item)
+    }
+    context.getSharedPreferences("kereta_malam_ai_chat", android.content.Context.MODE_PRIVATE)
+        .edit().putString("history", array.toString()).apply()
+}
+
 @Composable
 private fun AiAssistantComposeScreen(viewModel: PosViewModel, uiState: PosUiState) {
     val context = LocalContext.current
     var promptInput by remember { mutableStateOf("") }
     var selectedImageUri by remember { mutableStateOf<Uri?>(null) }
+    var showHistoryDialog by remember { mutableStateOf(false) }
     val imagePicker = rememberLauncherForActivityResult(ActivityResultContracts.GetContent()) { uri ->
         selectedImageUri = uri
     }
-    val chatMessages = remember {
-        mutableStateListOf(
-            "Halo! Gue asisten bantuan Kereta Malam Cafe. Tanya aja cara memakai aplikasi atau ceritakan kendalanya. Gue bantu langkah demi langkah." to false
-        )
+    val prefs = remember(context) {
+        context.getSharedPreferences("kereta_malam_ai_chat", android.content.Context.MODE_PRIVATE)
     }
+    val chatMessages = remember {
+        val restored = runCatching {
+            val raw = prefs.getString("current", null) ?: return@runCatching null
+            val array = JSONArray(raw)
+            (0 until array.length()).mapNotNull { i ->
+                val item = array.optJSONObject(i) ?: return@mapNotNull null
+                item.optString("text", "").takeIf { it.isNotBlank() }?.let {
+                    it to item.optBoolean("fromUser", false)
+                }
+            }
+        }.getOrNull()
+        mutableStateListOf<Pair<String, Boolean>>().apply {
+            addAll(restored.orEmpty())
+            if (isEmpty()) add(AI_WELCOME_MESSAGE to false)
+        }
+    }
+    val historyEntries = remember { mutableStateListOf<AiChatHistoryEntry>().apply {
+        addAll(loadAiChatHistory(context))
+    } }
     val chatScrollState = rememberScrollState()
     var lastRenderedReply by remember { mutableStateOf(uiState.aiReplyText) }
     var lastRenderedError by remember { mutableStateOf(uiState.errorMessage) }
 
+    LaunchedEffect(chatMessages.size) {
+        val array = JSONArray()
+        chatMessages.forEach { (text, fromUser) ->
+            array.put(JSONObject().put("text", text).put("fromUser", fromUser))
+        }
+        prefs.edit().putString("current", array.toString()).apply()
+    }
     LaunchedEffect(uiState.aiReplyText) {
         val reply = uiState.aiReplyText
         if (!reply.isNullOrBlank() && reply != lastRenderedReply) {
@@ -695,20 +764,39 @@ private fun AiAssistantComposeScreen(viewModel: PosViewModel, uiState: PosUiStat
         chatScrollState.animateScrollTo(chatScrollState.maxValue)
     }
 
+    fun startNewChat() {
+        val current = chatMessages.toList()
+        val firstQuestion = current.firstOrNull { it.second }?.first
+        if (firstQuestion != null) {
+            val title = firstQuestion.replace("📷 Screenshot dilampirkan", "").trim()
+                .ifBlank { "Percakapan AI" }.take(56)
+            historyEntries.add(0, AiChatHistoryEntry(title, current))
+            while (historyEntries.size > 50) historyEntries.removeAt(historyEntries.lastIndex)
+            saveAiChatHistory(context, historyEntries)
+        }
+        chatMessages.clear()
+        chatMessages.add(AI_WELCOME_MESSAGE to false)
+        promptInput = ""
+        selectedImageUri = null
+        prefs.edit().remove("current").apply()
+    }
+
     Column(
-        modifier = Modifier
-            .fillMaxSize()
-            .imePadding()
-            .padding(horizontal = 12.dp, vertical = 8.dp),
-        verticalArrangement = Arrangement.spacedBy(10.dp)
+        modifier = Modifier.fillMaxSize().imePadding().padding(horizontal = 12.dp, vertical = 6.dp),
+        verticalArrangement = Arrangement.spacedBy(6.dp)
     ) {
         Row(
             modifier = Modifier.fillMaxWidth(),
-            verticalAlignment = Alignment.CenterVertically
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.spacedBy(6.dp)
         ) {
-            Column(modifier = Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(2.dp)) {
-                Text("AI Assistant", style = MaterialTheme.typography.titleLarge, fontWeight = FontWeight.Bold)
-                Text("Bantuan penggunaan Kereta Malam Cafe", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+            Text("AI Assistant", style = MaterialTheme.typography.titleLarge,
+                fontWeight = FontWeight.Bold, modifier = Modifier.weight(1f))
+            TextButton(onClick = { showHistoryDialog = true }, enabled = !uiState.isLoading) {
+                Text("Riwayat")
+            }
+            TextButton(onClick = { startNewChat() }, enabled = !uiState.isLoading) {
+                Text("＋ Baru")
             }
             Surface(
                 shape = RoundedCornerShape(50),
@@ -717,30 +805,18 @@ private fun AiAssistantComposeScreen(viewModel: PosViewModel, uiState: PosUiStat
             ) {
                 Text(
                     if (uiState.backendStatus == BackendIntegrationStatus.ACTIVE_VERIFIED) "Terhubung" else "Offline",
-                    modifier = Modifier.padding(horizontal = 10.dp, vertical = 6.dp),
+                    modifier = Modifier.padding(horizontal = 8.dp, vertical = 5.dp),
                     style = MaterialTheme.typography.labelSmall
                 )
             }
         }
 
-        Text(
-            "Tanyakan cara memakai kasir, pesanan, produk & stok, QR Ordering, laporan, printer, atau pengaturan.",
-            style = MaterialTheme.typography.bodySmall,
-            color = MaterialTheme.colorScheme.onSurfaceVariant
-        )
-
         Row(
             modifier = Modifier.fillMaxWidth().horizontalScroll(rememberScrollState()),
             horizontalArrangement = Arrangement.spacedBy(6.dp)
         ) {
-            listOf(
-                "Cara proses pembayaran?",
-                "Cara tambah produk?",
-                "Pesanan QR di mana?",
-                "Printer tidak mencetak"
-            ).forEach { quick ->
-                AssistChip(onClick = { promptInput = quick }, label = { Text(quick) })
-            }
+            listOf("Cara proses pembayaran?", "Cara tambah produk?", "Pesanan QR di mana?", "Printer tidak mencetak")
+                .forEach { quick -> AssistChip(onClick = { promptInput = quick }, label = { Text(quick) }) }
         }
 
         Surface(
@@ -754,93 +830,62 @@ private fun AiAssistantComposeScreen(viewModel: PosViewModel, uiState: PosUiStat
                 verticalArrangement = Arrangement.spacedBy(10.dp)
             ) {
                 chatMessages.forEach { (message, fromUser) ->
-                    Box(
-                        modifier = Modifier.fillMaxWidth(),
-                        contentAlignment = if (fromUser) Alignment.CenterEnd else Alignment.CenterStart
-                    ) {
+                    Box(modifier = Modifier.fillMaxWidth(),
+                        contentAlignment = if (fromUser) Alignment.CenterEnd else Alignment.CenterStart) {
                         Surface(
                             modifier = Modifier.widthIn(max = 340.dp),
                             shape = RoundedCornerShape(
-                                topStart = 16.dp,
-                                topEnd = 16.dp,
+                                topStart = 16.dp, topEnd = 16.dp,
                                 bottomStart = if (fromUser) 16.dp else 4.dp,
                                 bottomEnd = if (fromUser) 4.dp else 16.dp
                             ),
                             color = if (fromUser) MaterialTheme.colorScheme.primaryContainer
                                 else MaterialTheme.colorScheme.surfaceVariant
                         ) {
-                            Text(
-                                text = remember(message) { formatAssistantMarkdown(message) },
+                            Text(text = remember(message) { formatAssistantMarkdown(message) },
                                 modifier = Modifier.padding(horizontal = 13.dp, vertical = 10.dp),
                                 style = MaterialTheme.typography.bodyMedium,
-                                color = MaterialTheme.colorScheme.onSurface
-                            )
+                                color = MaterialTheme.colorScheme.onSurface)
                         }
                     }
                 }
                 if (uiState.isLoading) {
-                    Surface(
-                        shape = RoundedCornerShape(14.dp),
-                        color = MaterialTheme.colorScheme.surfaceVariant
-                    ) {
-                        Text(
-                            "Asisten sedang mengetik…",
+                    Surface(shape = RoundedCornerShape(14.dp), color = MaterialTheme.colorScheme.surfaceVariant) {
+                        Text("Asisten sedang mengetik…",
                             modifier = Modifier.padding(horizontal = 13.dp, vertical = 10.dp),
                             style = MaterialTheme.typography.bodySmall,
-                            color = MaterialTheme.colorScheme.onSurfaceVariant
-                        )
+                            color = MaterialTheme.colorScheme.onSurfaceVariant)
                     }
                 }
             }
         }
 
         if (selectedImageUri != null) {
-            Row(
-                modifier = Modifier.fillMaxWidth(),
-                verticalAlignment = Alignment.CenterVertically,
-                horizontalArrangement = Arrangement.spacedBy(10.dp)
-            ) {
-                AsyncImage(
-                    model = selectedImageUri,
-                    contentDescription = "Screenshot yang akan dikirim ke AI",
-                    modifier = Modifier.size(64.dp).clip(RoundedCornerShape(10.dp))
-                )
-                Text("Screenshot siap dikirim ke AI", modifier = Modifier.weight(1f), style = MaterialTheme.typography.bodySmall)
+            Row(modifier = Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.spacedBy(10.dp)) {
+                AsyncImage(model = selectedImageUri, contentDescription = "Screenshot yang akan dikirim ke AI",
+                    modifier = Modifier.size(56.dp).clip(RoundedCornerShape(10.dp)))
+                Text("Screenshot siap dikirim ke AI", modifier = Modifier.weight(1f),
+                    style = MaterialTheme.typography.bodySmall)
                 TextButton(onClick = { selectedImageUri = null }, enabled = !uiState.isLoading) { Text("Hapus") }
             }
         }
 
-        Row(
-            modifier = Modifier.fillMaxWidth(),
-            verticalAlignment = Alignment.Bottom,
-            horizontalArrangement = Arrangement.spacedBy(8.dp)
-        ) {
-            OutlinedButton(
-                onClick = { imagePicker.launch("image/*") },
-                enabled = !uiState.isLoading,
+        Row(modifier = Modifier.fillMaxWidth(), verticalAlignment = Alignment.Bottom,
+            horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+            OutlinedButton(onClick = { imagePicker.launch("image/*") }, enabled = !uiState.isLoading,
                 modifier = Modifier.heightIn(min = 52.dp),
-                contentPadding = PaddingValues(horizontal = 10.dp, vertical = 8.dp)
-            ) {
-                Text("＋ Foto")
-            }
-            OutlinedTextField(
-                value = promptInput,
-                onValueChange = { promptInput = it },
-                modifier = Modifier.weight(1f),
-                placeholder = { Text("Tulis pesan…") },
-                maxLines = 4,
-                enabled = !uiState.isLoading,
-                shape = RoundedCornerShape(18.dp)
-            )
+                contentPadding = PaddingValues(horizontal = 10.dp, vertical = 8.dp)) { Text("＋ Foto") }
+            OutlinedTextField(value = promptInput, onValueChange = { promptInput = it },
+                modifier = Modifier.weight(1f), placeholder = { Text("Tulis pesan…") },
+                maxLines = 4, enabled = !uiState.isLoading, shape = RoundedCornerShape(18.dp))
             Button(
                 onClick = {
                     val question = promptInput.trim()
                     val imageUri = selectedImageUri
                     if ((question.isNotEmpty() || imageUri != null) && !uiState.isLoading) {
                         val imageBytes = imageUri?.let { uri ->
-                            runCatching {
-                                context.contentResolver.openInputStream(uri)?.use { it.readBytes() }
-                            }.getOrNull()
+                            runCatching { context.contentResolver.openInputStream(uri)?.use { it.readBytes() } }.getOrNull()
                         }
                         val imageBase64 = imageBytes?.takeIf { it.isNotEmpty() && it.size <= 8 * 1024 * 1024 }
                             ?.let { Base64.encodeToString(it, Base64.NO_WRAP) }
@@ -851,8 +896,7 @@ private fun AiAssistantComposeScreen(viewModel: PosViewModel, uiState: PosUiStat
                         } else {
                             val visibleMessage = buildString {
                                 if (imageUri != null) append("📷 Screenshot dilampirkan\n")
-                                if (question.isNotBlank()) append(question)
-                                else append("Tolong analisis screenshot ini dan bantu gue memahami masalahnya.")
+                                append(question.ifBlank { "Tolong analisis screenshot ini dan bantu saya memahami masalahnya." })
                             }
                             chatMessages.add(visibleMessage to true)
                             promptInput = ""
@@ -866,26 +910,48 @@ private fun AiAssistantComposeScreen(viewModel: PosViewModel, uiState: PosUiStat
                 enabled = (promptInput.isNotBlank() || selectedImageUri != null) && !uiState.isLoading,
                 modifier = Modifier.heightIn(min = 52.dp),
                 contentPadding = PaddingValues(horizontal = 16.dp, vertical = 12.dp)
-            ) {
-                Text(if (uiState.isLoading) "..." else "Kirim")
-            }
+            ) { Text(if (uiState.isLoading) "..." else "Kirim") }
         }
     }
-}
 
-// Render common Markdown bold markers in assistant chat without showing raw ** symbols.
-private fun formatAssistantMarkdown(source: String): androidx.compose.ui.text.AnnotatedString {
-    val boldPattern = Regex("\\*\\*(.+?)\\*\\*")
-    return buildAnnotatedString {
-        var cursor = 0
-        boldPattern.findAll(source).forEach { match ->
-            append(source.substring(cursor, match.range.first))
-            pushStyle(SpanStyle(fontWeight = FontWeight.Bold))
-            append(match.groupValues[1])
-            pop()
-            cursor = match.range.last + 1
-        }
-        append(source.substring(cursor))
+    if (showHistoryDialog) {
+        AlertDialog(
+            onDismissRequest = { showHistoryDialog = false },
+            title = { Text("Riwayat percakapan") },
+            text = {
+                Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                    if (historyEntries.isEmpty()) {
+                        Text("Belum ada riwayat. Percakapan akan tersimpan saat kamu menekan ＋ Baru.")
+                    } else {
+                        Column(modifier = Modifier.heightIn(max = 360.dp).verticalScroll(rememberScrollState()),
+                            verticalArrangement = Arrangement.spacedBy(6.dp)) {
+                            historyEntries.forEachIndexed { index, entry ->
+                                Row(verticalAlignment = Alignment.CenterVertically,
+                                    horizontalArrangement = Arrangement.spacedBy(6.dp)) {
+                                    TextButton(onClick = {
+                                        chatMessages.clear()
+                                        chatMessages.addAll(entry.messages)
+                                        prefs.edit().remove("current").apply()
+                                        showHistoryDialog = false
+                                    }, modifier = Modifier.weight(1f)) { Text(entry.title, maxLines = 2) }
+                                    TextButton(onClick = {
+                                        historyEntries.removeAt(index)
+                                        saveAiChatHistory(context, historyEntries)
+                                    }) { Text("Hapus") }
+                                }
+                            }
+                        }
+                    }
+                }
+            },
+            confirmButton = { TextButton(onClick = { showHistoryDialog = false }) { Text("Tutup") },
+            dismissButton = {
+                if (historyEntries.isNotEmpty()) TextButton(onClick = {
+                    historyEntries.clear()
+                    saveAiChatHistory(context, historyEntries)
+                }) { Text("Hapus semua") }
+            }
+        )
     }
 }
 

@@ -1893,7 +1893,7 @@ private fun HistoryComposeScreen(viewModel: PosViewModel, uiState: PosUiState) {
                             Text("#${order.orderNo} · ${order.customerName ?: "Walk-in"}", fontWeight = FontWeight.Bold)
                             Text("Waktu: ${order.createdAt}", style = MaterialTheme.typography.bodySmall)
                             Text("Sumber: ${if (order.source.equals("qr", true)) "QR Meja" else "POS Kasir"} · Meja: ${order.restaurantTable?.name ?: "Takeaway"}", style = MaterialTheme.typography.bodyMedium)
-                            Text("Metode: ${order.paymentMethod?.uppercase() ?: "Belum ditentukan"} · Status: ${order.status.labelId}", style = MaterialTheme.typography.bodyMedium)
+                            Text("Metode: ${order.payments.firstOrNull()?.method ?: order.paymentMethod ?: "Belum ditentukan"} · Status: ${order.status.labelId}", style = MaterialTheme.typography.bodyMedium)
                             if (order.discount > 0) {
                                 Text(
                                     "Promo: ${uiState.promotions.firstOrNull { it.id == order.promotionId }?.name ?: "Diskon"} · Potongan: ${RupiahFormatter.format(order.discount)}",

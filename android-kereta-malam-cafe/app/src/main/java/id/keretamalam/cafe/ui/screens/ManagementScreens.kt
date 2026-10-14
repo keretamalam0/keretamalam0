@@ -268,10 +268,10 @@ fun ProdukStokComposeScreen(viewModel: PosViewModel, uiState: PosUiState) {
             }
         }
         Dialog(onDismissRequest = { editingProduct = null }, properties = DialogProperties(usePlatformDefaultWidth = false)) {
-            Surface(shape = RoundedCornerShape(16.dp), color = MaterialTheme.colorScheme.surface, modifier = Modifier.fillMaxWidth(0.94f).widthIn(max = 520.dp).padding(12.dp)) {
-                Column(Modifier.padding(16.dp).verticalScroll(rememberScrollState()), verticalArrangement = Arrangement.spacedBy(10.dp)) {
+            Surface(shape = RoundedCornerShape(16.dp), color = MaterialTheme.colorScheme.surface, modifier = Modifier.fillMaxWidth(0.92f).widthIn(max = 460.dp).heightIn(max = 760.dp).padding(8.dp)) {
+                Column(Modifier.padding(12.dp).verticalScroll(rememberScrollState()), verticalArrangement = Arrangement.spacedBy(6.dp)) {
                     Text(if (targetEdit.id.isBlank()) "Tambah Produk" else "Edit Produk", style = MaterialTheme.typography.titleLarge, fontWeight = FontWeight.Bold)
-                    Text("Detail produk dan opsi tambahan dalam satu form.", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                    Text("Isi detail utama, lalu tambah topping atau opsi bila diperlukan.", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
                     OutlinedTextField(value = name, onValueChange = { name = it }, label = { Text("Nama produk") }, modifier = Modifier.fillMaxWidth(), singleLine = true)
                     OutlinedTextField(value = desc, onValueChange = { desc = it }, label = { Text("Deskripsi") }, modifier = Modifier.fillMaxWidth(), maxLines = 2)
                     Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(10.dp)) {
@@ -326,10 +326,10 @@ fun ProdukStokComposeScreen(viewModel: PosViewModel, uiState: PosUiState) {
                     Row(verticalAlignment = Alignment.CenterVertically) { Text("Produk aktif", Modifier.weight(1f)); Switch(checked = isActive, onCheckedChange = { isActive = it }) }
                     Row(verticalAlignment = Alignment.CenterVertically) { Text("Tampilkan di QR Menu", Modifier.weight(1f)); Switch(checked = showOnMenu, onCheckedChange = { showOnMenu = it }) }
                     HorizontalDivider()
-                    Text("Topping tambahan", style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.SemiBold)
+                    Text("Tambahan / topping", style = MaterialTheme.typography.titleSmall, fontWeight = FontWeight.SemiBold)
                     Text("Nama topping dan harga tambahannya.", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
                     if (targetEdit.id.isBlank()) {
-                        Text("Simpan produk terlebih dahulu. Setelah tersimpan, popup tetap terbuka untuk menambahkan topping.", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.primary)
+                        Text("Simpan produk dulu, lalu topping bisa ditambahkan di form ini.", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.primary)
                     } else {
                         Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp), verticalAlignment = Alignment.CenterVertically) {
                             OutlinedTextField(value = inlineAddonName, onValueChange = { inlineAddonName = it }, label = { Text("Nama topping") }, modifier = Modifier.weight(1.3f), singleLine = true)
@@ -351,10 +351,10 @@ fun ProdukStokComposeScreen(viewModel: PosViewModel, uiState: PosUiState) {
                         }
                     }
                     HorizontalDivider()
-                    Text("Opsi kustomisasi minuman", style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.SemiBold)
+                    Text("Opsi kustomisasi", style = MaterialTheme.typography.titleSmall, fontWeight = FontWeight.SemiBold)
                     Text("Atur gula, es/suhu, dan ukuran cup. Harga tambahan opsional.", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
                     if (targetEdit.id.isBlank()) {
-                        Text("Opsi kustomisasi bisa ditambahkan setelah detail produk pertama kali disimpan.", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.primary)
+                        Text("Simpan produk dulu, lalu opsi ukuran, es, dan gula bisa ditambahkan di sini.", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.primary)
                     } else {
                         Row(Modifier.fillMaxWidth().horizontalScroll(rememberScrollState()), horizontalArrangement = Arrangement.spacedBy(6.dp)) {
                             listOf("sugar" to "Tingkat kemanisan", "ice" to "Pilihan es / suhu", "size" to "Ukuran cup").forEach { (key, label) ->

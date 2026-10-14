@@ -238,6 +238,7 @@ fun CafeFlowAppShell(
             Scaffold(
                 topBar = {
                     TopAppBar(
+                        modifier = Modifier.height(if (isLandscapePhone) 44.dp else 52.dp),
                         colors = TopAppBarDefaults.topAppBarColors(
                             containerColor = if (uiState.darkTheme) androidx.compose.ui.graphics.Color(0xFF080A0D) else androidx.compose.ui.graphics.Color(0xFFFFFFFF),
                             titleContentColor = if (uiState.darkTheme) androidx.compose.ui.graphics.Color(0xFFF7FAFF) else androidx.compose.ui.graphics.Color(0xFF111827),
@@ -245,21 +246,12 @@ fun CafeFlowAppShell(
                             actionIconContentColor = if (uiState.darkTheme) androidx.compose.ui.graphics.Color(0xFFF7FAFF) else androidx.compose.ui.graphics.Color(0xFF111827)
                         ),
                         title = {
-                            Column {
-                                Text(
-                                    text = localizedRouteTitle(activeModule.titleId, uiState.outletSettings.appLanguage),
-                                    style = MaterialTheme.typography.titleMedium,
-                                    maxLines = 1,
-                                    overflow = TextOverflow.Ellipsis
-                                )
-                                Text(
-                                    text = "POS & QR Ordering",
-                                    style = MaterialTheme.typography.labelMedium,
-                                    color = if (uiState.darkTheme) androidx.compose.ui.graphics.Color(0xFFAAB6C5) else androidx.compose.ui.graphics.Color(0xFF64748B),
-                                    maxLines = 1,
-                                    overflow = TextOverflow.Ellipsis
-                                )
-                            }
+                            Text(
+                                text = localizedRouteTitle(activeModule.titleId, uiState.outletSettings.appLanguage),
+                                style = if (isLandscapePhone) MaterialTheme.typography.labelLarge else MaterialTheme.typography.titleMedium,
+                                maxLines = 1,
+                                overflow = TextOverflow.Ellipsis
+                            )
                         },
                         navigationIcon = {
                             IconButton(onClick = { scope.launch { drawerState.open() } }) {
@@ -267,33 +259,37 @@ fun CafeFlowAppShell(
                             }
                         },
                         actions = {
-                            // Kontrol skala dipindah ke header, berdampingan dengan toggle tema.
-                            Row(verticalAlignment = Alignment.CenterVertically) {
-                                IconButton(
-                                    onClick = { viewModel.setUiScale(uiState.uiScalePercent - 10) },
-                                    enabled = uiState.uiScalePercent > 40
-                                ) {
-                                    Icon(Icons.Outlined.Remove, contentDescription = "Perkecil tampilan")
-                                }
-                                Text(
-                                    text = "${uiState.uiScalePercent}%",
-                                    style = MaterialTheme.typography.labelMedium,
-                                    fontWeight = FontWeight.Bold
-                                )
-                                IconButton(
-                                    onClick = { viewModel.setUiScale(uiState.uiScalePercent + 10) },
-                                    enabled = uiState.uiScalePercent < 120
-                                ) {
-                                    Icon(Icons.Outlined.Add, contentDescription = "Perbesar tampilan")
+                            // Header dipadatkan; kontrol skala disembunyikan di landscape agar area kasir lega.
+                            if (!isLandscapePhone) {
+                                Row(verticalAlignment = Alignment.CenterVertically) {
+                                    IconButton(
+                                        modifier = Modifier.size(36.dp),
+                                        onClick = { viewModel.setUiScale(uiState.uiScalePercent - 10) },
+                                        enabled = uiState.uiScalePercent > 40
+                                    ) {
+                                        Icon(Icons.Outlined.Remove, contentDescription = "Perkecil tampilan")
+                                    }
+                                    Text(
+                                        text = "${uiState.uiScalePercent}%",
+                                        style = MaterialTheme.typography.labelSmall,
+                                        fontWeight = FontWeight.Bold
+                                    )
+                                    IconButton(
+                                        modifier = Modifier.size(36.dp),
+                                        onClick = { viewModel.setUiScale(uiState.uiScalePercent + 10) },
+                                        enabled = uiState.uiScalePercent < 120
+                                    ) {
+                                        Icon(Icons.Outlined.Add, contentDescription = "Perbesar tampilan")
+                                    }
                                 }
                             }
-                            IconButton(onClick = { viewModel.setThemeMode(!uiState.darkTheme) }) {
+                            IconButton(modifier = Modifier.size(if (isLandscapePhone) 34.dp else 40.dp), onClick = { viewModel.setThemeMode(!uiState.darkTheme) }) {
                                 Icon(
                                     imageVector = if (uiState.darkTheme) Icons.Outlined.LightMode else Icons.Outlined.DarkMode,
                                     contentDescription = "Ganti Tema Terang/Gelap"
                                 )
                             }
-                            IconButton(onClick = { viewModel.logoutSession() }) {
+                            IconButton(modifier = Modifier.size(if (isLandscapePhone) 34.dp else 40.dp), onClick = { viewModel.logoutSession() }) {
                                 Icon(
                                     imageVector = Icons.AutoMirrored.Outlined.Logout,
                                     contentDescription = "Halaman Login / Keluar"
@@ -305,6 +301,8 @@ fun CafeFlowAppShell(
                 bottomBar = {
                     // Navigasi bawah tetap tampil dalam mode portrait maupun landscape
                     NavigationBar(
+                            modifier = Modifier.height(if (isLandscapePhone) 48.dp else 64.dp),
+                            windowInsets = WindowInsets(0.dp),
                             containerColor = if (uiState.darkTheme) androidx.compose.ui.graphics.Color(0xFF080A0D) else androidx.compose.ui.graphics.Color(0xFFFFFFFF),
                             contentColor = if (uiState.darkTheme) androidx.compose.ui.graphics.Color(0xFFF5F7FA) else androidx.compose.ui.graphics.Color(0xFF334155)
                         ) {
@@ -325,8 +323,8 @@ fun CafeFlowAppShell(
                                         unselectedTextColor = if (uiState.darkTheme) androidx.compose.ui.graphics.Color(0xFFF5F7FA) else androidx.compose.ui.graphics.Color(0xFF334155)
                                     ),
                                     onClick = { activeModule = route },
-                                    icon = { Icon(route.icon, contentDescription = localizedRouteTitle(route.titleId, uiState.outletSettings.appLanguage), tint = moduleIconTint(route)) },
-                                    label = { Text(localizedRouteTitle(route.titleId, uiState.outletSettings.appLanguage), maxLines = 1, overflow = TextOverflow.Ellipsis) }
+                                    icon = { Icon(route.icon, contentDescription = localizedRouteTitle(route.titleId, uiState.outletSettings.appLanguage), tint = moduleIconTint(route), modifier = Modifier.size(if (isLandscapePhone) 18.dp else 22.dp)) },
+                                    label = if (isLandscapePhone) null else { { Text(localizedRouteTitle(route.titleId, uiState.outletSettings.appLanguage), maxLines = 1, overflow = TextOverflow.Ellipsis) } }
                                 )
                             }
                             NavigationBarItem(
@@ -339,8 +337,8 @@ fun CafeFlowAppShell(
                                     unselectedTextColor = if (uiState.darkTheme) androidx.compose.ui.graphics.Color(0xFFF5F7FA) else androidx.compose.ui.graphics.Color(0xFF334155)
                                 ),
                                 onClick = { scope.launch { drawerState.open() } },
-                                icon = { Icon(Icons.Outlined.Menu, contentDescription = "Semua Modul", tint = androidx.compose.ui.graphics.Color(0xFF8993A4)) },
-                                label = { Text("Modul") }
+                                icon = { Icon(Icons.Outlined.Menu, contentDescription = "Semua Modul", tint = androidx.compose.ui.graphics.Color(0xFF8993A4), modifier = Modifier.size(if (isLandscapePhone) 18.dp else 22.dp)) },
+                                label = if (isLandscapePhone) null else { { Text("Modul") } }
                             )
                         }
                 }

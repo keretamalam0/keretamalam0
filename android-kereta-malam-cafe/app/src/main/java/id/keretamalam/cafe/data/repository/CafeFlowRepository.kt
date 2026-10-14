@@ -717,7 +717,7 @@ class CafeFlowRepository(private val context: Context) {
             headers = buildHeaders(creds)
         )
         val existing = json.parseToJsonElement(existingRaw).jsonArray.firstOrNull()
-        val encodedId = existing?.jsonObject?.get("id"]?.jsonPrimitive?.contentOrNull
+        val encodedId = existing?.jsonObject?.get("id")?.jsonPrimitive?.contentOrNull
             ?.let { URLEncoder.encode(it, "UTF-8") }
         if (existing != null && encodedId == null) {
             throw IllegalStateException("Data outlet tidak memiliki ID.")

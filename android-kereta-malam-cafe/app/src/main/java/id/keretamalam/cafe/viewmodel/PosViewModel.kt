@@ -897,7 +897,7 @@ class PosViewModel(application: Application) : AndroidViewModel(application) {
     }
 
     fun clearCart() {
-        _uiState.update { it.copy(cart = emptyList()) }
+        _uiState.update { it.copy(cart = emptyList(), selectedPromotionId = null) }
     }
 
     fun openReceiptDialog(order: OrderWithItems?) {
@@ -957,6 +957,7 @@ class PosViewModel(application: Application) : AndroidViewModel(application) {
                             cart = emptyList(),
                             customerName = "",
                             orderNotes = "",
+                            selectedPromotionId = null,
                             cashReceivedInput = "",
                             receiptDialogOrder = confirmedOrder,
                             thermalPreviewText = formatOrderForThermalPreview(confirmedOrder, false),
@@ -1027,6 +1028,7 @@ class PosViewModel(application: Application) : AndroidViewModel(application) {
                             cart = emptyList(),
                             customerName = "",
                             orderNotes = "",
+                            selectedPromotionId = null,
                             cashReceivedInput = "",
                             receiptDialogOrder = newOrder,
                             thermalPreviewText = formatOrderForThermalPreview(newOrder, false),

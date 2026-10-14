@@ -37,6 +37,7 @@ data class PosUiState(
     val currentProjectId: String = "",
     val currentSupabaseUrl: String = "",
     val staffList: List<StaffProfile> = SandboxSeedData.staffList,
+    val ownerAccounts: List<OwnerAccount> = emptyList(),
     val staffProfile: StaffProfile = SandboxSeedData.staffList.first(),
     val categories: List<Category> = SandboxSeedData.categories,
     val products: List<Product> = SandboxSeedData.products,
@@ -501,6 +502,70 @@ class PosViewModel(application: Application) : AndroidViewModel(application) {
             runCatching { repository.updateStaffProfile(userId, isActive = active) }
                 .onSuccess { saved -> _uiState.update { current -> current.copy(isLoading = false, staffList = current.staffList.map { if (it.userId == saved.userId) saved else it }, successMessage = if (active) "Akun diaktifkan." else "Akun dinonaktifkan.") } }
                 .onFailure { err -> _uiState.update { it.copy(isLoading = false, errorMessage = "Status akun gagal diubah: ${err.message ?: "periksa izin/RLS Supabase"}") }; syncAllDataFromBackend() }
+        }
+    }
+
+    fun refreshOwnerAccounts() {
+        val state = _uiState.value
+        if (state.staffProfile.role != StaffRole.SUPER_ADMIN || !state.staffProfile.isActive) {
+            showNotice("Menu Manajemen Owner hanya untuk Super Admin aktif.", isError = true)
+            return
+        }
+        viewModelScope.launch {
+            _uiState.update { it.copy(isLoading = true, errorMessage = null, successMessage = null) }
+            runCatching { repository.fetchOwners() }
+                .onSuccess { owners -> _uiState.update { it.copy(isLoading = false, ownerAccounts = owners) } }
+                .onFailure { err -> _uiState.update { it.copy(isLoading = false, errorMessage = "Daftar Owner gagal dimuat: ${err.message}") } }
+        }
+    }
+
+    fun createOwnerAccount(fullName: String, email: String) {
+        if (fullName.isBlank() || !email.contains("@")) {
+            showNotice("Nama dan email Owner wajib diisi dengan benar.", isError = true)
+            return
+        }
+        if (_uiState.value.staffProfile.role != StaffRole.SUPER_ADMIN || !_uiState.value.staffProfile.isActive) {
+            showNotice("Hanya Super Admin yang dapat membuat Owner.", isError = true)
+            return
+        }
+        viewModelScope.launch {
+            _uiState.update { it.copy(isLoading = true, errorMessage = null, successMessage = null) }
+            runCatching { repository.createOwner(fullName, email) }
+                .onSuccess {
+                    _uiState.update { it.copy(isLoading = false, successMessage = "Undangan Owner dikirim ke $email.") }
+                    refreshOwnerAccounts()
+                }
+                .onFailure { err -> _uiState.update { it.copy(isLoading = false, errorMessage = "Owner gagal dibuat: ${err.message}") } }
+        }
+    }
+
+    fun setOwnerAccountActive(userId: String, active: Boolean) {
+        if (_uiState.value.staffProfile.role != StaffRole.SUPER_ADMIN || !_uiState.value.staffProfile.isActive) {
+            showNotice("Hanya Super Admin yang dapat mengubah status Owner.", isError = true)
+            return
+        }
+        viewModelScope.launch {
+            _uiState.update { it.copy(isLoading = true, errorMessage = null, successMessage = null) }
+            runCatching { repository.setOwnerActive(userId, active) }
+                .onSuccess {
+                    _uiState.update { state -> state.copy(isLoading = false, ownerAccounts = state.ownerAccounts.map { if (it.userId == userId) it.copy(isActive = active) else it }, successMessage = if (active) "Owner diaktifkan kembali." else "Owner dinonaktifkan.") }
+                }
+                .onFailure { err -> _uiState.update { it.copy(isLoading = false, errorMessage = "Status Owner gagal diubah: ${err.message}") } }
+        }
+    }
+
+    fun deleteOwnerAccount(userId: String) {
+        if (_uiState.value.staffProfile.role != StaffRole.SUPER_ADMIN || !_uiState.value.staffProfile.isActive) {
+            showNotice("Hanya Super Admin yang dapat menghapus Owner.", isError = true)
+            return
+        }
+        viewModelScope.launch {
+            _uiState.update { it.copy(isLoading = true, errorMessage = null, successMessage = null) }
+            runCatching { repository.deleteOwner(userId) }
+                .onSuccess {
+                    _uiState.update { state -> state.copy(isLoading = false, ownerAccounts = state.ownerAccounts.filterNot { it.userId == userId }, successMessage = "Akun Owner dihapus.") }
+                }
+                .onFailure { err -> _uiState.update { it.copy(isLoading = false, errorMessage = "Owner gagal dihapus: ${err.message}") } }
         }
     }
 

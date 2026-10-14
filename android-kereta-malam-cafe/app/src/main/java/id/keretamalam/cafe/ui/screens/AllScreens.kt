@@ -546,16 +546,29 @@ private fun DashboardBarChart(values: List<Float>, modifier: Modifier = Modifier
 
 @Composable
 private fun DashboardDonutChart(values: List<Float>, modifier: Modifier = Modifier) {
+    var selected by remember(values) { mutableIntStateOf(-1) }
     val total = values.sum().coerceAtLeast(1f)
-    Canvas(modifier) {
-        val stroke = 18.dp.toPx(); var start = -90f
-        values.forEachIndexed { i, v ->
-            val sweep = v / total * 360f
-            drawArc(DashboardChartColors[i % DashboardChartColors.size], start, (sweep-2f).coerceAtLeast(0f), false,
-                topLeft = androidx.compose.ui.geometry.Offset(stroke/2f,stroke/2f),
-                size = androidx.compose.ui.geometry.Size(size.width-stroke,size.height-stroke),
-                style = androidx.compose.ui.graphics.drawscope.Stroke(width=stroke))
-            start += sweep
+    Box(modifier) {
+        Canvas(Modifier.fillMaxSize().pointerInput(values) {
+            detectTapGestures { selected = ((it.x / size.width.coerceAtLeast(1f)) * values.size).toInt().coerceIn(0, (values.size - 1).coerceAtLeast(0)) }
+        }.pointerInput(values) {
+            detectHorizontalDragGestures { change, _ ->
+                change.consume()
+                selected = ((change.position.x / size.width.coerceAtLeast(1f)) * values.size).toInt().coerceIn(0, (values.size - 1).coerceAtLeast(0))
+            }
+        }) {
+            val stroke = 18.dp.toPx(); var start = -90f
+            values.forEachIndexed { i, v ->
+                val sweep = v / total * 360f
+                drawArc(DashboardChartColors[i % DashboardChartColors.size].copy(alpha = if (selected == -1 || selected == i) 1f else .45f), start, (sweep-2f).coerceAtLeast(0f), false,
+                    topLeft = androidx.compose.ui.geometry.Offset(stroke/2f,stroke/2f),
+                    size = androidx.compose.ui.geometry.Size(size.width-stroke,size.height-stroke),
+                    style = androidx.compose.ui.graphics.drawscope.Stroke(width=if(selected==i) 23.dp.toPx() else stroke))
+                start += sweep
+            }
+        }
+        if (selected in values.indices) Surface(Modifier.align(Alignment.TopCenter).padding(4.dp), color=MaterialTheme.colorScheme.surface, shape=RoundedCornerShape(8.dp), shadowElevation=4.dp) {
+            Text("Bagian ${selected+1}: ${RupiahFormatter.format(values[selected].toDouble())}", Modifier.padding(horizontal=8.dp, vertical=5.dp), style=MaterialTheme.typography.labelSmall)
         }
     }
 }

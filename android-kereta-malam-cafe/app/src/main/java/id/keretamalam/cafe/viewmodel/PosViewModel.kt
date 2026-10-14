@@ -1191,8 +1191,10 @@ class PosViewModel(application: Application) : AndroidViewModel(application) {
             _uiState.update { state ->
                 val updatedProducts = if (nextStatus == OrderStatus.CANCELLED && order.status != OrderStatus.CANCELLED) {
                     state.products.map { prod ->
-                        val item = order.orderItems.find { it.productId == prod.id }
-                        if (item != null) prod.copy(stock = prod.stock + item.quantity) else prod
+                        val cancelledQty = order.orderItems
+                            .filter { it.productId == prod.id }
+                            .sumOf { it.quantity }
+                        if (cancelledQty > 0) prod.copy(stock = prod.stock + cancelledQty) else prod
                     }
                 } else state.products
 

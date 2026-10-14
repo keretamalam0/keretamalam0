@@ -1,5 +1,7 @@
 package id.keretamalam.cafe.ui.screens
 
+import android.net.Uri
+import android.util.Base64
 import coil.compose.AsyncImage
 
 import androidx.activity.compose.rememberLauncherForActivityResult
@@ -654,7 +656,12 @@ private fun DashboardKpiCard(modifier: Modifier = Modifier, title: String, value
 // ============================================================================
 @Composable
 private fun AiAssistantComposeScreen(viewModel: PosViewModel, uiState: PosUiState) {
+    val context = LocalContext.current
     var promptInput by remember { mutableStateOf("") }
+    var selectedImageUri by remember { mutableStateOf<Uri?>(null) }
+    val imagePicker = rememberLauncherForActivityResult(ActivityResultContracts.GetContent()) { uri ->
+        selectedImageUri = uri
+    }
     val chatMessages = remember {
         mutableStateListOf(
             "Halo! Gue asisten bantuan Kereta Malam Cafe. Tanya aja cara memakai aplikasi atau ceritakan kendalanya. Gue bantu langkah demi langkah." to false
@@ -785,11 +792,35 @@ private fun AiAssistantComposeScreen(viewModel: PosViewModel, uiState: PosUiStat
             }
         }
 
+        if (selectedImageUri != null) {
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.spacedBy(10.dp)
+            ) {
+                AsyncImage(
+                    model = selectedImageUri,
+                    contentDescription = "Screenshot yang akan dikirim ke AI",
+                    modifier = Modifier.size(64.dp).clip(RoundedCornerShape(10.dp))
+                )
+                Text("Screenshot siap dikirim ke AI", modifier = Modifier.weight(1f), style = MaterialTheme.typography.bodySmall)
+                TextButton(onClick = { selectedImageUri = null }, enabled = !uiState.isLoading) { Text("Hapus") }
+            }
+        }
+
         Row(
             modifier = Modifier.fillMaxWidth(),
             verticalAlignment = Alignment.Bottom,
             horizontalArrangement = Arrangement.spacedBy(8.dp)
         ) {
+            OutlinedButton(
+                onClick = { imagePicker.launch("image/*") },
+                enabled = !uiState.isLoading,
+                modifier = Modifier.heightIn(min = 52.dp),
+                contentPadding = PaddingValues(horizontal = 10.dp, vertical = 8.dp)
+            ) {
+                Text("＋ Foto")
+            }
             OutlinedTextField(
                 value = promptInput,
                 onValueChange = { promptInput = it },
@@ -802,15 +833,35 @@ private fun AiAssistantComposeScreen(viewModel: PosViewModel, uiState: PosUiStat
             Button(
                 onClick = {
                     val question = promptInput.trim()
-                    if (question.isNotEmpty() && !uiState.isLoading) {
-                        chatMessages.add(question to true)
-                        promptInput = ""
-                        lastRenderedReply = uiState.aiReplyText
-                        lastRenderedError = uiState.errorMessage
-                        viewModel.askAiAssistant(question)
+                    val imageUri = selectedImageUri
+                    if ((question.isNotEmpty() || imageUri != null) && !uiState.isLoading) {
+                        val imageBytes = imageUri?.let { uri ->
+                            runCatching {
+                                context.contentResolver.openInputStream(uri)?.use { it.readBytes() }
+                            }.getOrNull()
+                        }
+                        val imageBase64 = imageBytes?.takeIf { it.isNotEmpty() && it.size <= 8 * 1024 * 1024 }
+                            ?.let { Base64.encodeToString(it, Base64.NO_WRAP) }
+                        val mimeType = imageUri?.let { context.contentResolver.getType(it) }
+                            ?.takeIf { it in listOf("image/jpeg", "image/png", "image/webp") } ?: "image/jpeg"
+                        if (imageUri != null && imageBase64 == null) {
+                            chatMessages.add("Gambar tidak bisa dibaca atau lebih dari 8 MB. Pilih screenshot yang lebih kecil." to false)
+                        } else {
+                            val visibleMessage = buildString {
+                                if (imageUri != null) append("📷 Screenshot dilampirkan\n")
+                                if (question.isNotBlank()) append(question)
+                                else append("Tolong analisis screenshot ini dan bantu gue memahami masalahnya.")
+                            }
+                            chatMessages.add(visibleMessage to true)
+                            promptInput = ""
+                            selectedImageUri = null
+                            lastRenderedReply = uiState.aiReplyText
+                            lastRenderedError = uiState.errorMessage
+                            viewModel.askAiAssistant(question, imageBase64, mimeType)
+                        }
                     }
                 },
-                enabled = promptInput.isNotBlank() && !uiState.isLoading,
+                enabled = (promptInput.isNotBlank() || selectedImageUri != null) && !uiState.isLoading,
                 modifier = Modifier.heightIn(min = 52.dp),
                 contentPadding = PaddingValues(horizontal = 16.dp, vertical = 12.dp)
             ) {

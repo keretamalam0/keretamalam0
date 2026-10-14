@@ -271,11 +271,7 @@ fun ProdukStokComposeScreen(viewModel: PosViewModel, uiState: PosUiState) {
             Surface(shape = RoundedCornerShape(16.dp), color = MaterialTheme.colorScheme.surface, modifier = Modifier.fillMaxWidth(0.94f).widthIn(max = 520.dp).padding(12.dp)) {
                 Column(Modifier.padding(16.dp).verticalScroll(rememberScrollState()), verticalArrangement = Arrangement.spacedBy(10.dp)) {
                     Text(if (targetEdit.id.isBlank()) "Tambah Produk" else "Edit Produk", style = MaterialTheme.typography.titleLarge, fontWeight = FontWeight.Bold)
-                    Text(
-                        "Atur detail produk, topping, dan pilihan minuman dari satu popup. Untuk produk baru, simpan detail produk dulu agar opsi tersambung ke ID produk.",
-                        style = MaterialTheme.typography.bodySmall,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant
-                    )
+                    Text("Detail produk dan opsi tambahan dalam satu form.", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
                     OutlinedTextField(value = name, onValueChange = { name = it }, label = { Text("Nama produk") }, modifier = Modifier.fillMaxWidth(), singleLine = true)
                     OutlinedTextField(value = desc, onValueChange = { desc = it }, label = { Text("Deskripsi") }, modifier = Modifier.fillMaxWidth(), maxLines = 2)
                     Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(10.dp)) {
@@ -288,18 +284,35 @@ fun ProdukStokComposeScreen(viewModel: PosViewModel, uiState: PosUiState) {
                             Text("Foto maksimal 8 MB.", style = MaterialTheme.typography.bodySmall)
                         }
                     }
+                    var categoryMenuExpanded by remember(targetEdit) { mutableStateOf(false) }
                     Text("Kategori", style = MaterialTheme.typography.labelLarge)
-                    Row(Modifier.fillMaxWidth().horizontalScroll(rememberScrollState()), horizontalArrangement = Arrangement.spacedBy(6.dp)) {
-                        listOf("Coffee", "Non Coffee", "Makanan", "Snack", "Juice", "Alkohol").forEach { categoryName ->
-                            val category = uiState.categories.firstOrNull { it.name.equals(categoryName, ignoreCase = true) }
-                            FilterChip(selected = category != null && catId == category.id, onClick = {
-                                if (category != null) catId = category.id else viewModel.addCategory(categoryName)
-                            }, label = { Text(categoryName) })
+                    Box {
+                        OutlinedButton(
+                            onClick = { categoryMenuExpanded = true },
+                            modifier = Modifier.fillMaxWidth(),
+                            contentPadding = PaddingValues(horizontal = 12.dp, vertical = 10.dp)
+                        ) {
+                            Text(
+                                uiState.categories.firstOrNull { it.id == catId }?.name ?: "Tanpa kategori",
+                                modifier = Modifier.weight(1f)
+                            )
+                            Text("⌄")
                         }
-                    }
-                    Row(Modifier.fillMaxWidth().horizontalScroll(rememberScrollState()), horizontalArrangement = Arrangement.spacedBy(6.dp)) {
-                        uiState.categories.filter { it.name !in listOf("Coffee", "Non Coffee", "Makanan", "Snack", "Juice", "Alkohol") }.forEach { cat ->
-                            FilterChip(selected = catId == cat.id, onClick = { catId = cat.id }, label = { Text(cat.name) })
+                        DropdownMenu(
+                            expanded = categoryMenuExpanded,
+                            onDismissRequest = { categoryMenuExpanded = false },
+                            modifier = Modifier.heightIn(max = 280.dp)
+                        ) {
+                            DropdownMenuItem(
+                                text = { Text("Tanpa kategori") },
+                                onClick = { catId = null; categoryMenuExpanded = false }
+                            )
+                            uiState.categories.forEach { category ->
+                                DropdownMenuItem(
+                                    text = { Text(category.name) },
+                                    onClick = { catId = category.id; categoryMenuExpanded = false }
+                                )
+                            }
                         }
                     }
                     Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
@@ -314,7 +327,7 @@ fun ProdukStokComposeScreen(viewModel: PosViewModel, uiState: PosUiState) {
                     Row(verticalAlignment = Alignment.CenterVertically) { Text("Tampilkan di QR Menu", Modifier.weight(1f)); Switch(checked = showOnMenu, onCheckedChange = { showOnMenu = it }) }
                     HorizontalDivider()
                     Text("Topping tambahan", style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.SemiBold)
-                    Text("Tambahkan topping yang bisa dipilih kasir/pelanggan beserta harga tambahannya.", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                    Text("Nama topping dan harga tambahannya.", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
                     if (targetEdit.id.isBlank()) {
                         Text("Simpan produk terlebih dahulu. Setelah tersimpan, popup tetap terbuka untuk menambahkan topping.", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.primary)
                     } else {
@@ -339,7 +352,7 @@ fun ProdukStokComposeScreen(viewModel: PosViewModel, uiState: PosUiState) {
                     }
                     HorizontalDivider()
                     Text("Opsi kustomisasi minuman", style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.SemiBold)
-                    Text("Bisa tambah banyak pilihan untuk gula, es/suhu, ukuran cup, dan harga masing-masing.", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                    Text("Atur gula, es/suhu, dan ukuran cup. Harga tambahan opsional.", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
                     if (targetEdit.id.isBlank()) {
                         Text("Opsi kustomisasi bisa ditambahkan setelah detail produk pertama kali disimpan.", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.primary)
                     } else {

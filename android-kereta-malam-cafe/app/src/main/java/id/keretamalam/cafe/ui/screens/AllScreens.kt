@@ -761,6 +761,27 @@ private fun KasirComposeScreen(
     var customAddonIds by remember { mutableStateOf(setOf<String>()) }
     var customNote by remember { mutableStateOf("") }
     var mobileTab by remember { mutableStateOf(0) } // 0 = Katalog Produk, 1 = Keranjang & Bayar
+    var promoDropdownExpanded by remember { mutableStateOf(false) }
+    var paymentDropdownExpanded by remember { mutableStateOf(false) }
+
+    val paymentOptions = remember(uiState.paymentMethods) {
+        val configured = uiState.paymentMethods.filter { it.isActive }.sortedBy { it.sortOrder }
+        if (configured.isEmpty()) {
+            listOf(
+                PaymentMethod(code = "cash", name = "Cash / Tunai", type = "cash", provider = "Tunai"),
+                PaymentMethod(code = "qris", name = "QRIS", type = "qris", provider = "QRIS"),
+                PaymentMethod(code = "transfer", name = "Transfer Bank", type = "bank_transfer", provider = "Bank"),
+                PaymentMethod(code = "ewallet", name = "E-Wallet", type = "ewallet", provider = "E-Wallet")
+            )
+        } else if (configured.none { it.type.equals("cash", true) || it.code.equals("cash", true) }) {
+            configured + PaymentMethod(code = "cash", name = "Cash / Tunai", type = "cash", provider = "Tunai")
+        } else configured
+    }
+    val selectedPaymentOption = paymentOptions.firstOrNull { it.code.equals(uiState.paymentMethod, true) }
+        ?: paymentOptions.firstOrNull { it.type.equals(uiState.paymentMethod, true) }
+        ?: paymentOptions.firstOrNull()
+    val isCashPayment = selectedPaymentOption?.type.equals("cash", true) ||
+        uiState.paymentMethod.equals("cash", true)
 
     val filteredProducts = remember(uiState.products, uiState.selectedCategoryId, uiState.searchQuery) {
         uiState.products.filter { p ->
@@ -1029,46 +1050,123 @@ private fun KasirComposeScreen(
                         }
                     }
 
-                    // Pilih Promosi
+                    // Pilih Promosi: promo boleh dipilih manual, tetapi syarat tetap wajib terpenuhi.
                     Text("Promosi / Diskon:", style = MaterialTheme.typography.labelMedium)
-                    Row(
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .horizontalScroll(rememberScrollState()),
-                        horizontalArrangement = Arrangement.spacedBy(6.dp)
-                    ) {
-                        FilterChip(
-                            selected = uiState.selectedPromotionId == null,
-                            onClick = { viewModel.setKasirOrderMeta(promoId = null) },
-                            label = { Text("Tanpa Promo") }
+                    Box(Modifier.fillMaxWidth()) {
+                        OutlinedButton(
+                            onClick = { promoDropdownExpanded = true },
+                            modifier = Modifier.fillMaxWidth()
+                        ) {
+                            Text(
+                                uiState.promotions.firstOrNull { it.id == uiState.selectedPromotionId }?.name
+                                    ?: "Tanpa Promo",
+                                modifier = Modifier.weight(1f)
+                            )
+                            Text("▾")
+                        }
+                        DropdownMenu(
+                            expanded = promoDropdownExpanded,
+                            onDismissRequest = { promoDropdownExpanded = false },
+                            modifier = Modifier.fillMaxWidth(0.92f)
+                        ) {
+                            DropdownMenuItem(
+                                text = { Text("Tanpa Promo") },
+                                onClick = {
+                                    viewModel.setKasirOrderMeta(promoId = null)
+                                    promoDropdownExpanded = false
+                                }
+                            )
+                            uiState.promotions.filter { it.active && it.allowCashier }.forEach { promo ->
+                                DropdownMenuItem(
+                                    text = {
+                                        Column {
+                                            Text(promo.name, fontWeight = FontWeight.SemiBold)
+                                            Text(
+                                                "${if (promo.type == "percentage") "${promo.value.toInt()}%" else RupiahFormatter.format(promo.value)} · Min ${RupiahFormatter.format(promo.minPurchase)}",
+                                                style = MaterialTheme.typography.bodySmall,
+                                                color = MaterialTheme.colorScheme.onSurfaceVariant
+                                            )
+                                        }
+                                    },
+                                    onClick = {
+                                        viewModel.setKasirOrderMeta(promoId = promo.id)
+                                        promoDropdownExpanded = false
+                                    }
+                                )
+                            }
+                        }
+                    }
+                    if (uiState.selectedPromotionId != null) {
+                        val promoReason = uiState.promotionEligibilityReason
+                        Text(
+                            if (promoReason == null) "Promo memenuhi syarat · Diskon ${RupiahFormatter.format(uiState.discountAmount)}"
+                            else "Promo belum bisa digunakan: $promoReason",
+                            style = MaterialTheme.typography.bodySmall,
+                            color = if (promoReason == null) Color(0xFF15803D) else MaterialTheme.colorScheme.error
                         )
-                        uiState.promotions.filter { it.active }.forEach { promo ->
-                            FilterChip(
-                                selected = uiState.selectedPromotionId == promo.id,
-                                onClick = { viewModel.setKasirOrderMeta(promoId = promo.id) },
-                                label = { Text("${promo.name} (Min ${RupiahFormatter.format(promo.minPurchase)})") }
-                            )
+                    }
+
+                    // Pilihan metode dan tujuan pembayaran dari Pengaturan Outlet.
+                    Text("Metode / Tujuan Pembayaran:", style = MaterialTheme.typography.labelMedium)
+                    Box(Modifier.fillMaxWidth()) {
+                        OutlinedButton(
+                            onClick = { paymentDropdownExpanded = true },
+                            modifier = Modifier.fillMaxWidth()
+                        ) {
+                            Text(selectedPaymentOption?.name ?: "Pilih metode pembayaran", modifier = Modifier.weight(1f))
+                            Text("▾")
+                        }
+                        DropdownMenu(
+                            expanded = paymentDropdownExpanded,
+                            onDismissRequest = { paymentDropdownExpanded = false },
+                            modifier = Modifier.fillMaxWidth(0.92f)
+                        ) {
+                            paymentOptions.forEach { method ->
+                                DropdownMenuItem(
+                                    text = {
+                                        Column {
+                                            Text(method.name.ifBlank { method.provider.ifBlank { method.type.uppercase() } })
+                                            Text(
+                                                when (method.type.lowercase()) {
+                                                    "cash" -> "Cash / Tunai"
+                                                    "bank_transfer", "transfer" -> "Transfer Bank"
+                                                    "ewallet" -> "E-Wallet"
+                                                    "qris" -> "QRIS"
+                                                    else -> method.type.uppercase()
+                                                },
+                                                style = MaterialTheme.typography.bodySmall,
+                                                color = MaterialTheme.colorScheme.onSurfaceVariant
+                                            )
+                                        }
+                                    },
+                                    onClick = {
+                                        viewModel.setKasirOrderMeta(payMethod = method.code.ifBlank { method.type.lowercase() })
+                                        paymentDropdownExpanded = false
+                                    }
+                                )
+                            }
+                        }
+                    }
+                    if (selectedPaymentOption != null && !isCashPayment) {
+                        OutlinedCard(Modifier.fillMaxWidth()) {
+                            Column(Modifier.padding(12.dp), verticalArrangement = Arrangement.spacedBy(4.dp)) {
+                                Text(selectedPaymentOption.name, fontWeight = FontWeight.SemiBold)
+                                if (selectedPaymentOption.provider.isNotBlank()) Text(selectedPaymentOption.provider, style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                                if (selectedPaymentOption.accountName.isNotBlank()) Text("Atas nama: ${selectedPaymentOption.accountName}", style = MaterialTheme.typography.bodySmall)
+                                if (selectedPaymentOption.accountNumber.isNotBlank()) Text(selectedPaymentOption.accountNumber, style = MaterialTheme.typography.titleSmall, fontWeight = FontWeight.Bold)
+                                if (selectedPaymentOption.instructions.isNotBlank()) Text(selectedPaymentOption.instructions, style = MaterialTheme.typography.bodySmall)
+                                if (!selectedPaymentOption.imageUrl.isNullOrBlank()) {
+                                    AsyncImage(
+                                        model = selectedPaymentOption.imageUrl,
+                                        contentDescription = "QR / instruksi pembayaran",
+                                        modifier = Modifier.size(132.dp)
+                                    )
+                                }
+                            }
                         }
                     }
 
-                    // Metode Pembayaran
-                    Text("Metode Pembayaran:", style = MaterialTheme.typography.labelMedium)
-                    Row(
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .horizontalScroll(rememberScrollState()),
-                        horizontalArrangement = Arrangement.spacedBy(6.dp)
-                    ) {
-                        (uiState.paymentMethods.filter { it.isActive }.map { it.code to it.name }.ifEmpty { listOf("cash" to "Tunai", "qris" to "QRIS", "transfer" to "Transfer", "ewallet" to "E-Wallet") }).forEach { (code, label) ->
-                            FilterChip(
-                                selected = uiState.paymentMethod == code,
-                                onClick = { viewModel.setKasirOrderMeta(payMethod = code) },
-                                label = { Text(label) }
-                            )
-                        }
-                    }
-
-                    if (uiState.paymentMethod == "cash") {
+                    if (isCashPayment) {
                         OutlinedTextField(
                             value = uiState.cashReceivedInput,
                             onValueChange = { viewModel.setKasirOrderMeta(cashInput = it) },
@@ -1118,7 +1216,7 @@ private fun KasirComposeScreen(
                         Text("Total Tagihan", fontWeight = FontWeight.Bold)
                         Text(RupiahFormatter.format(uiState.grandTotal), fontWeight = FontWeight.Bold)
                     }
-                    if (uiState.paymentMethod == "cash" && uiState.cart.isNotEmpty()) {
+                    if (isCashPayment && uiState.cart.isNotEmpty()) {
                         Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
                             Text("Kembalian")
                             Text(RupiahFormatter.format(uiState.changeAmount), fontWeight = FontWeight.SemiBold)
@@ -1126,7 +1224,7 @@ private fun KasirComposeScreen(
                     }
                     Button(
                         onClick = { showConfirmCheckoutDialog = true },
-                        enabled = uiState.cart.isNotEmpty() && !uiState.isCheckoutProcessing,
+                        enabled = uiState.cart.isNotEmpty() && !uiState.isCheckoutProcessing && uiState.isPromotionEligible,
                         modifier = Modifier.fillMaxWidth()
                     ) {
                         Text(

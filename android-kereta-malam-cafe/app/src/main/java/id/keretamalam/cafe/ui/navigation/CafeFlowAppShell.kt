@@ -18,6 +18,7 @@ import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.sp
 import id.keretamalam.cafe.data.model.PermissionKey
 import id.keretamalam.cafe.ui.screens.LoginComposeScreen
 import id.keretamalam.cafe.ui.screens.RenderModuleScreen
@@ -238,7 +239,7 @@ fun CafeFlowAppShell(
             Scaffold(
                 topBar = {
                     TopAppBar(
-                        modifier = Modifier.height(if (isLandscapePhone) 44.dp else 52.dp),
+                        modifier = Modifier.height(if (isLandscapePhone) 48.dp else 56.dp),
                         colors = TopAppBarDefaults.topAppBarColors(
                             containerColor = if (uiState.darkTheme) androidx.compose.ui.graphics.Color(0xFF080A0D) else androidx.compose.ui.graphics.Color(0xFFFFFFFF),
                             titleContentColor = if (uiState.darkTheme) androidx.compose.ui.graphics.Color(0xFFF7FAFF) else androidx.compose.ui.graphics.Color(0xFF111827),
@@ -248,7 +249,7 @@ fun CafeFlowAppShell(
                         title = {
                             Text(
                                 text = localizedRouteTitle(activeModule.titleId, uiState.outletSettings.appLanguage),
-                                style = if (isLandscapePhone) MaterialTheme.typography.labelLarge else MaterialTheme.typography.titleMedium,
+                                style = MaterialTheme.typography.titleMedium,
                                 maxLines = 1,
                                 overflow = TextOverflow.Ellipsis
                             )
@@ -301,7 +302,7 @@ fun CafeFlowAppShell(
                 bottomBar = {
                     // Navigasi bawah tetap tampil dalam mode portrait maupun landscape
                     NavigationBar(
-                            modifier = Modifier.height(if (isLandscapePhone) 48.dp else 64.dp),
+                            modifier = Modifier.navigationBarsPadding().height(if (isLandscapePhone) 54.dp else 68.dp),
                             windowInsets = WindowInsets(0.dp),
                             containerColor = if (uiState.darkTheme) androidx.compose.ui.graphics.Color(0xFF080A0D) else androidx.compose.ui.graphics.Color(0xFFFFFFFF),
                             contentColor = if (uiState.darkTheme) androidx.compose.ui.graphics.Color(0xFFF5F7FA) else androidx.compose.ui.graphics.Color(0xFF334155)
@@ -323,8 +324,8 @@ fun CafeFlowAppShell(
                                         unselectedTextColor = if (uiState.darkTheme) androidx.compose.ui.graphics.Color(0xFFF5F7FA) else androidx.compose.ui.graphics.Color(0xFF334155)
                                     ),
                                     onClick = { activeModule = route },
-                                    icon = { Icon(route.icon, contentDescription = localizedRouteTitle(route.titleId, uiState.outletSettings.appLanguage), tint = moduleIconTint(route), modifier = Modifier.size(if (isLandscapePhone) 18.dp else 22.dp)) },
-                                    label = if (isLandscapePhone) null else { { Text(localizedRouteTitle(route.titleId, uiState.outletSettings.appLanguage), maxLines = 1, overflow = TextOverflow.Ellipsis) } }
+                                    icon = { Icon(route.icon, contentDescription = localizedRouteTitle(route.titleId, uiState.outletSettings.appLanguage), tint = moduleIconTint(route), modifier = Modifier.size(if (isLandscapePhone) 24.dp else 28.dp)) },
+                                    label = if (isLandscapePhone) null else ({ Text(localizedRouteTitle(route.titleId, uiState.outletSettings.appLanguage), fontSize = 10.sp, maxLines = 1, overflow = TextOverflow.Ellipsis) })
                                 )
                             }
                             NavigationBarItem(
@@ -337,8 +338,8 @@ fun CafeFlowAppShell(
                                     unselectedTextColor = if (uiState.darkTheme) androidx.compose.ui.graphics.Color(0xFFF5F7FA) else androidx.compose.ui.graphics.Color(0xFF334155)
                                 ),
                                 onClick = { scope.launch { drawerState.open() } },
-                                icon = { Icon(Icons.Outlined.Menu, contentDescription = "Semua Modul", tint = androidx.compose.ui.graphics.Color(0xFF8993A4), modifier = Modifier.size(if (isLandscapePhone) 18.dp else 22.dp)) },
-                                label = if (isLandscapePhone) null else { { Text("Modul") } }
+                                icon = { Icon(Icons.Outlined.Menu, contentDescription = "Semua Modul", tint = androidx.compose.ui.graphics.Color(0xFF8993A4), modifier = Modifier.size(if (isLandscapePhone) 24.dp else 28.dp)) },
+                                label = if (isLandscapePhone) null else ({ Text("Modul", fontSize = 10.sp) })
                             )
                         }
                 }

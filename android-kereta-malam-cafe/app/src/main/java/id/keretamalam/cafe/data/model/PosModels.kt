@@ -185,6 +185,7 @@ data class Promotion(
     val type: String = "percentage", // "percentage" | "fixed"
     val value: Double = 0.0,
     @SerialName("min_purchase") val minPurchase: Double = 0.0,
+    @SerialName("max_purchase") val maxPurchase: Double = 0.0,
     @SerialName("min_quantity") val minQuantity: Int = 1,
     val scope: String = "order", // "order" | "product"
     @SerialName("product_id") val productId: String? = null,

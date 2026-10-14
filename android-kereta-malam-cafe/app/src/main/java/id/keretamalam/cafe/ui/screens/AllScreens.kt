@@ -1540,42 +1540,40 @@ private fun HistoryComposeScreen(viewModel: PosViewModel, uiState: PosUiState) {
         )
     }
 
-    Column(modifier = Modifier.fillMaxSize(), verticalArrangement = Arrangement.spacedBy(10.dp)) {
-        Row(
-            modifier = Modifier.fillMaxWidth(),
-            horizontalArrangement = Arrangement.SpaceBetween,
-            verticalAlignment = Alignment.CenterVertically
-        ) {
-            Column(modifier = Modifier.weight(1f)) {
-                Text("Riwayat Transaksi (${filteredOrders.size} Order)", style = MaterialTheme.typography.titleMedium)
-                Text("Total Nilai Transaksi Lunas: ${RupiahFormatter.format(filteredOrders.filter { it.isPaid }.sumOf { it.total })}", style = MaterialTheme.typography.bodyMedium)
-                Text("Kosongkan tanggal untuk melihat semua transaksi.", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+    Column(modifier = Modifier.fillMaxSize(), verticalArrangement = Arrangement.spacedBy(5.dp)) {
+        // Compact fixed toolbar: the order list scrolls independently below it.
+        Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(6.dp)) {
+            Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(1.dp)) {
+                Text("History · ${filteredOrders.size} order", style = MaterialTheme.typography.titleSmall, fontWeight = FontWeight.SemiBold)
+                Text("Lunas: ${RupiahFormatter.format(filteredOrders.filter { it.isPaid }.sumOf { it.total })}", style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
             }
-            Column(horizontalAlignment = Alignment.End, verticalArrangement = Arrangement.spacedBy(4.dp)) {
-                Button(onClick = { csvLauncher.launch("history-transaksi-kereta-malam.csv") }) { Text("Ekspor CSV") }
-                OutlinedButton(onClick = { confirmDeleteAll = true }, colors = ButtonDefaults.outlinedButtonColors(contentColor = MaterialTheme.colorScheme.error)) { Text("Hapus Semua Data") }
+            IconButton(onClick = { csvLauncher.launch("history-transaksi-kereta-malam.csv") }, modifier = Modifier.size(38.dp)) {
+                Icon(Icons.Outlined.FileDownload, contentDescription = "Ekspor CSV", tint = Color(0xFF2878F0))
+            }
+            IconButton(onClick = { confirmDeleteAll = true }, modifier = Modifier.size(38.dp)) {
+                Icon(Icons.Outlined.DeleteSweep, contentDescription = "Hapus semua data", tint = MaterialTheme.colorScheme.error)
             }
         }
-
-        Row(horizontalArrangement = Arrangement.spacedBy(8.dp), verticalAlignment = Alignment.CenterVertically) {
-            OutlinedTextField(value = fromDate, onValueChange = { fromDate = it }, label = { Text("Dari (YYYY-MM-DD)") }, modifier = Modifier.weight(1f), singleLine = true)
-            OutlinedTextField(value = toDate, onValueChange = { toDate = it }, label = { Text("Sampai (YYYY-MM-DD)") }, modifier = Modifier.weight(1f), singleLine = true)
+        Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(6.dp), verticalAlignment = Alignment.CenterVertically) {
+            OutlinedTextField(value = fromDate, onValueChange = { fromDate = it.take(10) }, label = { Text("Dari tanggal") }, placeholder = { Text("YYYY-MM-DD") }, modifier = Modifier.weight(1f).heightIn(max = 58.dp), singleLine = true, textStyle = MaterialTheme.typography.bodySmall)
+            OutlinedTextField(value = toDate, onValueChange = { toDate = it.take(10) }, label = { Text("Sampai") }, placeholder = { Text("YYYY-MM-DD") }, modifier = Modifier.weight(1f).heightIn(max = 58.dp), singleLine = true, textStyle = MaterialTheme.typography.bodySmall)
         }
-        Row(horizontalArrangement = Arrangement.spacedBy(8.dp), verticalAlignment = Alignment.CenterVertically) {
-            OutlinedTextField(value = search, onValueChange = { search = it }, label = { Text("Cari #Order / Nama") }, modifier = Modifier.weight(1f), singleLine = true)
+        Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(6.dp), verticalAlignment = Alignment.CenterVertically) {
+            OutlinedTextField(value = search, onValueChange = { search = it }, label = { Text("Cari order") }, leadingIcon = { Icon(Icons.Outlined.Search, contentDescription = null, modifier = Modifier.size(18.dp)) }, modifier = Modifier.weight(1f).heightIn(max = 58.dp), singleLine = true, textStyle = MaterialTheme.typography.bodySmall)
             OutlinedButton(onClick = {
-                selectedIds = if (filteredOrders.isNotEmpty() && filteredOrders.all { it.id in selectedIds }) {
-                    selectedIds - filteredOrders.map { it.id }.toSet()
-                } else selectedIds + filteredOrders.map { it.id }
-            }) { Text(if (filteredOrders.isNotEmpty() && filteredOrders.all { it.id in selectedIds }) "Batal Pilih" else "Pilih Semua") }
+                selectedIds = if (filteredOrders.isNotEmpty() && filteredOrders.all { it.id in selectedIds }) selectedIds - filteredOrders.map { it.id }.toSet()
+                else selectedIds + filteredOrders.map { it.id }
+            }, contentPadding = PaddingValues(horizontal = 9.dp, vertical = 0.dp), modifier = Modifier.height(40.dp)) {
+                Text(if (filteredOrders.isNotEmpty() && filteredOrders.all { it.id in selectedIds }) "Batal pilih" else "Pilih semua", style = MaterialTheme.typography.labelSmall)
+            }
         }
         Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween, verticalAlignment = Alignment.CenterVertically) {
-            Text("${selectedIds.size} transaksi dipilih", style = MaterialTheme.typography.bodyMedium)
-            Button(
-                onClick = { confirmDeleteSelected = true },
-                enabled = selectedIds.isNotEmpty(),
-                colors = ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.error)
-            ) { Text("Hapus Terpilih") }
+            Text("${selectedIds.size} dipilih", style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+            TextButton(onClick = { confirmDeleteSelected = true }, enabled = selectedIds.isNotEmpty(), contentPadding = PaddingValues(horizontal = 8.dp, vertical = 0.dp)) {
+                Icon(Icons.Outlined.Delete, contentDescription = null, modifier = Modifier.size(16.dp), tint = MaterialTheme.colorScheme.error)
+                Spacer(Modifier.width(4.dp))
+                Text("Hapus terpilih", color = MaterialTheme.colorScheme.error, style = MaterialTheme.typography.labelMedium)
+            }
         }
 
         LazyColumn(modifier = Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(8.dp)) {

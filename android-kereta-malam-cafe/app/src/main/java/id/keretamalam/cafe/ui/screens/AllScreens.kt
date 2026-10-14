@@ -1435,8 +1435,8 @@ private fun PesananComposeScreen(
                     Modifier.fillMaxWidth().heightIn(max = 500.dp).verticalScroll(rememberScrollState()),
                     verticalArrangement = Arrangement.spacedBy(10.dp)
                 ) {
-                    Text("Order #\${payingOrder.orderNo}", fontWeight = FontWeight.Bold)
-                    Text("Total tagihan: \${RupiahFormatter.format(payingOrder.total)}", style = MaterialTheme.typography.titleMedium)
+                    Text("Order #${payingOrder.orderNo}", fontWeight = FontWeight.Bold)
+                    Text("Total tagihan: ${RupiahFormatter.format(payingOrder.total)}", style = MaterialTheme.typography.titleMedium)
                     Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween, verticalAlignment = Alignment.CenterVertically) {
                         Text("Metode pilihan customer", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
                         Text(paymentLabel(payingOrder.customerPaymentMethod ?: payingOrder.paymentMethod), fontWeight = FontWeight.SemiBold)
@@ -1569,29 +1569,29 @@ private fun PesananComposeScreen(
                         Column(Modifier.padding(12.dp), verticalArrangement = Arrangement.spacedBy(7.dp)) {
                             Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween, verticalAlignment = Alignment.Top) {
                                 Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(2.dp)) {
-                                    Text("Order #\${order.orderNo}", fontWeight = FontWeight.Bold)
-                                    Text("\${order.source.uppercase()} · \${order.restaurantTable?.name ?: "Takeaway"} · \${order.customerName ?: "Walk-in"}", style = MaterialTheme.typography.bodyMedium)
+                                    Text("Order #${order.orderNo}", fontWeight = FontWeight.Bold)
+                                    Text("${order.source.uppercase()} · ${order.restaurantTable?.name ?: "Takeaway"} · ${order.customerName ?: "Walk-in"}", style = MaterialTheme.typography.bodyMedium)
                                     val time = order.createdAt.substringAfter("T", order.createdAt).take(5)
-                                    Text("Jam: $time · \${order.createdAt.take(10)}", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                                    Text("Jam: $time · ${order.createdAt.take(10)}", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
                                 }
                                 Column(horizontalAlignment = Alignment.End) {
                                     Text(order.status.labelId, fontWeight = FontWeight.Bold)
                                     Text(if (order.isPaid) "LUNAS" else "BELUM LUNAS", color = if (order.isPaid) Color(0xFF15803D) else MaterialTheme.colorScheme.error)
                                 }
                             }
-                            Text("Metode customer: \${paymentLabel(order.customerPaymentMethod ?: order.paymentMethod)}", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                            Text("Metode customer: ${paymentLabel(order.customerPaymentMethod ?: order.paymentMethod)}", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
                             HorizontalDivider()
                             order.orderItems.forEach { item ->
                                 Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
-                                    Text("\${item.quantity}× \${item.productName}", modifier = Modifier.weight(1f))
+                                    Text("${item.quantity}× ${item.productName}", modifier = Modifier.weight(1f))
                                     Text(RupiahFormatter.format(item.lineTotal))
                                 }
                             }
                             HorizontalDivider()
                             Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween, verticalAlignment = Alignment.CenterVertically) {
                                 Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(2.dp)) {
-                                    Text("Total: \${RupiahFormatter.format(order.total)}", fontWeight = FontWeight.Bold)
-                                    if (order.isPaid) Text("Metode kasir: \${paymentLabel(order.paymentMethod)}", style = MaterialTheme.typography.bodySmall)
+                                    Text("Total: ${RupiahFormatter.format(order.total)}", fontWeight = FontWeight.Bold)
+                                    if (order.isPaid) Text("Metode kasir: ${paymentLabel(order.paymentMethod)}", style = MaterialTheme.typography.bodySmall)
                                 }
                                 Row(horizontalArrangement = Arrangement.spacedBy(4.dp)) {
                                     OutlinedButton(onClick = { viewModel.printOrderToThermal(order, PrinterRole.KITCHEN) }, contentPadding = PaddingValues(horizontal = 10.dp, vertical = 0.dp)) { Text("Cetak") }

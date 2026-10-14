@@ -62,7 +62,14 @@ data class StaffProfile(
         if (key == PermissionKey.OWNER_MANAGEMENT.key) return role == StaffRole.SUPER_ADMIN
         if (role == StaffRole.SUPER_ADMIN) return false
         if (role == StaffRole.OWNER) return true
-        return permissions[key] == true
+        if (permissions.containsKey(key)) return permissions[key] == true
+        val legacyKey = when (key) {
+            PermissionKey.AI_ASSISTANT.key, PermissionKey.EXPENSES.key -> PermissionKey.REPORTS.key
+            PermissionKey.SHIFT_MANAGEMENT.key, PermissionKey.SHIFT_AUDIT.key -> PermissionKey.ORDERS.key
+            PermissionKey.ACTIVITY_LOG.key, PermissionKey.STAFF_MANAGEMENT.key, PermissionKey.PRINTER_MANAGEMENT.key -> PermissionKey.SETTINGS.key
+            else -> key
+        }
+        return permissions[legacyKey] == true
     }
 
     fun canAccessDashboardMetric(key: String): Boolean {

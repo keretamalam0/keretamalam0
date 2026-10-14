@@ -318,7 +318,7 @@ fun CafeFlowAppShell(
                                     colors = NavigationBarItemDefaults.colors(
                                         selectedIconColor = if (uiState.darkTheme) androidx.compose.ui.graphics.Color(0xFFDCE7F2) else androidx.compose.ui.graphics.Color(0xFF526A82),
                                         selectedTextColor = if (uiState.darkTheme) androidx.compose.ui.graphics.Color(0xFFFFFFFF) else androidx.compose.ui.graphics.Color(0xFF243447),
-                                        indicatorColor = if (uiState.darkTheme) androidx.compose.ui.graphics.Color(0xFF354A60) else androidx.compose.ui.graphics.Color(0xFFE8EDF2)
+                                        indicatorColor = if (uiState.darkTheme) androidx.compose.ui.graphics.Color(0xFF354A60) else androidx.compose.ui.graphics.Color(0xFFE8EDF2),
                                         unselectedIconColor = if (uiState.darkTheme) androidx.compose.ui.graphics.Color(0xFFD1D9E3) else androidx.compose.ui.graphics.Color(0xFF7B8794),
                                         unselectedTextColor = if (uiState.darkTheme) androidx.compose.ui.graphics.Color(0xFFF5F7FA) else androidx.compose.ui.graphics.Color(0xFF596575)
                                     ),
@@ -332,7 +332,7 @@ fun CafeFlowAppShell(
                                 colors = NavigationBarItemDefaults.colors(
                                     selectedIconColor = if (uiState.darkTheme) androidx.compose.ui.graphics.Color(0xFFDCE7F2) else androidx.compose.ui.graphics.Color(0xFF526A82),
                                     selectedTextColor = if (uiState.darkTheme) androidx.compose.ui.graphics.Color(0xFFFFFFFF) else androidx.compose.ui.graphics.Color(0xFF243447),
-                                    indicatorColor = if (uiState.darkTheme) androidx.compose.ui.graphics.Color(0xFF354A60) else androidx.compose.ui.graphics.Color(0xFFE8EDF2)
+                                    indicatorColor = if (uiState.darkTheme) androidx.compose.ui.graphics.Color(0xFF354A60) else androidx.compose.ui.graphics.Color(0xFFE8EDF2),
                                     unselectedIconColor = if (uiState.darkTheme) androidx.compose.ui.graphics.Color(0xFFD1D9E3) else androidx.compose.ui.graphics.Color(0xFF7B8794),
                                     unselectedTextColor = if (uiState.darkTheme) androidx.compose.ui.graphics.Color(0xFFF5F7FA) else androidx.compose.ui.graphics.Color(0xFF596575)
                                 ),

@@ -531,6 +531,7 @@ fun PromosiComposeScreen(viewModel: PosViewModel, uiState: PosUiState) {
     var type by remember { mutableStateOf("percentage") }
     var value by remember { mutableStateOf("10") }
     var minPurchase by remember { mutableStateOf("0") }
+    var maxPurchase by remember { mutableStateOf("0") }
     var minQuantity by remember { mutableStateOf("1") }
     var scope by remember { mutableStateOf("order") }
     var productId by remember { mutableStateOf("") }
@@ -611,6 +612,13 @@ fun PromosiComposeScreen(viewModel: PosViewModel, uiState: PosUiState) {
                             singleLine = true
                         )
                     }
+                    OutlinedTextField(
+                        value = maxPurchase,
+                        onValueChange = { maxPurchase = it.filter { ch -> ch.isDigit() || ch == '.' } },
+                        label = { Text("Maksimum Total Belanja (Rp; 0 = tanpa batas)") },
+                        modifier = Modifier.fillMaxWidth(),
+                        singleLine = true
+                    )
                     Text("Berlaku Untuk", style = MaterialTheme.typography.labelMedium)
                     Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                         FilterChip(selected = scope == "order", onClick = { scope = "order"; productId = "" }, label = { Text("Seluruh Belanja") })
@@ -655,6 +663,7 @@ fun PromosiComposeScreen(viewModel: PosViewModel, uiState: PosUiState) {
                                 type = type,
                                 value = value.toDoubleOrNull() ?: 0.0,
                                 minPurchase = minPurchase.toDoubleOrNull() ?: 0.0,
+                                maxPurchase = maxPurchase.toDoubleOrNull() ?: 0.0,
                                 minQuantity = minQuantity.toIntOrNull() ?: 1,
                                 scope = scope,
                                 productId = productId.takeIf { scope == "product" },
@@ -696,9 +705,9 @@ fun PromosiComposeScreen(viewModel: PosViewModel, uiState: PosUiState) {
                     }
                     Text(
                         text = if (promo.scope == "product") {
-                            "${uiState.products.firstOrNull { it.id == promo.productId }?.name ?: "Produk tertentu"} · minimal ${promo.minQuantity} item · minimal belanja ${RupiahFormatter.format(promo.minPurchase)}"
+                            "${uiState.products.firstOrNull { it.id == promo.productId }?.name ?: "Produk tertentu"} · minimal ${promo.minQuantity} item · belanja ${RupiahFormatter.format(promo.minPurchase)}–${if (promo.maxPurchase > 0.0) RupiahFormatter.format(promo.maxPurchase) else "tanpa batas"}"
                         } else {
-                            "Seluruh belanja · minimal belanja ${RupiahFormatter.format(promo.minPurchase)}"
+                            "Seluruh belanja · minimal ${RupiahFormatter.format(promo.minPurchase)} · maksimum ${if (promo.maxPurchase > 0.0) RupiahFormatter.format(promo.maxPurchase) else "tanpa batas"}"
                         },
                         style = MaterialTheme.typography.bodySmall,
                         color = MaterialTheme.colorScheme.onSurfaceVariant

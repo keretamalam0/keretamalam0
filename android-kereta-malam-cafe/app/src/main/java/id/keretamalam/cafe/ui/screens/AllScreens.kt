@@ -1386,17 +1386,22 @@ private fun KasirComposeScreen(
                         Spacer(modifier = Modifier.width(4.dp))
                         Button(onClick = {
                             val activeOptions = uiState.customizationOptions.filter { it.productId == targetCustom.id && it.isActive }
+                            val selectedOptions = listOfNotNull(
+                                activeOptions.firstOrNull { it.groupKey == "size" && it.name == customCup },
+                                activeOptions.firstOrNull { it.groupKey == "sugar" && it.name == customSugar },
+                                activeOptions.firstOrNull { it.groupKey == "ice" && it.name == customIce }
+                            )
                             val addons = buildList {
-                                val selectedSize = activeOptions.firstOrNull { it.groupKey == "size" && it.name == customCup }
-                                val selectedSugar = activeOptions.firstOrNull { it.groupKey == "sugar" && it.name == customSugar }
-                                val selectedIce = activeOptions.firstOrNull { it.groupKey == "ice" && it.name == customIce }
-                                listOfNotNull(selectedSize, selectedSugar, selectedIce).filter { it.priceDelta > 0 }.forEach {
-                                    add(ProductAddon(id = it.id, productId = targetCustom.id, name = it.name, price = it.priceDelta))
-                                }
                                 uiState.productAddons.filter { it.productId == targetCustom.id && it.isActive && it.id in customAddonIds }.forEach { add(it) }
-                                if (activeOptions.none { it.groupKey == "size" } && customCup == "Large") add(ProductAddon(id = "ad-lg", productId = targetCustom.id, name = "Large Cup", price = 5000.0))
-                                if (uiState.productAddons.none { it.productId == targetCustom.id && it.isActive } && customExtraShot) add(ProductAddon(id = "ad-es", productId = targetCustom.id, name = "Extra Espresso Shot", price = 6000.0))
-                                if (uiState.productAddons.none { it.productId == targetCustom.id && it.isActive } && customOatMilk) add(ProductAddon(id = "ad-om", productId = targetCustom.id, name = "Oat Milk", price = 8000.0))
+                                if (activeOptions.none { it.groupKey == "size" } && customCup == "Large") {
+                                    add(ProductAddon(id = "ad-lg", productId = targetCustom.id, name = "Large Cup", price = 5000.0))
+                                }
+                                if (uiState.productAddons.none { it.productId == targetCustom.id && it.isActive } && customExtraShot) {
+                                    add(ProductAddon(id = "ad-es", productId = targetCustom.id, name = "Extra Espresso Shot", price = 6000.0))
+                                }
+                                if (uiState.productAddons.none { it.productId == targetCustom.id && it.isActive } && customOatMilk) {
+                                    add(ProductAddon(id = "ad-om", productId = targetCustom.id, name = "Oat Milk", price = 8000.0))
+                                }
                             }
                             viewModel.addToCart(
                                 product = targetCustom,
@@ -1404,6 +1409,7 @@ private fun KasirComposeScreen(
                                 ice = customIce,
                                 cupSize = customCup,
                                 addons = addons,
+                                customizationOptions = selectedOptions,
                                 customNote = customNote
                             )
                             customizingProduct = null

@@ -666,6 +666,60 @@ class CafeFlowRepository(private val context: Context) {
         return json.decodeFromString(raw)
     }
 
+    suspend fun createPromotion(promotion: Promotion): Promotion {
+        val creds = requireVerifiedCredentials()
+        require(creds.authenticatedUserId.isNotBlank()) { "Akun pemilik outlet tidak terdeteksi." }
+        val payload = buildJsonObject {
+            put("owner_id", creds.authenticatedUserId)
+            put("name", promotion.name.trim())
+            put("type", promotion.type)
+            put("value", promotion.value)
+            put("min_purchase", promotion.minPurchase)
+            put("min_quantity", promotion.minQuantity.coerceAtLeast(1))
+            put("scope", promotion.scope)
+            if (promotion.productId.isNullOrBlank()) put("product_id", JsonNull) else put("product_id", promotion.productId)
+            put("active", promotion.active)
+            put("campaign_type", promotion.campaignType)
+            put("allow_customer", promotion.allowCustomer)
+            put("allow_cashier", promotion.allowCashier)
+        }
+        val raw = executeJsonRequest(
+            method = "POST",
+            url = "${creds.supabaseUrl}/rest/v1/promotions",
+            headers = buildHeaders(creds, "return=representation"),
+            bodyJson = json.encodeToString(JsonObject.serializer(), payload)
+        )
+        return json.decodeFromString<List<Promotion>>(raw).firstOrNull()
+            ?: throw IllegalStateException("Promo tidak tersimpan atau server tidak mengembalikan data promo.")
+    }
+
+    suspend fun updatePromotionActive(promotionId: String, active: Boolean) {
+        val creds = requireVerifiedCredentials()
+        val encodedId = URLEncoder.encode(promotionId, "UTF-8")
+        val encodedOwner = URLEncoder.encode(creds.authenticatedUserId, "UTF-8")
+        val payload = buildJsonObject { put("active", active) }
+        val raw = executeJsonRequest(
+            method = "PATCH",
+            url = "${creds.supabaseUrl}/rest/v1/promotions?id=eq.$encodedId&owner_id=eq.$encodedOwner",
+            headers = buildHeaders(creds, "return=representation"),
+            bodyJson = json.encodeToString(JsonObject.serializer(), payload)
+        )
+        require(json.parseToJsonElement(raw).jsonArray.isNotEmpty()) {
+            "Status promo tidak berubah. Periksa hak akses atau pastikan promo milik outlet ini."
+        }
+    }
+
+    suspend fun deletePromotion(promotionId: String) {
+        val creds = requireVerifiedCredentials()
+        val encodedId = URLEncoder.encode(promotionId, "UTF-8")
+        val encodedOwner = URLEncoder.encode(creds.authenticatedUserId, "UTF-8")
+        executeJsonRequest(
+            method = "DELETE",
+            url = "${creds.supabaseUrl}/rest/v1/promotions?id=eq.$encodedId&owner_id=eq.$encodedOwner",
+            headers = buildHeaders(creds, "return=minimal")
+        )
+    }
+
     suspend fun fetchOutletSettings(): OutletSettings {
         val creds = requireVerifiedCredentials()
         val ownerId = creds.authenticatedUserId

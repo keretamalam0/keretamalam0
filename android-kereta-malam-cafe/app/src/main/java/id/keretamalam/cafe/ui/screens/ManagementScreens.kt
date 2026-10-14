@@ -873,9 +873,9 @@ fun LaporanPenjualanComposeScreen(viewModel: PosViewModel, uiState: PosUiState, 
     val grid = MaterialTheme.colorScheme.outlineVariant
     Box(modifier) {
         Canvas(Modifier.fillMaxSize().pointerInput(values) {
-            detectTapGestures { selected = ((it.x / size.width.coerceAtLeast(1f)) * values.size).toInt().coerceIn(0, (values.size - 1).coerceAtLeast(0)) }
+            detectTapGestures { selected = ((it.x / size.width.coerceAtLeast(1).toFloat()) * values.size).toInt().coerceIn(0, (values.size - 1).coerceAtLeast(0)) }
         }.pointerInput(values) {
-            detectHorizontalDragGestures { change, _ -> change.consume(); selected = ((change.position.x / size.width.coerceAtLeast(1f)) * values.size).toInt().coerceIn(0, (values.size - 1).coerceAtLeast(0)) }
+            detectHorizontalDragGestures { change, _ -> change.consume(); selected = ((change.position.x / size.width.coerceAtLeast(1).toFloat()) * values.size).toInt().coerceIn(0, (values.size - 1).coerceAtLeast(0)) }
         }) {
             if (values.isEmpty()) return@Canvas
             val l=8.dp.toPx(); val r=size.width-8.dp.toPx(); val t=10.dp.toPx(); val b=size.height-10.dp.toPx(); val max=(values.maxOrNull() ?: 0f).coerceAtLeast(1f)
@@ -898,9 +898,9 @@ fun LaporanPenjualanComposeScreen(viewModel: PosViewModel, uiState: PosUiState, 
     var selected by remember(values) { mutableIntStateOf(-1) }
     Box(modifier) {
         Canvas(Modifier.fillMaxSize().pointerInput(values) {
-            detectTapGestures { selected = ((it.x / size.width.coerceAtLeast(1f)) * values.size).toInt().coerceIn(0, (values.size - 1).coerceAtLeast(0)) }
+            detectTapGestures { selected = ((it.x / size.width.coerceAtLeast(1).toFloat()) * values.size).toInt().coerceIn(0, (values.size - 1).coerceAtLeast(0)) }
         }.pointerInput(values) {
-            detectHorizontalDragGestures { change, _ -> change.consume(); selected = ((change.position.x / size.width.coerceAtLeast(1f)) * values.size).toInt().coerceIn(0, (values.size - 1).coerceAtLeast(0)) }
+            detectHorizontalDragGestures { change, _ -> change.consume(); selected = ((change.position.x / size.width.coerceAtLeast(1).toFloat()) * values.size).toInt().coerceIn(0, (values.size - 1).coerceAtLeast(0)) }
         }) {
             if(values.isEmpty()) return@Canvas
             val max=(values.maxOrNull() ?: 0f).coerceAtLeast(1f); val gap=3.dp.toPx(); val w=((size.width-gap*(values.size+1))/values.size).coerceAtLeast(2.dp.toPx())
@@ -919,9 +919,9 @@ fun LaporanPenjualanComposeScreen(viewModel: PosViewModel, uiState: PosUiState, 
     var selected by remember(values) { mutableIntStateOf(-1) }
     Box(modifier) {
         Canvas(Modifier.fillMaxSize().pointerInput(values) {
-            detectTapGestures { selected = ((it.x / size.width.coerceAtLeast(1f)) * values.size).toInt().coerceIn(0, (values.size - 1).coerceAtLeast(0)) }
+            detectTapGestures { selected = ((it.x / size.width.coerceAtLeast(1).toFloat()) * values.size).toInt().coerceIn(0, (values.size - 1).coerceAtLeast(0)) }
         }.pointerInput(values) {
-            detectHorizontalDragGestures { change, _ -> change.consume(); selected = ((change.position.x / size.width.coerceAtLeast(1f)) * values.size).toInt().coerceIn(0, (values.size - 1).coerceAtLeast(0)) }
+            detectHorizontalDragGestures { change, _ -> change.consume(); selected = ((change.position.x / size.width.coerceAtLeast(1).toFloat()) * values.size).toInt().coerceIn(0, (values.size - 1).coerceAtLeast(0)) }
         }) {
             val total=values.sum().coerceAtLeast(1f); val d=(minOf(size.width,size.height)-24.dp.toPx()).coerceAtLeast(1.dp.toPx()); val x=(size.width-d)/2; val y=(size.height-d)/2; var start=-90f
             values.forEachIndexed { i,v -> val sweep=v.coerceAtLeast(0f)/total*360f; drawArc(ReportChartPalette[i%ReportChartPalette.size].copy(alpha=if(selected==-1 || selected==i) 1f else .45f),start,sweep,false,androidx.compose.ui.geometry.Offset(x,y),androidx.compose.ui.geometry.Size(d,d),style=androidx.compose.ui.graphics.drawscope.Stroke(if(selected==i) 30.dp.toPx() else 24.dp.toPx())); start+=sweep }

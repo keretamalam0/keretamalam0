@@ -739,6 +739,7 @@ private fun reportDate(value: String): java.time.LocalDateTime? =
         ?: runCatching { java.time.LocalDateTime.parse(value.take(19)) }.getOrNull()
 private fun reportMoney(value: Double) = RupiahFormatter.format(value)
 
+@OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun LaporanPenjualanComposeScreen(viewModel: PosViewModel, uiState: PosUiState, selectedSection: String = "Ringkasan Laporan", onSelectedSectionChange: (String) -> Unit = {}) {
     val context = LocalContext.current
@@ -765,7 +766,6 @@ fun LaporanPenjualanComposeScreen(viewModel: PosViewModel, uiState: PosUiState, 
         }
     }
     val paid = orders.filter { it.isPaid && it.status != OrderStatus.CANCELLED }
-    val allPaidOrders = uiState.orders.filter { it.isPaid && it.status != OrderStatus.CANCELLED }
     val revenue = paid.sumOf { it.total }
     val dailyDates = remember(period, today, customStart, customEnd, uiState.orders) {
         val earliest = uiState.orders.mapNotNull { reportDate(it.createdAt)?.toLocalDate() }.minOrNull() ?: today.minusDays(6)

@@ -1737,3 +1737,95 @@ fun PrinterComposeScreen(
 }
 
 // ============================================================================
+
+
+// ============================================================================
+// SUPER ADMIN — OWNER MANAGEMENT (platform-level, never shown to Owner)
+// ============================================================================
+@Composable
+fun ManajemenOwnerComposeScreen(viewModel: PosViewModel, uiState: PosUiState) {
+    var fullName by remember { mutableStateOf("") }
+    var email by remember { mutableStateOf("") }
+    var pendingAction by remember { mutableStateOf<Pair<OwnerAccount, String>?>(null) }
+    LaunchedEffect(Unit) { viewModel.refreshOwnerAccounts() }
+
+    pendingAction?.let { (owner, action) ->
+        AlertDialog(
+            onDismissRequest = { pendingAction = null },
+            title = { Text(if (action == "delete") "Hapus akun Owner?" else if (owner.isActive) "Nonaktifkan Owner?" else "Aktifkan Owner?") },
+            text = { Text(if (action == "delete") "Akun ${owner.fullName} (${owner.email}) akan dihapus permanen dari autentikasi. Tindakan ini tidak bisa dibatalkan." else if (owner.isActive) "Owner ${owner.fullName} tidak akan bisa menggunakan aplikasi sampai diaktifkan kembali." else "Owner ${owner.fullName} akan diizinkan menggunakan aplikasi kembali.") },
+            confirmButton = {
+                Button(
+                    enabled = !uiState.isLoading,
+                    onClick = {
+                        when (action) {
+                            "delete" -> viewModel.deleteOwnerAccount(owner.userId)
+                            "toggle" -> viewModel.setOwnerAccountActive(owner.userId, !owner.isActive)
+                        }
+                        pendingAction = null
+                    }
+                ) { Text(if (action == "delete") "Hapus permanen" else "Konfirmasi") }
+            },
+            dismissButton = { OutlinedButton(onClick = { pendingAction = null }) { Text("Batal") } }
+        )
+    }
+
+    LazyColumn(Modifier.fillMaxSize(), verticalArrangement = Arrangement.spacedBy(12.dp)) {
+        item {
+            OutlinedCard(Modifier.fillMaxWidth()) {
+                Column(Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                    Text("Manajemen Owner", style = MaterialTheme.typography.headlineSmall, fontWeight = FontWeight.Bold)
+                    Text("Khusus Super Admin. Owner yang dibuat di sini mendapat undangan melalui email. Menu ini tidak tersedia untuk akun Owner biasa.", style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                    OutlinedTextField(value = fullName, onValueChange = { fullName = it }, label = { Text("Nama Owner") }, modifier = Modifier.fillMaxWidth(), singleLine = true)
+                    OutlinedTextField(value = email, onValueChange = { email = it }, label = { Text("Email Owner") }, modifier = Modifier.fillMaxWidth(), singleLine = true)
+                    Button(
+                        onClick = {
+                            viewModel.createOwnerAccount(fullName, email)
+                            fullName = ""
+                            email = ""
+                        },
+                        enabled = !uiState.isLoading && fullName.isNotBlank() && email.contains("@"),
+                        modifier = Modifier.fillMaxWidth()
+                    ) { Text(if (uiState.isLoading) "Memproses..." else "＋ Tambah Owner") }
+                    OutlinedButton(onClick = { viewModel.refreshOwnerAccounts() }, enabled = !uiState.isLoading, modifier = Modifier.fillMaxWidth()) { Text("Refresh daftar Owner") }
+                }
+            }
+        }
+        item {
+            Text("Daftar Owner (${uiState.ownerAccounts.size})", style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold)
+        }
+        if (uiState.ownerAccounts.isEmpty()) {
+            item {
+                OutlinedCard(Modifier.fillMaxWidth()) {
+                    Text("Belum ada data Owner atau daftar belum berhasil dimuat.", Modifier.padding(16.dp), color = MaterialTheme.colorScheme.onSurfaceVariant)
+                }
+            }
+        }
+        items(uiState.ownerAccounts, key = { it.userId }) { owner ->
+            OutlinedCard(Modifier.fillMaxWidth()) {
+                Column(Modifier.padding(14.dp), verticalArrangement = Arrangement.spacedBy(6.dp)) {
+                    Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                        Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(2.dp)) {
+                            Text(owner.fullName, style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.SemiBold)
+                            Text(owner.email, style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                        }
+                        AssistChip(onClick = {}, label = { Text(if (owner.isActive) "Aktif" else "Nonaktif") })
+                    }
+                    Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                        OutlinedButton(
+                            onClick = { pendingAction = owner to "toggle" },
+                            enabled = !uiState.isLoading,
+                            modifier = Modifier.weight(1f)
+                        ) { Text(if (owner.isActive) "Nonaktifkan" else "Aktifkan") }
+                        OutlinedButton(
+                            onClick = { pendingAction = owner to "delete" },
+                            enabled = !uiState.isLoading,
+                            modifier = Modifier.weight(1f),
+                            colors = ButtonDefaults.outlinedButtonColors(contentColor = MaterialTheme.colorScheme.error)
+                        ) { Text("Hapus Owner") }
+                    }
+                }
+            }
+        }
+    }
+}

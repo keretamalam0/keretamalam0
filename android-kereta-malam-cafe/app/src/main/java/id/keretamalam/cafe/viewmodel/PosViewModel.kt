@@ -1492,6 +1492,42 @@ class PosViewModel(application: Application) : AndroidViewModel(application) {
         }
     }
 
+    fun toggleCategoryActive(categoryId: String, active: Boolean) {
+        val category = _uiState.value.categories.firstOrNull { it.id == categoryId } ?: return
+        viewModelScope.launch {
+            if (_uiState.value.backendStatus == BackendIntegrationStatus.ACTIVE_VERIFIED) {
+                runCatching { repository.setCategoryActive(categoryId, active) }
+                    .onSuccess {
+                        _uiState.update { state -> state.copy(categories = state.categories.map { if (it.id == categoryId) it.copy(isActive = active) else it }) }
+                        showNotice(if (active) "Kategori diaktifkan." else "Kategori dinonaktifkan.")
+                    }
+                    .onFailure { showNotice(it.message ?: "Status kategori gagal diubah.", isError = true) }
+            } else {
+                _uiState.update { state -> state.copy(categories = state.categories.map { if (it.id == categoryId) it.copy(isActive = active) else it }) }
+            }
+        }
+    }
+
+    fun deleteCategoryItem(categoryId: String) {
+        val inUse = _uiState.value.products.any { it.categoryId == categoryId }
+        if (inUse) {
+            showNotice("Kategori masih dipakai produk. Pindahkan produk ke kategori lain sebelum menghapus.", isError = true)
+            return
+        }
+        viewModelScope.launch {
+            if (_uiState.value.backendStatus == BackendIntegrationStatus.ACTIVE_VERIFIED) {
+                runCatching { repository.deleteCategory(categoryId) }
+                    .onSuccess {
+                        _uiState.update { state -> state.copy(categories = state.categories.filterNot { it.id == categoryId }) }
+                        showNotice("Kategori dihapus.")
+                    }
+                    .onFailure { showNotice(it.message ?: "Kategori gagal dihapus.", isError = true) }
+            } else {
+                _uiState.update { it.copy(categories = it.categories.filterNot { cat -> cat.id == categoryId }) }
+            }
+        }
+    }
+
     fun uploadProductPhoto(bytes: ByteArray, mimeType: String, extension: String, onUploaded: (String) -> Unit) {
         if (_uiState.value.backendStatus != BackendIntegrationStatus.ACTIVE_VERIFIED) {
             showNotice("Foto produk perlu koneksi Supabase aktif.", isError = true)

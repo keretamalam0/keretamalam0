@@ -411,6 +411,7 @@ class CafeFlowRepository(private val context: Context) {
         val payload = buildJsonObject {
             put("name", category.name.trim())
             put("sort_order", category.sortOrder)
+            put("is_active", category.isActive)
         }
         val raw = executeJsonRequest(
             method = "POST",
@@ -419,6 +420,26 @@ class CafeFlowRepository(private val context: Context) {
             bodyJson = json.encodeToString(JsonObject.serializer(), payload)
         )
         return json.decodeFromString<List<Category>>(raw).first()
+    }
+
+    suspend fun setCategoryActive(categoryId: String, active: Boolean) {
+        val creds = requireVerifiedCredentials()
+        val payload = buildJsonObject { put("is_active", active) }
+        executeJsonRequest(
+            "PATCH",
+            "${creds.supabaseUrl}/rest/v1/categories?id=eq.${URLEncoder.encode(categoryId, "UTF-8")}",
+            buildHeaders(creds, "return=minimal"),
+            json.encodeToString(JsonObject.serializer(), payload)
+        )
+    }
+
+    suspend fun deleteCategory(categoryId: String) {
+        val creds = requireVerifiedCredentials()
+        executeJsonRequest(
+            "DELETE",
+            "${creds.supabaseUrl}/rest/v1/categories?id=eq.${URLEncoder.encode(categoryId, "UTF-8")}",
+            buildHeaders(creds)
+        )
     }
 
     suspend fun fetchProductAddons(): List<ProductAddon> {

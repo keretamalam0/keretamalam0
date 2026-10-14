@@ -391,8 +391,33 @@ fun ProdukStokComposeScreen(viewModel: PosViewModel, uiState: PosUiState) {
                     if (targetEdit.id.isBlank()) {
                         Text("Simpan produk dulu, lalu opsi ukuran, es, dan gula bisa ditambahkan di sini.", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.primary)
                     } else {
+                        Text("Pilih template untuk menambahkan pilihan siap pakai. Semua pilihan tetap bisa diedit, dinonaktifkan, atau dihapus sendiri-sendiri.", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
                         Row(Modifier.fillMaxWidth().horizontalScroll(rememberScrollState()), horizontalArrangement = Arrangement.spacedBy(6.dp)) {
-                            listOf("sugar" to "Tingkat kemanisan", "ice" to "Pilihan es / suhu", "size" to "Ukuran cup").forEach { (key, label) ->
+                            listOf("size" to "＋ Ukuran", "sugar" to "＋ Gula", "ice" to "＋ Es / Hot-Ice").forEach { (key, label) ->
+                                FilterChip(selected = inlineOptionGroup == key, onClick = {
+                                    inlineOptionGroup = key
+                                    val defaults = when (key) {
+                                        "size" -> listOf("Small" to 0.0, "Medium" to 3000.0, "Large" to 5000.0)
+                                        "sugar" -> listOf("Normal Sugar" to 0.0, "Less Sugar" to 0.0, "No Sugar" to 0.0)
+                                        else -> listOf("Normal Ice" to 0.0, "Less Ice" to 0.0, "No Ice" to 0.0, "Hot" to 0.0, "Ice" to 0.0)
+                                    }
+                                    val existing = uiState.customizationOptions.filter { it.productId == targetEdit.id && it.groupKey == key }.map { it.name.lowercase() }.toSet()
+                                    val missing = defaults.filterNot { it.first.lowercase() in existing }
+                                    missing.forEachIndexed { index, item ->
+                                        viewModel.saveCustomizationOption(ProductCustomizationOption(
+                                            productId = targetEdit.id,
+                                            groupKey = key,
+                                            name = item.first,
+                                            priceDelta = item.second,
+                                            isActive = true,
+                                            sortOrder = existing.size + index
+                                        ))
+                                    }
+                                }, label = { Text(label, style = MaterialTheme.typography.labelSmall) })
+                            }
+                        }
+                        Row(Modifier.fillMaxWidth().horizontalScroll(rememberScrollState()), horizontalArrangement = Arrangement.spacedBy(6.dp)) {
+                            listOf("sugar" to "Grup Gula", "ice" to "Grup Es / Suhu", "size" to "Grup Ukuran").forEach { (key, label) ->
                                 FilterChip(selected = inlineOptionGroup == key, onClick = { inlineOptionGroup = key }, label = { Text(label, style = MaterialTheme.typography.labelSmall) })
                             }
                         }

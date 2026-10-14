@@ -29,6 +29,16 @@ enum class PermissionKey(val key: String) {
 }
 
 @Serializable
+data class OwnerAccount(
+    @SerialName("user_id") val userId: String,
+    @SerialName("full_name") val fullName: String,
+    val email: String = "",
+    val role: String = "owner",
+    @SerialName("is_active") val isActive: Boolean = true,
+    @SerialName("created_at") val createdAt: String? = null
+)
+
+@Serializable
 data class StaffProfile(
     @SerialName("user_id") val userId: String,
     @SerialName("owner_id") val ownerId: String,

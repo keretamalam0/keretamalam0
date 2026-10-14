@@ -655,89 +655,166 @@ private fun DashboardKpiCard(modifier: Modifier = Modifier, title: String, value
 @Composable
 private fun AiAssistantComposeScreen(viewModel: PosViewModel, uiState: PosUiState) {
     var promptInput by remember { mutableStateOf("") }
+    val chatMessages = remember {
+        mutableStateListOf(
+            "Halo! Gue asisten bantuan Kereta Malam Cafe. Tanya aja cara memakai aplikasi atau ceritakan kendalanya. Gue bantu langkah demi langkah." to false
+        )
+    }
+    val chatScrollState = rememberScrollState()
+    var lastRenderedReply by remember { mutableStateOf(uiState.aiReplyText) }
+    var lastRenderedError by remember { mutableStateOf(uiState.errorMessage) }
+
+    LaunchedEffect(uiState.aiReplyText) {
+        val reply = uiState.aiReplyText
+        if (!reply.isNullOrBlank() && reply != lastRenderedReply) {
+            chatMessages.add(reply to false)
+            lastRenderedReply = reply
+        }
+    }
+    LaunchedEffect(uiState.errorMessage) {
+        val error = uiState.errorMessage
+        if (!error.isNullOrBlank() && error != lastRenderedError &&
+            (error.contains("AI", ignoreCase = true) ||
+                error.contains("assistant", ignoreCase = true) ||
+                error.contains("Edge Function", ignoreCase = true))
+        ) {
+            chatMessages.add("Maaf, permintaan tadi belum berhasil. Detail: $error" to false)
+            lastRenderedError = error
+        }
+    }
+    LaunchedEffect(chatMessages.size, uiState.isLoading) {
+        chatScrollState.animateScrollTo(chatScrollState.maxValue)
+    }
 
     Column(
         modifier = Modifier
             .fillMaxSize()
-            .verticalScroll(rememberScrollState()),
-        verticalArrangement = Arrangement.spacedBy(12.dp)
+            .imePadding()
+            .padding(horizontal = 12.dp, vertical = 8.dp),
+        verticalArrangement = Arrangement.spacedBy(10.dp)
     ) {
-        OutlinedCard(modifier = Modifier.fillMaxWidth()) {
-            Column(modifier = Modifier.padding(20.dp), verticalArrangement = Arrangement.spacedBy(10.dp)) {
-                Text("AI Assistant · Bantuan Operasional", style = MaterialTheme.typography.titleLarge)
+        Row(
+            modifier = Modifier.fillMaxWidth(),
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            Column(modifier = Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(2.dp)) {
+                Text("AI Assistant", style = MaterialTheme.typography.titleLarge, fontWeight = FontWeight.Bold)
+                Text("Bantuan penggunaan Kereta Malam Cafe", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+            }
+            Surface(
+                shape = RoundedCornerShape(50),
+                color = if (uiState.backendStatus == BackendIntegrationStatus.ACTIVE_VERIFIED)
+                    MaterialTheme.colorScheme.primaryContainer else MaterialTheme.colorScheme.errorContainer
+            ) {
                 Text(
-                    text = "Tanya cara memakai aplikasi. Asisten membantu kasir dan owner memahami menu, transaksi, produk, stok, QR Ordering, laporan, printer, dan pengaturan dengan panduan langkah demi langkah.",
-                    style = MaterialTheme.typography.bodyMedium
+                    if (uiState.backendStatus == BackendIntegrationStatus.ACTIVE_VERIFIED) "Terhubung" else "Offline",
+                    modifier = Modifier.padding(horizontal = 10.dp, vertical = 6.dp),
+                    style = MaterialTheme.typography.labelSmall
                 )
-                Surface(
-                    shape = RoundedCornerShape(10.dp),
-                    color = MaterialTheme.colorScheme.surfaceVariant,
-                    modifier = Modifier.fillMaxWidth()
-                ) {
-                    Column(modifier = Modifier.padding(14.dp), verticalArrangement = Arrangement.spacedBy(6.dp)) {
-                        Text(
-                            text = if (uiState.backendStatus == BackendIntegrationStatus.ACTIVE_VERIFIED)
-                                "STATUS EDGE FUNCTION: SIAP MENGHUBUNGI /functions/v1/ai-assistant"
-                            else
-                                "STATUS BACKEND AI: BELUM TERHUBUNG (MENUNGGU VERIFIKASI SUPABASE)",
-                            fontWeight = FontWeight.Bold,
-                            color = if (uiState.backendStatus == BackendIntegrationStatus.ACTIVE_VERIFIED)
-                                MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.error
-                        )
-                        Text(
-                            text = "Jawaban AI diproses oleh backend. Asisten memberi panduan penggunaan; asisten tidak mengubah transaksi atau pengaturan secara otomatis.",
-                            style = MaterialTheme.typography.bodyMedium
-                        )
+            }
+        }
+
+        Text(
+            "Tanyakan cara memakai kasir, pesanan, produk & stok, QR Ordering, laporan, printer, atau pengaturan.",
+            style = MaterialTheme.typography.bodySmall,
+            color = MaterialTheme.colorScheme.onSurfaceVariant
+        )
+
+        Row(
+            modifier = Modifier.fillMaxWidth().horizontalScroll(rememberScrollState()),
+            horizontalArrangement = Arrangement.spacedBy(6.dp)
+        ) {
+            listOf(
+                "Cara proses pembayaran?",
+                "Cara tambah produk?",
+                "Pesanan QR di mana?",
+                "Printer tidak mencetak"
+            ).forEach { quick ->
+                AssistChip(onClick = { promptInput = quick }, label = { Text(quick) })
+            }
+        }
+
+        Surface(
+            modifier = Modifier.fillMaxWidth().weight(1f),
+            shape = RoundedCornerShape(16.dp),
+            color = MaterialTheme.colorScheme.surface,
+            border = androidx.compose.foundation.BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant)
+        ) {
+            Column(
+                modifier = Modifier.fillMaxSize().verticalScroll(chatScrollState).padding(12.dp),
+                verticalArrangement = Arrangement.spacedBy(10.dp)
+            ) {
+                chatMessages.forEach { (message, fromUser) ->
+                    Box(
+                        modifier = Modifier.fillMaxWidth(),
+                        contentAlignment = if (fromUser) Alignment.CenterEnd else Alignment.CenterStart
+                    ) {
+                        Surface(
+                            modifier = Modifier.widthIn(max = 340.dp),
+                            shape = RoundedCornerShape(
+                                topStart = 16.dp,
+                                topEnd = 16.dp,
+                                bottomStart = if (fromUser) 16.dp else 4.dp,
+                                bottomEnd = if (fromUser) 4.dp else 16.dp
+                            ),
+                            color = if (fromUser) MaterialTheme.colorScheme.primaryContainer
+                                else MaterialTheme.colorScheme.surfaceVariant
+                        ) {
+                            Text(
+                                message,
+                                modifier = Modifier.padding(horizontal = 13.dp, vertical = 10.dp),
+                                style = MaterialTheme.typography.bodyMedium,
+                                color = MaterialTheme.colorScheme.onSurface
+                            )
+                        }
                     }
                 }
-
-                Text("Coba tanyakan:", style = MaterialTheme.typography.labelMedium)
-                Row(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .horizontalScroll(rememberScrollState()),
-                    horizontalArrangement = Arrangement.spacedBy(8.dp)
-                ) {
-                    listOf(
-                        "Gimana cara proses pembayaran di kasir?",
-                        "Cara tambah produk dan upload foto?",
-                        "Pesanan QR masuknya dilihat di mana?",
-                        "Cara sambungkan printer struk?",
-                        "Cara cek laporan penjualan?"
-                    ).forEach { quick ->
-                        AssistChip(
-                            onClick = { promptInput = quick },
-                            label = { Text(quick) }
-                        )
-                    }
-                }
-
-                OutlinedTextField(
-                    value = promptInput,
-                    onValueChange = { promptInput = it },
-                    label = { Text("Contoh: 'Gimana cara membatalkan pesanan?' atau ceritakan kendala kamu") },
-                    modifier = Modifier.fillMaxWidth()
-                )
-                Button(
-                    onClick = { viewModel.askAiAssistant(promptInput) },
-                    enabled = !uiState.isLoading
-                ) {
-                    Text(if (uiState.isLoading) "Asisten sedang berpikir..." else "Tanya AI Assistant")
-                }
-
-                if (!uiState.aiReplyText.isNullOrBlank()) {
+                if (uiState.isLoading) {
                     Surface(
-                        shape = RoundedCornerShape(10.dp),
-                        color = MaterialTheme.colorScheme.surfaceVariant,
-                        modifier = Modifier.fillMaxWidth()
+                        shape = RoundedCornerShape(14.dp),
+                        color = MaterialTheme.colorScheme.surfaceVariant
                     ) {
                         Text(
-                            text = uiState.aiReplyText,
-                            modifier = Modifier.padding(14.dp),
-                            style = MaterialTheme.typography.bodyMedium
+                            "Asisten sedang mengetik…",
+                            modifier = Modifier.padding(horizontal = 13.dp, vertical = 10.dp),
+                            style = MaterialTheme.typography.bodySmall,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant
                         )
                     }
                 }
+            }
+        }
+
+        Row(
+            modifier = Modifier.fillMaxWidth(),
+            verticalAlignment = Alignment.Bottom,
+            horizontalArrangement = Arrangement.spacedBy(8.dp)
+        ) {
+            OutlinedTextField(
+                value = promptInput,
+                onValueChange = { promptInput = it },
+                modifier = Modifier.weight(1f),
+                placeholder = { Text("Tulis pesan…") },
+                maxLines = 4,
+                enabled = !uiState.isLoading,
+                shape = RoundedCornerShape(18.dp)
+            )
+            Button(
+                onClick = {
+                    val question = promptInput.trim()
+                    if (question.isNotEmpty() && !uiState.isLoading) {
+                        chatMessages.add(question to true)
+                        promptInput = ""
+                        lastRenderedReply = uiState.aiReplyText
+                        lastRenderedError = uiState.errorMessage
+                        viewModel.askAiAssistant(question)
+                    }
+                },
+                enabled = promptInput.isNotBlank() && !uiState.isLoading,
+                modifier = Modifier.heightIn(min = 52.dp),
+                contentPadding = PaddingValues(horizontal = 16.dp, vertical = 12.dp)
+            ) {
+                Text(if (uiState.isLoading) "..." else "Kirim")
             }
         }
     }

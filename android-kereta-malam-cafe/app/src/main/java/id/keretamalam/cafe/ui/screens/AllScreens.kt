@@ -664,9 +664,9 @@ private fun AiAssistantComposeScreen(viewModel: PosViewModel, uiState: PosUiStat
     ) {
         OutlinedCard(modifier = Modifier.fillMaxWidth()) {
             Column(modifier = Modifier.padding(20.dp), verticalArrangement = Arrangement.spacedBy(10.dp)) {
-                Text("AI Assistant — Kereta Malam Cafe", style = MaterialTheme.typography.titleLarge)
+                Text("AI Assistant · Bantuan Operasional", style = MaterialTheme.typography.titleLarge)
                 Text(
-                    text = "Mengikuti implementasi modul AI pada sistem referensi Cafe Flow yang memanggil Supabase Edge Function 'ai-assistant'.",
+                    text = "Tanya cara memakai aplikasi. Asisten membantu kasir dan owner memahami menu, transaksi, produk, stok, QR Ordering, laporan, printer, dan pengaturan dengan panduan langkah demi langkah.",
                     style = MaterialTheme.typography.bodyMedium
                 )
                 Surface(
@@ -685,13 +685,13 @@ private fun AiAssistantComposeScreen(viewModel: PosViewModel, uiState: PosUiStat
                                 MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.error
                         )
                         Text(
-                            text = "Aplikasi tidak menghasilkan jawaban AI palsu/simulasi. Seluruh permintaan dikirim ke Supabase Edge Function 'ai-assistant' apabila kredensial telah diverifikasi.",
+                            text = "Jawaban AI diproses oleh backend. Asisten memberi panduan penggunaan; asisten tidak mengubah transaksi atau pengaturan secara otomatis.",
                             style = MaterialTheme.typography.bodyMedium
                         )
                     }
                 }
 
-                Text("Prompt Cepat Operasional Cafe:", style = MaterialTheme.typography.labelMedium)
+                Text("Coba tanyakan:", style = MaterialTheme.typography.labelMedium)
                 Row(
                     modifier = Modifier
                         .fillMaxWidth()
@@ -699,9 +699,11 @@ private fun AiAssistantComposeScreen(viewModel: PosViewModel, uiState: PosUiStat
                     horizontalArrangement = Arrangement.spacedBy(8.dp)
                 ) {
                     listOf(
-                        "Analisis omzet & jam sibuk hari ini",
-                        "Rekomendasi restock produk stok menipis",
-                        "Evaluasi efektivitas promo diskon malam"
+                        "Gimana cara proses pembayaran di kasir?",
+                        "Cara tambah produk dan upload foto?",
+                        "Pesanan QR masuknya dilihat di mana?",
+                        "Cara sambungkan printer struk?",
+                        "Cara cek laporan penjualan?"
                     ).forEach { quick ->
                         AssistChip(
                             onClick = { promptInput = quick },
@@ -713,14 +715,14 @@ private fun AiAssistantComposeScreen(viewModel: PosViewModel, uiState: PosUiStat
                 OutlinedTextField(
                     value = promptInput,
                     onValueChange = { promptInput = it },
-                    label = { Text("Tanyakan analisis penjualan, HPP, atau stok ke AI Assistant...") },
+                    label = { Text("Contoh: 'Gimana cara membatalkan pesanan?' atau ceritakan kendala kamu") },
                     modifier = Modifier.fillMaxWidth()
                 )
                 Button(
                     onClick = { viewModel.askAiAssistant(promptInput) },
                     enabled = !uiState.isLoading
                 ) {
-                    Text(if (uiState.isLoading) "Menghubungi Edge Function..." else "Kirim ke Edge Function 'ai-assistant'")
+                    Text(if (uiState.isLoading) "Asisten sedang berpikir..." else "Tanya AI Assistant")
                 }
 
                 if (!uiState.aiReplyText.isNullOrBlank()) {

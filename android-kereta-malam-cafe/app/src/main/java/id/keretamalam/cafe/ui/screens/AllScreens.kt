@@ -1387,18 +1387,145 @@ private fun PesananComposeScreen(
     var lane by remember { mutableStateOf("baru") }
     var sourceFilter by remember { mutableStateOf("ALL") }
     var search by remember { mutableStateOf("") }
+    var paymentOrder by remember { mutableStateOf<OrderWithItems?>(null) }
+    var selectedPaymentCode by remember { mutableStateOf("") }
+    var cashReceived by remember { mutableStateOf("") }
     val lanes = listOf("baru" to "Baru", "diproses" to "Diproses", "siap" to "Siap", "riwayat" to "Riwayat")
+
+    val paymentOptions = remember(uiState.paymentMethods) {
+        val configured = uiState.paymentMethods.filter { it.isActive }.sortedBy { it.sortOrder }
+        if (configured.none { it.type.equals("cash", true) || it.code.equals("cash", true) }) {
+            configured + PaymentMethod(code = "cash", name = "Tunai / Cash", type = "cash", provider = "Tunai")
+        } else configured
+    }
     fun inLane(o: OrderWithItems, key: String): Boolean = when (key) {
         "baru" -> o.status == OrderStatus.NEW
         "diproses" -> o.status == OrderStatus.PREPARING
         "siap" -> o.status == OrderStatus.READY
         else -> o.status == OrderStatus.COMPLETED || o.status == OrderStatus.CANCELLED
     }
+    fun paymentLabel(code: String?): String {
+        if (code.isNullOrBlank()) return "Belum dipilih"
+        val method = paymentOptions.firstOrNull {
+            it.code.equals(code, true) || it.type.equals(code, true) ||
+                it.name.equals(code, true) || it.provider.equals(code, true)
+        }
+        return method?.let { listOf(it.name, it.provider).filter { part -> part.isNotBlank() }.distinct().joinToString(" · ") }
+            ?.ifBlank { code.uppercase() } ?: code.uppercase()
+    }
     val filtered = uiState.orders.filter { o ->
         inLane(o, lane) && (sourceFilter == "ALL" || o.source.equals(sourceFilter, true)) &&
             (search.isBlank() || o.orderNo.toString().contains(search) || (o.customerName ?: "").contains(search, true))
     }
-    Column(Modifier.fillMaxSize(), verticalArrangement = Arrangement.spacedBy(10.dp)) {
+
+    val payingOrder = paymentOrder
+    if (payingOrder != null) {
+        val selectedMethod = paymentOptions.firstOrNull { it.code.equals(selectedPaymentCode, true) }
+        val methodType = selectedMethod?.type?.lowercase().orEmpty()
+        val isCash = methodType == "cash" || selectedMethod?.code.equals("cash", true)
+        val isTransfer = methodType == "bank_transfer"
+        val isEwallet = methodType == "ewallet"
+        val receivedValue = cashReceived.toDoubleOrNull() ?: 0.0
+        AlertDialog(
+            onDismissRequest = { paymentOrder = null },
+            title = { Text("Konfirmasi Pembayaran") },
+            text = {
+                Column(
+                    Modifier.fillMaxWidth().heightIn(max = 500.dp).verticalScroll(rememberScrollState()),
+                    verticalArrangement = Arrangement.spacedBy(10.dp)
+                ) {
+                    Text("Order #\${payingOrder.orderNo}", fontWeight = FontWeight.Bold)
+                    Text("Total tagihan: \${RupiahFormatter.format(payingOrder.total)}", style = MaterialTheme.typography.titleMedium)
+                    Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween, verticalAlignment = Alignment.CenterVertically) {
+                        Text("Metode pilihan customer", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                        Text(paymentLabel(payingOrder.customerPaymentMethod ?: payingOrder.paymentMethod), fontWeight = FontWeight.SemiBold)
+                    }
+                    HorizontalDivider()
+                    Text("Metode pembayaran kasir", fontWeight = FontWeight.SemiBold)
+                    if (paymentOptions.isEmpty()) {
+                        Text("Belum ada metode aktif. Tambahkan metode di Pengaturan Outlet.", color = MaterialTheme.colorScheme.error)
+                    } else {
+                        Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
+                            paymentOptions.forEach { method ->
+                                val isSelected = method.code.equals(selectedPaymentCode, true)
+                                Surface(
+                                    modifier = Modifier.fillMaxWidth().clip(RoundedCornerShape(10.dp)).clickable {
+                                        selectedPaymentCode = method.code
+                                    },
+                                    color = if (isSelected) MaterialTheme.colorScheme.primaryContainer else MaterialTheme.colorScheme.surface,
+                                    shape = RoundedCornerShape(10.dp),
+                                    border = androidx.compose.foundation.BorderStroke(
+                                        1.dp,
+                                        if (isSelected) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.outlineVariant
+                                    )
+                                ) {
+                                    Column(Modifier.padding(10.dp), verticalArrangement = Arrangement.spacedBy(2.dp)) {
+                                        Text(method.name.ifBlank { method.provider.ifBlank { method.type.uppercase() } }, fontWeight = FontWeight.SemiBold)
+                                        val detail = listOf(method.provider, method.accountName, method.accountNumber)
+                                            .filter { it.isNotBlank() }.distinct().joinToString(" · ")
+                                        if (detail.isNotBlank()) Text(detail, style = MaterialTheme.typography.bodySmall)
+                                        if (isSelected) Text("Dipilih kasir", style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.primary)
+                                    }
+                                }
+                            }
+                        }
+                    }
+                    if (isCash) {
+                        OutlinedTextField(
+                            value = cashReceived,
+                            onValueChange = { cashReceived = it.filter { ch -> ch.isDigit() }.take(12) },
+                            label = { Text("Uang diterima (Rp)") },
+                            singleLine = true,
+                            modifier = Modifier.fillMaxWidth()
+                        )
+                        Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
+                            Text("Kembalian")
+                            Text(
+                                RupiahFormatter.format((receivedValue - payingOrder.total).coerceAtLeast(0.0)),
+                                fontWeight = FontWeight.Bold,
+                                color = Color(0xFF15803D)
+                            )
+                        }
+                        if (receivedValue < payingOrder.total) {
+                            Text("Uang diterima harus minimal sebesar total tagihan.", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.error)
+                        }
+                    } else if (isTransfer || isEwallet || methodType == "qris") {
+                        HorizontalDivider()
+                        Text(if (isTransfer) "Tujuan transfer" else if (isEwallet) "Tujuan e-wallet" else "Pembayaran QRIS", fontWeight = FontWeight.SemiBold)
+                        Text(
+                            listOf(selectedMethod?.provider, selectedMethod?.name, selectedMethod?.accountName, selectedMethod?.accountNumber)
+                                .filter { !it.isNullOrBlank() }.distinct().joinToString("\n").ifBlank { "Detail tujuan belum diisi owner." }
+                        )
+                        if (!selectedMethod?.instructions.isNullOrBlank()) {
+                            Text(selectedMethod?.instructions.orEmpty(), style = MaterialTheme.typography.bodySmall)
+                        }
+                        Text("Pastikan pembayaran sudah diterima / diverifikasi sebelum konfirmasi.", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.error)
+                    }
+                }
+            },
+            confirmButton = {
+                Button(
+                    enabled = selectedMethod != null && (!isCash || receivedValue >= payingOrder.total),
+                    onClick = {
+                        val method = selectedMethod ?: return@Button
+                        viewModel.confirmOrderPayment(
+                            payingOrder,
+                            method.code.ifBlank { method.type }.lowercase(),
+                            if (isCash) receivedValue else null
+                        ) {
+                            lane = if (payingOrder.status == OrderStatus.READY) "siap" else "diproses"
+                            paymentOrder = null
+                        }
+                    }
+                ) { Text("Konfirmasi Bayar") }
+            },
+            dismissButton = {
+                TextButton(onClick = { paymentOrder = null }) { Text("Batal") }
+            }
+        )
+    }
+
+    Column(Modifier.fillMaxSize(), verticalArrangement = Arrangement.spacedBy(8.dp)) {
         Row(Modifier.fillMaxWidth().horizontalScroll(rememberScrollState()), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
             lanes.forEach { (key, label) ->
                 val count = uiState.orders.count { inLane(it, key) }
@@ -1438,56 +1565,62 @@ private fun PesananComposeScreen(
             LazyColumn(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(10.dp)) {
                 items(filtered, key = { it.id }) { order ->
                     OutlinedCard(Modifier.fillMaxWidth()) {
-                        Column(Modifier.padding(14.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                            Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
-                                Column(Modifier.weight(1f)) {
-                                    Text("Order #${order.orderNo}", fontWeight = FontWeight.Bold)
-                                    Text("${order.source.uppercase()} · ${order.restaurantTable?.name ?: "Takeaway"} · ${order.customerName ?: "Walk-in"}", style = MaterialTheme.typography.bodyMedium)
-                                    Text(order.createdAt, style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                        Column(Modifier.padding(12.dp), verticalArrangement = Arrangement.spacedBy(7.dp)) {
+                            Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween, verticalAlignment = Alignment.Top) {
+                                Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(2.dp)) {
+                                    Text("Order #\${order.orderNo}", fontWeight = FontWeight.Bold)
+                                    Text("\${order.source.uppercase()} · \${order.restaurantTable?.name ?: "Takeaway"} · \${order.customerName ?: "Walk-in"}", style = MaterialTheme.typography.bodyMedium)
+                                    val time = order.createdAt.substringAfter("T", order.createdAt).take(5)
+                                    Text("Jam: $time · \${order.createdAt.take(10)}", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
                                 }
                                 Column(horizontalAlignment = Alignment.End) {
                                     Text(order.status.labelId, fontWeight = FontWeight.Bold)
                                     Text(if (order.isPaid) "LUNAS" else "BELUM LUNAS", color = if (order.isPaid) Color(0xFF15803D) else MaterialTheme.colorScheme.error)
                                 }
                             }
+                            Text("Metode customer: \${paymentLabel(order.customerPaymentMethod ?: order.paymentMethod)}", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
                             HorizontalDivider()
                             order.orderItems.forEach { item ->
                                 Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
-                                    Text("${item.quantity}× ${item.productName}", modifier = Modifier.weight(1f))
+                                    Text("\${item.quantity}× \${item.productName}", modifier = Modifier.weight(1f))
                                     Text(RupiahFormatter.format(item.lineTotal))
                                 }
                             }
                             HorizontalDivider()
                             Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween, verticalAlignment = Alignment.CenterVertically) {
-                                Text("Total: ${RupiahFormatter.format(order.total)}", fontWeight = FontWeight.Bold)
-                                Row(horizontalArrangement = Arrangement.spacedBy(6.dp)) {
-                                    OutlinedButton(onClick = { viewModel.printOrderToThermal(order, PrinterRole.KITCHEN) }) { Text("Cetak") }
-                                    OutlinedButton(onClick = { viewModel.openReceiptDialog(order) }) { Text("Struk") }
+                                Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(2.dp)) {
+                                    Text("Total: \${RupiahFormatter.format(order.total)}", fontWeight = FontWeight.Bold)
+                                    if (order.isPaid) Text("Metode kasir: \${paymentLabel(order.paymentMethod)}", style = MaterialTheme.typography.bodySmall)
+                                }
+                                Row(horizontalArrangement = Arrangement.spacedBy(4.dp)) {
+                                    OutlinedButton(onClick = { viewModel.printOrderToThermal(order, PrinterRole.KITCHEN) }, contentPadding = PaddingValues(horizontal = 10.dp, vertical = 0.dp)) { Text("Cetak") }
+                                    OutlinedButton(onClick = { viewModel.openReceiptDialog(order) }, contentPadding = PaddingValues(horizontal = 10.dp, vertical = 0.dp)) { Text("Struk") }
                                 }
                             }
                             if (lane != "riwayat") {
-                                if (order.source == "qr" && !order.isPaid && order.status != OrderStatus.CANCELLED) {
-                                    Row(
-                                        modifier = Modifier.fillMaxWidth().horizontalScroll(rememberScrollState()),
-                                        horizontalArrangement = Arrangement.spacedBy(6.dp)
-                                    ) {
-                                        Button(onClick = { viewModel.approveQrOrder(order, "qris") { lane = if (order.status == OrderStatus.READY) "siap" else "diproses" } }) { Text("Konfirmasi QRIS") }
-                                        OutlinedButton(onClick = { viewModel.approveQrOrder(order, "cash") { lane = if (order.status == OrderStatus.READY) "siap" else "diproses" } }) { Text("Terima Tunai") }
-                                        OutlinedButton(
-                                            onClick = { viewModel.rejectQrOrder(order) },
-                                            colors = ButtonDefaults.outlinedButtonColors(contentColor = MaterialTheme.colorScheme.error)
-                                        ) { Text("Tolak") }
+                                Row(Modifier.fillMaxWidth().horizontalScroll(rememberScrollState()), horizontalArrangement = Arrangement.spacedBy(6.dp)) {
+                                    if (!order.isPaid && order.status != OrderStatus.CANCELLED) {
+                                        Button(onClick = {
+                                            paymentOrder = order
+                                            selectedPaymentCode = paymentOptions.firstOrNull {
+                                                it.code.equals(order.paymentMethod, true) ||
+                                                    it.type.equals(order.paymentMethod, true)
+                                            }?.code ?: paymentOptions.firstOrNull { it.type.equals("cash", true) }?.code.orEmpty()
+                                            cashReceived = order.total.toLong().toString()
+                                        }) { Text("Tandai Bayar") }
                                     }
-                                }
-                                Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                                     when (order.status) {
-                                        OrderStatus.NEW -> Button(onClick = { viewModel.updateOrderStatus(order, OrderStatus.PREPARING) { lane = "diproses" } }, modifier = Modifier.weight(1f)) { Text("Mulai Proses") }
-                                        OrderStatus.PREPARING -> Button(onClick = { viewModel.updateOrderStatus(order, OrderStatus.READY) { lane = "siap" } }, modifier = Modifier.weight(1f)) { Text("Tandai Siap") }
-                                        OrderStatus.READY -> if (order.isPaid) Button(onClick = { viewModel.updateOrderStatus(order, OrderStatus.COMPLETED) { lane = "riwayat" } }, modifier = Modifier.weight(1f)) { Text("Selesaikan & ke Riwayat") } else Text("Konfirmasi pembayaran sebelum masuk riwayat", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.error)
+                                        OrderStatus.NEW -> if (order.isPaid) Button(onClick = { viewModel.updateOrderStatus(order, OrderStatus.PREPARING) { lane = "diproses" } }) { Text("Mulai Proses") }
+                                        OrderStatus.PREPARING -> Button(onClick = { viewModel.updateOrderStatus(order, OrderStatus.READY) { lane = "siap" } }) { Text("Tandai Siap") }
+                                        OrderStatus.READY -> if (order.isPaid) Button(onClick = { viewModel.updateOrderStatus(order, OrderStatus.COMPLETED) { lane = "riwayat" } }) { Text("Selesaikan") }
+                                            else Text("Konfirmasi pembayaran sebelum diselesaikan", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.error)
                                         else -> {}
                                     }
                                     if (order.status != OrderStatus.COMPLETED && order.status != OrderStatus.CANCELLED) {
-                                        OutlinedButton(onClick = { viewModel.updateOrderStatus(order, OrderStatus.CANCELLED) { lane = "riwayat" } }) { Text("Batalkan") }
+                                        OutlinedButton(
+                                            onClick = { if (order.source == "qr") viewModel.rejectQrOrder(order) else viewModel.updateOrderStatus(order, OrderStatus.CANCELLED) { lane = "riwayat" } },
+                                            colors = ButtonDefaults.outlinedButtonColors(contentColor = MaterialTheme.colorScheme.error)
+                                        ) { Text(if (order.source == "qr") "Ditolak" else "Batalkan") }
                                     }
                                 }
                             } else {
@@ -1500,6 +1633,7 @@ private fun PesananComposeScreen(
         }
     }
 }
+
 // ============================================================================
 // 5. HISTORY TRANSAKSI SCREEN
 // ============================================================================

@@ -1698,43 +1698,114 @@ class PosViewModel(application: Application) : AndroidViewModel(application) {
         appendAuditLog("inventory.movement", "inventory_movements", movement.id, "{\"product\":\"${prod.name}\",\"delta\":$signedDelta}")
     }
 
-    fun addPromotion(name: String, type: String, value: Double, minPurchase: Double) {
-        if (_uiState.value.backendStatus == BackendIntegrationStatus.ACTIVE_VERIFIED) {
-            showNotice("Pembuatan promosi live belum tersambung ke Supabase. Promosi tidak dibuat.", isError = true)
+    fun addPromotion(
+        name: String,
+        type: String,
+        value: Double,
+        minPurchase: Double,
+        minQuantity: Int = 1,
+        scope: String = "order",
+        productId: String? = null,
+        campaignType: String = "promotion",
+        allowCustomer: Boolean = true,
+        allowCashier: Boolean = true
+    ) {
+        if (name.isBlank()) {
+            showNotice("Nama promosi wajib diisi.", isError = true)
             return
         }
-        if (name.isBlank()) return
+        if (value <= 0.0 || (type == "percentage" && value > 100.0)) {
+            showNotice("Nilai diskon harus lebih dari 0; persentase maksimal 100%.", isError = true)
+            return
+        }
+        if (minPurchase < 0.0 || minQuantity < 1) {
+            showNotice("Minimum belanja tidak boleh negatif dan jumlah minimal harus minimal 1.", isError = true)
+            return
+        }
+        if (scope == "product" && productId.isNullOrBlank()) {
+            showNotice("Pilih produk yang berlaku untuk promo ini.", isError = true)
+            return
+        }
         val promo = Promotion(
             id = "promo-${System.currentTimeMillis()}",
             name = name.trim(),
             type = type,
             value = value,
             minPurchase = minPurchase,
-            active = true
+            minQuantity = minQuantity,
+            scope = scope,
+            productId = productId,
+            active = true,
+            campaignType = campaignType,
+            allowCustomer = allowCustomer,
+            allowCashier = allowCashier
         )
+        if (_uiState.value.backendStatus == BackendIntegrationStatus.ACTIVE_VERIFIED) {
+            viewModelScope.launch {
+                runCatching { repository.createPromotion(promo) }
+                    .onSuccess { created ->
+                        _uiState.update {
+                            it.copy(promotions = listOf(created) + it.promotions, successMessage = "Promosi \"${created.name}\" berhasil disimpan.")
+                        }
+                        showNotice("Promosi \"${created.name}\" berhasil disimpan.")
+                    }
+                    .onFailure { err ->
+                        showNotice(err.message ?: "Promosi gagal disimpan ke server.", isError = true)
+                    }
+            }
+            return
+        }
         _uiState.update {
             it.copy(
                 promotions = listOf(promo) + it.promotions,
-                successMessage = "Promosi \"${promo.name}\" disimpan."
+                successMessage = "Promosi \"${promo.name}\" disimpan dalam mode simulasi."
             )
         }
     }
 
     fun togglePromotionActive(promoId: String) {
+        val promo = _uiState.value.promotions.firstOrNull { it.id == promoId } ?: return
+        val nextActive = !promo.active
+        if (_uiState.value.backendStatus == BackendIntegrationStatus.ACTIVE_VERIFIED) {
+            viewModelScope.launch {
+                runCatching { repository.updatePromotionActive(promoId, nextActive) }
+                    .onSuccess {
+                        _uiState.update { state ->
+                            state.copy(promotions = state.promotions.map { if (it.id == promoId) it.copy(active = nextActive) else it })
+                        }
+                        showNotice("Promo \"${promo.name}\" ${if (nextActive) "diaktifkan" else "dinonaktifkan"}.")
+                    }
+                    .onFailure { err -> showNotice(err.message ?: "Status promo gagal diubah.", isError = true) }
+            }
+            return
+        }
         _uiState.update { state ->
             state.copy(
-                promotions = state.promotions.map {
-                    if (it.id == promoId) it.copy(active = !it.active) else it
-                }
+                promotions = state.promotions.map { if (it.id == promoId) it.copy(active = nextActive) else it },
+                successMessage = "Promo \"${promo.name}\" ${if (nextActive) "diaktifkan" else "dinonaktifkan"}."
             )
         }
     }
 
     fun deletePromotion(promoId: String) {
+        val promo = _uiState.value.promotions.firstOrNull { it.id == promoId }
+        if (_uiState.value.backendStatus == BackendIntegrationStatus.ACTIVE_VERIFIED) {
+            viewModelScope.launch {
+                runCatching { repository.deletePromotion(promoId) }
+                    .onSuccess {
+                        _uiState.update { state ->
+                            state.copy(promotions = state.promotions.filterNot { it.id == promoId })
+                        }
+                        showNotice("Promo berhasil dihapus.")
+                    }
+                    .onFailure { err -> showNotice(err.message ?: "Promo gagal dihapus.", isError = true) }
+            }
+            return
+        }
         _uiState.update { state ->
             state.copy(
                 promotions = state.promotions.filterNot { it.id == promoId },
-                successMessage = "Promosi berhasil dihapus."
+                successMessage = "Promosi berhasil dihapus dalam mode simulasi."
             )
         }
     }

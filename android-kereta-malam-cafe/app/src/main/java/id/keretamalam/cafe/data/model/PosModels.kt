@@ -24,7 +24,8 @@ enum class PermissionKey(val key: String) {
     REPORTS("reports"),
     CUSTOMERS("customers"),
     PROMOTIONS("promotions"),
-    SETTINGS("settings")
+    SETTINGS("settings"),
+    OWNER_MANAGEMENT("owner_management")
 }
 
 @Serializable

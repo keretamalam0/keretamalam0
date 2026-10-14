@@ -721,9 +721,6 @@ fun PromosiComposeScreen(viewModel: PosViewModel, uiState: PosUiState) {
                         OutlinedButton(onClick = { viewModel.togglePromotionActive(promo.id) }) {
                             Text(if (promo.active) "Nonaktifkan" else "Aktifkan")
                         }
-                        OutlinedButton(onClick = { viewModel.deletePromotion(promo.id) }) {
-                            Text("Hapus", color = MaterialTheme.colorScheme.error)
-                        }
                     }
                 }
             }

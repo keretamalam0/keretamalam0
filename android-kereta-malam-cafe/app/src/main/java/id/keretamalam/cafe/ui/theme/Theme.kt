@@ -15,47 +15,47 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.Density
 import androidx.compose.ui.unit.sp
 
-// Cafe Flow Accent Palette — navy, soft blue, teal, and violet
+// Kereta Malam Cafe palette — muted blue-gray accents with restrained contrast
 private val MonochromeLightColorScheme = lightColorScheme(
-    primary = Color(0xFF2563EB),
+    primary = Color(0xFF71869D),
     onPrimary = Color(0xFFFFFFFF),
-    primaryContainer = Color(0xFFDBEAFE),
-    onPrimaryContainer = Color(0xFF173B78),
-    secondary = Color(0xFF0F8F83),
+    primaryContainer = Color(0xFFE5EAF0),
+    onPrimaryContainer = Color(0xFF34475B),
+    secondary = Color(0xFF648F86),
     onSecondary = Color(0xFFFFFFFF),
-    secondaryContainer = Color(0xFFD5F5EF),
+    secondaryContainer = Color(0xFFE0ECE8),
     onSecondaryContainer = Color(0xFF064E49),
-    tertiary = Color(0xFF7C3AED),
+    tertiary = Color(0xFF8B82A6),
     onTertiary = Color(0xFFFFFFFF),
-    background = Color(0xFFF7F9FC),
+    background = Color(0xFFF4F5F7),
     onBackground = Color(0xFF111827),
     surface = Color(0xFFFFFFFF),
     onSurface = Color(0xFF111827),
-    surfaceVariant = Color(0xFFF0F4FA),
+    surfaceVariant = Color(0xFFEEF1F4),
     onSurfaceVariant = Color(0xFF526176),
-    outline = Color(0xFFDCE4EF),
+    outline = Color(0xFFD9DEE5),
     error = Color(0xFFDC2626),
     onError = Color(0xFFFFFFFF)
 )
 
 private val MonochromeDarkColorScheme = darkColorScheme(
-    primary = Color(0xFF8AB4FF),
+    primary = Color(0xFF9BAFC5),
     onPrimary = Color(0xFF10213D),
-    primaryContainer = Color(0xFF203A62),
-    onPrimaryContainer = Color(0xFFDCE9FF),
-    secondary = Color(0xFF70D4C4),
+    primaryContainer = Color(0xFF293847),
+    onPrimaryContainer = Color(0xFFDDE5ED),
+    secondary = Color(0xFF8CBDB3),
     onSecondary = Color(0xFF073B37),
     secondaryContainer = Color(0xFF174A45),
     onSecondaryContainer = Color(0xFFBDF7EC),
-    tertiary = Color(0xFFC4A7FF),
+    tertiary = Color(0xFFB7A9CF),
     onTertiary = Color(0xFF2B1556),
     background = Color(0xFF090D14),
     onBackground = Color(0xFFF3F6FC),
     surface = Color(0xFF111722),
     onSurface = Color(0xFFF3F6FC),
-    surfaceVariant = Color(0xFF1A2432),
+    surfaceVariant = Color(0xFF202832),
     onSurfaceVariant = Color(0xFFB4C0D0),
-    outline = Color(0xFF2B394C),
+    outline = Color(0xFF303943),
     error = Color(0xFFFF6B72),
     onError = Color(0xFF39090D)
 )

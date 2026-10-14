@@ -293,6 +293,49 @@ class CafeFlowRepository(private val context: Context) {
         return "${creds.supabaseUrl}/storage/v1/object/public/product-images/$encodedPath"
     }
 
+    suspend fun fetchOrderAlertSoundUrl(): String? {
+        val creds = requireVerifiedCredentials()
+        val ownerId = creds.authenticatedUserId
+        require(ownerId.isNotBlank()) { "Silakan masuk sebagai pemilik outlet terlebih dahulu." }
+        val encodedOwner = URLEncoder.encode(ownerId, "UTF-8")
+        val raw = executeJsonRequest(
+            "GET",
+            "${creds.supabaseUrl}/rest/v1/outlet_settings?select=order_alert_sound_url&owner_id=eq.$encodedOwner&limit=1",
+            buildHeaders(creds)
+        )
+        val row = json.parseToJsonElement(raw).jsonArray.firstOrNull()?.jsonObject
+        return row?.get("order_alert_sound_url")?.jsonPrimitive?.contentOrNull
+            ?.takeIf { it.startsWith("https://") || it.startsWith("http://") }
+    }
+
+    suspend fun saveOrderAlertSoundUrl(soundUrl: String) {
+        val creds = requireVerifiedCredentials()
+        val ownerId = creds.authenticatedUserId
+        require(ownerId.isNotBlank()) { "Silakan masuk sebagai pemilik outlet terlebih dahulu." }
+        require(soundUrl.startsWith("https://") || soundUrl.startsWith("http://")) { "URL suara tidak valid." }
+        val encodedOwner = URLEncoder.encode(ownerId, "UTF-8")
+        val existingRaw = executeJsonRequest(
+            "GET",
+            "${creds.supabaseUrl}/rest/v1/outlet_settings?select=id&owner_id=eq.$encodedOwner&limit=1",
+            buildHeaders(creds)
+        )
+        val row = json.parseToJsonElement(existingRaw).jsonArray.firstOrNull()?.jsonObject
+            ?: throw IllegalStateException("Pengaturan outlet belum ditemukan.")
+        val id = row["id"]?.jsonPrimitive?.contentOrNull
+            ?: throw IllegalStateException("Data outlet tidak memiliki ID.")
+        val encodedId = URLEncoder.encode(id, "UTF-8")
+        val payload = buildJsonObject { put("order_alert_sound_url", soundUrl) }
+        val updated = executeJsonRequest(
+            "PATCH",
+            "${creds.supabaseUrl}/rest/v1/outlet_settings?id=eq.$encodedId&owner_id=eq.$encodedOwner",
+            buildHeaders(creds, "return=representation"),
+            json.encodeToString(JsonObject.serializer(), payload)
+        )
+        require(json.parseToJsonElement(updated).jsonArray.isNotEmpty()) {
+            "URL suara tidak tersimpan ke pengaturan outlet."
+        }
+    }
+
     suspend fun uploadOrderAlertSound(bytes: ByteArray, mimeType: String, fileExtension: String): String {
         require(bytes.isNotEmpty()) { "File suara kosong." }
         require(bytes.size <= 10 * 1024 * 1024) { "Ukuran file suara maksimal 10 MB." }

@@ -725,30 +725,32 @@ private fun KasirComposeScreen(
     }
 
     val catalogContent: @Composable (Modifier) -> Unit = { mod ->
-        Column(modifier = mod, verticalArrangement = Arrangement.spacedBy(10.dp)) {
+        Column(modifier = mod, verticalArrangement = Arrangement.spacedBy(if (isLandscapePhone) 5.dp else 7.dp)) {
             OutlinedTextField(
                 value = uiState.searchQuery,
                 onValueChange = { viewModel.setKasirFilter(uiState.selectedCategoryId, it) },
-                label = { Text("Cari menu kopi, makanan, snack...") },
-                modifier = Modifier.fillMaxWidth(),
+                label = { Text("Cari menu kopi, makanan, snack...", style = MaterialTheme.typography.labelSmall) },
+                modifier = Modifier.fillMaxWidth().height(if (isLandscapePhone) 44.dp else 48.dp),
                 singleLine = true
             )
             Row(
                 modifier = Modifier
                     .fillMaxWidth()
                     .horizontalScroll(rememberScrollState()),
-                horizontalArrangement = Arrangement.spacedBy(6.dp)
+                horizontalArrangement = Arrangement.spacedBy(4.dp)
             ) {
                 FilterChip(
+                    modifier = Modifier.height(if (isLandscapePhone) 30.dp else 34.dp),
                     selected = uiState.selectedCategoryId == "ALL",
                     onClick = { viewModel.setKasirFilter("ALL", uiState.searchQuery) },
-                    label = { Text("Semua Menu") }
+                    label = { Text("Semua Menu", style = MaterialTheme.typography.labelSmall) }
                 )
                 uiState.categories.forEach { cat ->
                     FilterChip(
+                        modifier = Modifier.height(if (isLandscapePhone) 30.dp else 34.dp),
                         selected = uiState.selectedCategoryId == cat.id,
                         onClick = { viewModel.setKasirFilter(cat.id, uiState.searchQuery) },
-                        label = { Text(cat.name) }
+                        label = { Text(cat.name, style = MaterialTheme.typography.labelSmall, maxLines = 1) }
                     )
                 }
             }
@@ -763,14 +765,14 @@ private fun KasirComposeScreen(
                 LazyHorizontalGrid(
                     rows = GridCells.Fixed(productRows),
                     modifier = Modifier.fillMaxSize(),
-                    horizontalArrangement = Arrangement.spacedBy(14.dp),
-                    verticalArrangement = Arrangement.spacedBy(10.dp),
+                    horizontalArrangement = Arrangement.spacedBy(if (isLandscapePhone) 8.dp else 10.dp),
+                    verticalArrangement = Arrangement.spacedBy(if (isLandscapePhone) 5.dp else 7.dp),
                     contentPadding = PaddingValues(end = 10.dp, bottom = 6.dp)
                 ) {
                     items(filteredProducts, key = { it.id }) { product ->
                         Column(
                             modifier = Modifier
-                                .width(if (isTabletOrWide) 210.dp else 188.dp)
+                                .width(if (isTabletOrWide) 190.dp else if (isLandscapePhone) 148.dp else 164.dp)
                                 .fillMaxHeight()
                                 .padding(horizontal = 2.dp, vertical = 2.dp),
                             verticalArrangement = Arrangement.spacedBy(4.dp)

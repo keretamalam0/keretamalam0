@@ -782,7 +782,7 @@ export default function App() {
             tax: cartTaxAndService,
             total: cartGrandTotal,
             is_paid: true,
-            payment_method: paymentMethodRecord,
+            payment_method: paymentMethod,
             payment_status: 'paid',
           },
           p_items: cart.map((c) => ({
@@ -830,7 +830,7 @@ export default function App() {
         tax: cartTaxAndService,
         total: cartGrandTotal,
         is_paid: true,
-        payment_method: paymentMethodRecord,
+        payment_method: paymentMethod,
         promotion_id: selectedPromo?.id ?? null,
         payment_status: 'paid',
         created_at: nowIso,
@@ -1971,7 +1971,7 @@ export default function App() {
                       o.restaurant_tables?.name ?? 'Takeaway',
                       o.customer_name ?? '-',
                       STATUS_LABELS[o.status],
-                      o.payment_method ?? '-',
+                      o.payments?.[0]?.method ?? o.payment_method ?? '-',
                       o.promotion_id ? promotions.find((p) => p.id === o.promotion_id)?.name ?? 'Promo' : (o.discount > 0 ? 'Diskon' : '-'),
                       o.discount,
                       o.total,
@@ -2013,7 +2013,7 @@ export default function App() {
                         {o.restaurant_tables?.name ?? 'Takeaway'} · {o.source.toUpperCase()}
                       </td>
                       <td className="px-4 py-3">{o.customer_name || '-'}</td>
-                      <td className="px-4 py-3">{o.payment_method || '-'}</td>
+                      <td className="px-4 py-3">{o.payments?.[0]?.method ?? o.payment_method ?? '-'}</td>
                       <td className="px-4 py-3">
                         <div className="font-medium">{o.promotion_id ? promotions.find((p) => p.id === o.promotion_id)?.name ?? 'Promo' : (o.discount > 0 ? 'Diskon' : '-')}</div>
                         {o.discount > 0 && <div className="mt-0.5 text-[11px] font-semibold text-emerald-600">-{formatRupiah(o.discount)}</div>}

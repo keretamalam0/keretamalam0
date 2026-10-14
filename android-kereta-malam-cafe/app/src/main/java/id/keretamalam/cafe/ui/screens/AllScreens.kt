@@ -40,6 +40,7 @@ import androidx.compose.material.icons.outlined.History
 import androidx.compose.material.icons.outlined.Refresh
 import androidx.compose.material.icons.outlined.Search
 import androidx.compose.material.icons.outlined.WarningAmber
+import androidx.compose.material.icons.outlined.VisibilityOff
 import androidx.compose.material.icons.outlined.Delete
 import androidx.compose.material.icons.outlined.DeleteSweep
 import androidx.compose.material.icons.outlined.FileDownload
@@ -477,10 +478,27 @@ private fun DashboardComposeScreen(
                     status.chunked(2).forEach { row ->
                         Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                             row.forEach { item ->
+                                val statusIcon = when (item.first) {
+                                    "Produk Aktif" -> Icons.Outlined.CheckCircle
+                                    "Stok Menipis" -> Icons.Outlined.WarningAmber
+                                    "Pesanan Aktif" -> Icons.Outlined.ReceiptLong
+                                    else -> Icons.Outlined.VisibilityOff
+                                }
+                                val statusColor = when (item.first) {
+                                    "Produk Aktif" -> Color(0xFF16A34A)
+                                    "Stok Menipis" -> Color(0xFFF59E0B)
+                                    "Pesanan Aktif" -> Color(0xFF2878F0)
+                                    else -> Color(0xFFEF4444)
+                                }
                                 OutlinedCard(onClick = { onNavigateModule(item.third) }, modifier = Modifier.weight(1f)) {
-                                    Column(Modifier.padding(12.dp)) {
-                                        Text(item.first, style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
-                                        Text(item.second, style = MaterialTheme.typography.headlineSmall, fontWeight = FontWeight.Bold)
+                                    Row(Modifier.fillMaxWidth().padding(10.dp), horizontalArrangement = Arrangement.spacedBy(8.dp), verticalAlignment = Alignment.CenterVertically) {
+                                        Surface(shape = RoundedCornerShape(10.dp), color = statusColor.copy(alpha = 0.13f), modifier = Modifier.size(34.dp)) {
+                                            Box(contentAlignment = Alignment.Center) { Icon(statusIcon, contentDescription = null, tint = statusColor, modifier = Modifier.size(20.dp)) }
+                                        }
+                                        Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(1.dp)) {
+                                            Text(item.first, style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                                            Text(item.second, style = MaterialTheme.typography.titleLarge, fontWeight = FontWeight.Bold, color = statusColor)
+                                        }
                                     }
                                 }
                             }
@@ -517,35 +535,55 @@ private fun DashboardComposeScreen(
     }
 }
 
-private val DashboardChartColors = listOf(Color(0xFF7B91AA), Color(0xFF6F9B91), Color(0xFFC5A56E), Color(0xFF998AB8), Color(0xFFB98FA1), Color(0xFF729DA8), Color(0xFF7B8794))
+private val DashboardChartColors = listOf(Color(0xFF16A34A), Color(0xFF2878F0), Color(0xFFF59E0B), Color(0xFF8B5CF6), Color(0xFF0D9488), Color(0xFFEF4444), Color(0xFFDB2777))
 
 @Composable
 private fun DashboardLineChart(values: List<Float>, modifier: Modifier = Modifier) {
-    val blue = Color(0xFF7B91AA)
-    val grid = MaterialTheme.colorScheme.outline.copy(alpha = 0.22f)
-    Canvas(modifier) {
-        if (values.isEmpty()) return@Canvas
-        val left = 5f; val right = size.width - 5f; val top = 12f; val bottom = size.height - 12f
-        repeat(4) { i -> val y = top + (bottom - top) * i / 3f; drawLine(grid, androidx.compose.ui.geometry.Offset(left, y), androidx.compose.ui.geometry.Offset(right, y), strokeWidth = 1.dp.toPx()) }
-        val max = (values.maxOrNull() ?: 0f).coerceAtLeast(1f)
-        val points = values.mapIndexed { i, v -> androidx.compose.ui.geometry.Offset(left + (right-left) * i / (values.size-1).coerceAtLeast(1), bottom - (v/max).coerceIn(0f,1f) * (bottom-top)) }
-        val path = androidx.compose.ui.graphics.Path().apply { moveTo(points.first().x, points.first().y); points.drop(1).forEach { lineTo(it.x,it.y) } }
-        drawPath(path, blue.copy(alpha = 0.14f), style = androidx.compose.ui.graphics.drawscope.Stroke(width = 13.dp.toPx(), cap = androidx.compose.ui.graphics.StrokeCap.Round, join = androidx.compose.ui.graphics.StrokeJoin.Round))
-        drawPath(path, blue.copy(alpha = 0.24f), style = androidx.compose.ui.graphics.drawscope.Stroke(width = 7.dp.toPx(), cap = androidx.compose.ui.graphics.StrokeCap.Round, join = androidx.compose.ui.graphics.StrokeJoin.Round))
-        drawPath(path, blue, style = androidx.compose.ui.graphics.drawscope.Stroke(width = 3.dp.toPx(), cap = androidx.compose.ui.graphics.StrokeCap.Round, join = androidx.compose.ui.graphics.StrokeJoin.Round))
-        // Clean curve without permanent point markers.
+    var selected by remember(values) { mutableIntStateOf(-1) }
+    val blue = Color(0xFF2878F0)
+    val grid = MaterialTheme.colorScheme.outline.copy(alpha = 0.18f)
+    Box(modifier) {
+        Canvas(Modifier.fillMaxSize()
+            .pointerInput(values) { detectTapGestures { p -> selected = ((p.x / size.width.coerceAtLeast(1).toFloat()) * values.size).toInt().coerceIn(0, (values.size-1).coerceAtLeast(0)) } }
+            .pointerInput(values) { detectHorizontalDragGestures { change, _ -> change.consume(); selected = ((change.position.x / size.width.coerceAtLeast(1).toFloat()) * values.size).toInt().coerceIn(0, (values.size-1).coerceAtLeast(0)) } }) {
+            if (values.isEmpty()) return@Canvas
+            val left=7f; val right=size.width-7f; val top=16f; val bottom=size.height-12f
+            repeat(4) { i -> val y=top+(bottom-top)*i/3f; drawLine(grid, androidx.compose.ui.geometry.Offset(left,y), androidx.compose.ui.geometry.Offset(right,y), strokeWidth=1.dp.toPx()) }
+            val max=(values.maxOrNull() ?: 0f).coerceAtLeast(1f)
+            val points=values.mapIndexed { i,v -> androidx.compose.ui.geometry.Offset(left+(right-left)*i/(values.size-1).coerceAtLeast(1), bottom-(v/max).coerceIn(0f,1f)*(bottom-top)) }
+            val path=androidx.compose.ui.graphics.Path().apply {
+                moveTo(points.first().x,points.first().y)
+                for(i in 1 until points.size) { val a=points[i-1]; val b=points[i]; val mid=(a.x+b.x)/2f; cubicTo(mid,a.y,mid,b.y,b.x,b.y) }
+            }
+            drawPath(path,blue.copy(alpha=.09f),style=androidx.compose.ui.graphics.drawscope.Stroke(width=16.dp.toPx(),cap=androidx.compose.ui.graphics.StrokeCap.Round,join=androidx.compose.ui.graphics.StrokeJoin.Round))
+            drawPath(path,blue.copy(alpha=.18f),style=androidx.compose.ui.graphics.drawscope.Stroke(width=8.dp.toPx(),cap=androidx.compose.ui.graphics.StrokeCap.Round,join=androidx.compose.ui.graphics.StrokeJoin.Round))
+            drawPath(path,blue,style=androidx.compose.ui.graphics.drawscope.Stroke(width=3.dp.toPx(),cap=androidx.compose.ui.graphics.StrokeCap.Round,join=androidx.compose.ui.graphics.StrokeJoin.Round))
+            if(selected in points.indices) { val p=points[selected]; drawLine(blue.copy(alpha=.38f),androidx.compose.ui.geometry.Offset(p.x,top),androidx.compose.ui.geometry.Offset(p.x,bottom),strokeWidth=1.5.dp.toPx()); drawCircle(Color.White,6.dp.toPx(),p); drawCircle(blue,4.dp.toPx(),p) }
+        }
+        if(selected in values.indices) Surface(Modifier.align(Alignment.TopEnd).padding(5.dp),color=MaterialTheme.colorScheme.surface,shape=RoundedCornerShape(8.dp),shadowElevation=4.dp) {
+            Text("Hari ${selected+1}: ${RupiahFormatter.format(values[selected].toDouble())}",Modifier.padding(horizontal=8.dp,vertical=5.dp),style=MaterialTheme.typography.labelSmall,color=blue)
+        }
     }
 }
 
 @Composable
 private fun DashboardBarChart(values: List<Float>, modifier: Modifier = Modifier) {
-    val blue = Color(0xFF7B91AA); val grid = MaterialTheme.colorScheme.outline.copy(alpha = 0.22f)
-    Canvas(modifier) {
-        val max = (values.maxOrNull() ?: 0f).coerceAtLeast(1f); val step = size.width / values.size.coerceAtLeast(1)
-        repeat(3) { i -> val y = size.height * (i+1) / 4f; drawLine(grid, androidx.compose.ui.geometry.Offset(0f,y), androidx.compose.ui.geometry.Offset(size.width,y), strokeWidth = 1.dp.toPx()) }
-        values.forEachIndexed { i, v ->
-            val h = (v/max).coerceIn(0f,1f) * (size.height - 8.dp.toPx()); val w = step * 0.58f
-            drawRoundRect(if (v > 0f) blue else blue.copy(alpha = 0.12f), androidx.compose.ui.geometry.Offset(i*step+(step-w)/2f,size.height-h), androidx.compose.ui.geometry.Size(w,h.coerceAtLeast(2.dp.toPx())), androidx.compose.ui.geometry.CornerRadius(w/2f,w/2f))
+    var selected by remember(values) { mutableIntStateOf(-1) }
+    val blue=Color(0xFF2878F0); val grid=MaterialTheme.colorScheme.outline.copy(alpha=.18f)
+    Box(modifier) {
+        Canvas(Modifier.fillMaxSize()
+            .pointerInput(values) { detectTapGestures { p -> selected=((p.x/size.width.coerceAtLeast(1).toFloat())*values.size).toInt().coerceIn(0,(values.size-1).coerceAtLeast(0)) } }
+            .pointerInput(values) { detectHorizontalDragGestures { change, _ -> change.consume(); selected=((change.position.x/size.width.coerceAtLeast(1).toFloat())*values.size).toInt().coerceIn(0,(values.size-1).coerceAtLeast(0)) } }) {
+            if(values.isEmpty()) return@Canvas
+            val max=(values.maxOrNull() ?: 0f).coerceAtLeast(1f); val step=size.width/values.size.coerceAtLeast(1)
+            repeat(3) { i -> val y=size.height*(i+1)/4f; drawLine(grid,androidx.compose.ui.geometry.Offset(0f,y),androidx.compose.ui.geometry.Offset(size.width,y),strokeWidth=1.dp.toPx()) }
+            values.forEachIndexed { i,v ->
+                val h=(v/max).coerceIn(0f,1f)*(size.height-8.dp.toPx()); val w=step*.58f; val x=i*step+(step-w)/2f
+                drawRoundRect(if(selected==i) Color(0xFF1558C0) else if(v>0f) blue else blue.copy(alpha=.12f),androidx.compose.ui.geometry.Offset(x,size.height-h),androidx.compose.ui.geometry.Size(w,h.coerceAtLeast(2.dp.toPx())),androidx.compose.ui.geometry.CornerRadius(w/2f,w/2f))
+            }
+        }
+        if(selected in values.indices) Surface(Modifier.align(Alignment.TopEnd).padding(4.dp),color=MaterialTheme.colorScheme.surface,shape=RoundedCornerShape(8.dp),shadowElevation=4.dp) {
+            Text("${selected.toString().padStart(2,'0')}:00 · ${values[selected].toInt()} order",Modifier.padding(horizontal=8.dp,vertical=5.dp),style=MaterialTheme.typography.labelSmall,color=blue)
         }
     }
 }
@@ -553,29 +591,15 @@ private fun DashboardBarChart(values: List<Float>, modifier: Modifier = Modifier
 @Composable
 private fun DashboardDonutChart(values: List<Float>, modifier: Modifier = Modifier) {
     var selected by remember(values) { mutableIntStateOf(-1) }
-    val total = values.sum().coerceAtLeast(1f)
+    val total=values.sum().coerceAtLeast(1f)
     Box(modifier) {
-        Canvas(Modifier.fillMaxSize().pointerInput(values) {
-            detectTapGestures { selected = ((it.x / size.width.coerceAtLeast(1).toFloat()) * values.size).toInt().coerceIn(0, (values.size - 1).coerceAtLeast(0)) }
-        }.pointerInput(values) {
-            detectHorizontalDragGestures { change, _ ->
-                change.consume()
-                selected = ((change.position.x / size.width.coerceAtLeast(1).toFloat()) * values.size).toInt().coerceIn(0, (values.size - 1).coerceAtLeast(0))
-            }
+        Canvas(Modifier.fillMaxSize().pointerInput(values) { detectTapGestures { selected=((it.x/size.width.coerceAtLeast(1).toFloat())*values.size).toInt().coerceIn(0,(values.size-1).coerceAtLeast(0)) } }.pointerInput(values) {
+            detectHorizontalDragGestures { change, _ -> change.consume(); selected=((change.position.x/size.width.coerceAtLeast(1).toFloat())*values.size).toInt().coerceIn(0,(values.size-1).coerceAtLeast(0)) }
         }) {
-            val stroke = 18.dp.toPx(); var start = -90f
-            values.forEachIndexed { i, v ->
-                val sweep = v / total * 360f
-                drawArc(DashboardChartColors[i % DashboardChartColors.size].copy(alpha = if (selected == -1 || selected == i) 1f else .45f), start, (sweep-2f).coerceAtLeast(0f), false,
-                    topLeft = androidx.compose.ui.geometry.Offset(stroke/2f,stroke/2f),
-                    size = androidx.compose.ui.geometry.Size(size.width-stroke,size.height-stroke),
-                    style = androidx.compose.ui.graphics.drawscope.Stroke(width=if(selected==i) 23.dp.toPx() else stroke))
-                start += sweep
-            }
+            val stroke=18.dp.toPx(); var startAngle=-90f
+            values.forEachIndexed { i,v -> val sweep=v/total*360f; drawArc(DashboardChartColors[i%DashboardChartColors.size].copy(alpha=if(selected==-1||selected==i) 1f else .42f),startAngle,(sweep-2f).coerceAtLeast(0f),false,topLeft=androidx.compose.ui.geometry.Offset(stroke/2f,stroke/2f),size=androidx.compose.ui.geometry.Size(size.width-stroke,size.height-stroke),style=androidx.compose.ui.graphics.drawscope.Stroke(width=if(selected==i) 23.dp.toPx() else stroke)); startAngle+=sweep }
         }
-        if (selected in values.indices) Surface(Modifier.align(Alignment.TopCenter).padding(4.dp), color=MaterialTheme.colorScheme.surface, shape=RoundedCornerShape(8.dp), shadowElevation=4.dp) {
-            Text("Bagian ${selected+1}: ${RupiahFormatter.format(values[selected].toDouble())}", Modifier.padding(horizontal=8.dp, vertical=5.dp), style=MaterialTheme.typography.labelSmall)
-        }
+        if(selected in values.indices) Surface(Modifier.align(Alignment.TopCenter).padding(4.dp),color=MaterialTheme.colorScheme.surface,shape=RoundedCornerShape(8.dp),shadowElevation=4.dp) { Text("${selected+1}: ${RupiahFormatter.format(values[selected].toDouble())}",Modifier.padding(horizontal=8.dp,vertical=5.dp),style=MaterialTheme.typography.labelSmall) }
     }
 }
 

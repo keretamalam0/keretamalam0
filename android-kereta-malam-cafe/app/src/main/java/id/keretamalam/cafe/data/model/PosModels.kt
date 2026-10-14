@@ -166,6 +166,7 @@ data class OrderWithItems(
     val tax: Double = 0.0,
     val total: Double = 0.0,
     @SerialName("is_paid") val isPaid: Boolean = false,
+    @SerialName("customer_payment_method") val customerPaymentMethod: String? = null,
     @SerialName("payment_method") val paymentMethod: String? = null,
     @SerialName("payment_status") val paymentStatus: PaymentStatus = PaymentStatus.UNPAID,
     @SerialName("created_at") val createdAt: String = "",

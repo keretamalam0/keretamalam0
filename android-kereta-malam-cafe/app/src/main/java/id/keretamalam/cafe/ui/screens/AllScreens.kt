@@ -1570,7 +1570,9 @@ private fun PesananComposeScreen(
                             Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween, verticalAlignment = Alignment.Top) {
                                 Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(2.dp)) {
                                     Text("Order #${order.orderNo}", fontWeight = FontWeight.Bold)
-                                    Text("${order.source.uppercase()} · ${order.restaurantTable?.name ?: "Takeaway"} · ${order.customerName ?: "Walk-in"}", style = MaterialTheme.typography.bodyMedium)
+                                    val tableName = order.restaurantTable?.name ?: "Takeaway"
+                                    val customerName = order.customerName ?: "Walk-in"
+                                    Text("${order.source.uppercase()} · $tableName · $customerName", style = MaterialTheme.typography.bodyMedium)
                                     val time = order.createdAt.substringAfter("T", order.createdAt).take(5)
                                     Text("Jam: $time · ${order.createdAt.take(10)}", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
                                 }

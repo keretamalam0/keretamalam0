@@ -767,8 +767,20 @@ fun LaporanPenjualanComposeScreen(viewModel: PosViewModel, uiState: PosUiState, 
     val paid = orders.filter { it.isPaid && it.status != OrderStatus.CANCELLED }
     val allPaidOrders = uiState.orders.filter { it.isPaid && it.status != OrderStatus.CANCELLED }
     val revenue = paid.sumOf { it.total }
-    val dailyDates = (6 downTo 0).map { today.minusDays(it.toLong()) }
-    val daily = dailyDates.map { d -> allPaidOrders.filter { reportDate(it.createdAt)?.toLocalDate() == d }.sumOf { it.total }.toFloat() }
+    val dailyDates = remember(period, today, customStart, customEnd, uiState.orders) {
+        val earliest = uiState.orders.mapNotNull { reportDate(it.createdAt)?.toLocalDate() }.minOrNull() ?: today.minusDays(6)
+        val start = when (period) {
+            "Hari Ini" -> today
+            "7 Hari" -> today.minusDays(6)
+            "30 Hari" -> today.minusDays(29)
+            "Custom" -> customStart?.let { minOf(it, customEnd ?: it) } ?: today.minusDays(6)
+            else -> maxOf(earliest, today.minusDays(30))
+        }
+        val end = if (period == "Custom") customEnd?.let { maxOf(it, customStart ?: it) } ?: today else today
+        val days = java.time.temporal.ChronoUnit.DAYS.between(start, end).toInt().coerceAtLeast(0).coerceAtMost(30)
+        (0..days).map { start.plusDays(it.toLong()) }
+    }
+    val daily = dailyDates.map { d -> paid.filter { reportDate(it.createdAt)?.toLocalDate() == d }.sumOf { it.total }.toFloat() }
     val products = paid.flatMap { it.orderItems }.groupBy { it.productName }.map { (n, items) -> Triple(n, items.sumOf { it.quantity }, items.sumOf { it.lineTotal }) }.sortedByDescending { it.third }
     val hourly = (0..23).map { h -> h to paid.filter { reportDate(it.createdAt)?.hour == h }.sumOf { it.total } }
     val payNames = mapOf("cash" to "Tunai", "qris" to "QRIS", "transfer" to "Transfer", "ewallet" to "E-Wallet")
@@ -826,7 +838,7 @@ fun LaporanPenjualanComposeScreen(viewModel: PosViewModel, uiState: PosUiState, 
                         ReportMetric("Rata-rata Transaksi", reportMoney(if (paid.isEmpty()) 0.0 else revenue / paid.size), Modifier.weight(1f))
                         ReportMetric("Unit Terjual", paid.sumOf { o -> o.orderItems.sumOf { it.quantity } }.toString(), Modifier.weight(1f))
                     }
-                    OutlinedCard(Modifier.fillMaxWidth()) { Column(Modifier.padding(14.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) { Text("Tren Omzet 7 Hari", style = MaterialTheme.typography.titleMedium); ReportLineChart(daily, Modifier.fillMaxWidth().height(160.dp)); Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) { Text(dailyDates.first().format(java.time.format.DateTimeFormatter.ofPattern("dd MMM"))); Text("Hari ini") } } }
+                    OutlinedCard(Modifier.fillMaxWidth()) { Column(Modifier.padding(14.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) { Text("Tren Omzet per Tanggal", style = MaterialTheme.typography.titleMedium); ReportLineChart(daily, Modifier.fillMaxWidth().height(160.dp)); Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) { Text(dailyDates.firstOrNull()?.format(java.time.format.DateTimeFormatter.ofPattern("dd MMM")) ?: "-"); Text(dailyDates.lastOrNull()?.format(java.time.format.DateTimeFormatter.ofPattern("dd MMM")) ?: "-") } } }
                     OutlinedCard(Modifier.fillMaxWidth()) { Column(Modifier.padding(14.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) { Text("Diagram Batang · Omzet Harian", style = MaterialTheme.typography.titleMedium); ReportBarChart(daily, Modifier.fillMaxWidth().height(140.dp)); dailyDates.forEachIndexed { i,d -> Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) { Text(d.format(java.time.format.DateTimeFormatter.ofPattern("EEE, dd MMM"))); Text(reportMoney(daily[i].toDouble()), fontWeight = FontWeight.SemiBold) } } } }
                     OutlinedCard(Modifier.fillMaxWidth()) { Column(Modifier.padding(14.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) { Text("Diagram Bulat · Metode Pembayaran", style = MaterialTheme.typography.titleMedium); if (payments.isEmpty()) Text("Belum ada transaksi lunas pada periode ini.") else { ReportDonut(payments.map { it.second.toFloat() }, Modifier.fillMaxWidth().height(150.dp)); payments.forEachIndexed { i,p -> Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) { Surface(Modifier.size(10.dp), shape = RoundedCornerShape(50), color = ReportChartPalette[i % ReportChartPalette.size]) {}; Text(p.first, Modifier.weight(1f)); Text(reportMoney(p.second), fontWeight = FontWeight.SemiBold) } } } } }
                 }

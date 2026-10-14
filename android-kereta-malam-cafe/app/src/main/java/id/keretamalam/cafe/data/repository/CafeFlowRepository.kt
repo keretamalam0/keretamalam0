@@ -629,6 +629,21 @@ class CafeFlowRepository(private val context: Context) {
         )
     }
 
+    suspend fun confirmOrderPayment(orderId: String, paymentMethod: String, cashReceived: Double? = null) {
+        val creds = requireVerifiedCredentials()
+        val payload = buildJsonObject {
+            put("p_order_id", orderId)
+            put("p_payment_method", paymentMethod.lowercase())
+            if (cashReceived != null) put("p_cash_received", cashReceived) else put("p_cash_received", JsonNull)
+        }
+        executeJsonRequest(
+            method = "POST",
+            url = "${creds.supabaseUrl}/rest/v1/rpc/confirm_order_payment",
+            headers = buildHeaders(creds),
+            bodyJson = json.encodeToString(JsonObject.serializer(), payload)
+        )
+    }
+
     suspend fun rejectQrOrder(orderId: String) {
         val creds = requireVerifiedCredentials()
         val payload = buildJsonObject { put("p_order_id", orderId) }

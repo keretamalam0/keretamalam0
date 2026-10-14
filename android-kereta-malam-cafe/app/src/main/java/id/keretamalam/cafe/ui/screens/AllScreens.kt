@@ -572,21 +572,31 @@ private fun kpiIconFor(title: String): Pair<ImageVector, Color> = when {
 @Composable
 private fun DashboardKpiCard(modifier: Modifier = Modifier, title: String, value: String, subtitle: String, onClick: () -> Unit) {
     val (icon, tint) = kpiIconFor(title)
-    OutlinedCard(onClick = onClick, modifier = modifier) {
+    val dark = androidx.compose.foundation.isSystemInDarkTheme()
+    val cardShape = RoundedCornerShape(14.dp)
+    Card(
+        onClick = onClick,
+        modifier = modifier.border(1.dp, tint.copy(alpha = if (dark) 0.30f else 0.20f), cardShape),
+        shape = cardShape,
+        colors = CardDefaults.cardColors(
+            containerColor = tint.copy(alpha = if (dark) 0.15f else 0.075f)
+        ),
+        elevation = CardDefaults.cardElevation(defaultElevation = 2.dp, pressedElevation = 5.dp)
+    ) {
         Column(Modifier.fillMaxWidth().padding(12.dp), verticalArrangement = Arrangement.spacedBy(5.dp)) {
             Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(7.dp)) {
                 Surface(
                     shape = RoundedCornerShape(9.dp),
-                    color = tint.copy(alpha = 0.11f),
-                    modifier = Modifier.size(30.dp)
+                    color = tint.copy(alpha = if (dark) 0.25f else 0.14f),
+                    modifier = Modifier.size(32.dp)
                 ) {
                     Box(contentAlignment = Alignment.Center) {
-                        Icon(imageVector = icon, contentDescription = null, tint = tint, modifier = Modifier.size(18.dp))
+                        Icon(imageVector = icon, contentDescription = null, tint = tint, modifier = Modifier.size(19.dp))
                     }
                 }
-                Text(title, style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant, maxLines = 2)
+                Text(title, style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurface, maxLines = 2)
             }
-            Text(value, style = MaterialTheme.typography.titleLarge, fontWeight = FontWeight.Bold, maxLines = 2)
+            Text(value, style = MaterialTheme.typography.titleLarge, fontWeight = FontWeight.Bold, color = MaterialTheme.colorScheme.onSurface, maxLines = 2)
             Text(subtitle, style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.onSurfaceVariant, maxLines = 2)
         }
     }

@@ -667,6 +667,28 @@ fun PromosiComposeScreen(viewModel: PosViewModel, uiState: PosUiState) {
     var allowCashier by remember { mutableStateOf(true) }
     var selectedTab by remember { mutableStateOf("all") }
     var productDropdownExpanded by remember { mutableStateOf(false) }
+    var promoToDelete by remember { mutableStateOf<Promotion?>(null) }
+
+    if (promoToDelete != null) {
+        val deletingPromo = promoToDelete!!
+        AlertDialog(
+            onDismissRequest = { promoToDelete = null },
+            title = { Text("Hapus promo ini?") },
+            text = { Text("Promo \"${deletingPromo.name}\" akan dihapus permanen dari daftar promo. Transaksi lama tetap tersimpan; riwayat tetap menampilkan nominal potongannya.") },
+            confirmButton = {
+                Button(
+                    onClick = {
+                        promoToDelete = null
+                        viewModel.deletePromotion(deletingPromo.id)
+                    },
+                    colors = ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.error)
+                ) { Text("Ya, Hapus") }
+            },
+            dismissButton = {
+                OutlinedButton(onClick = { promoToDelete = null }) { Text("Batal") }
+            }
+        )
+    }
 
     val filteredPromotions = uiState.promotions.filter { promo ->
         when (selectedTab) {
@@ -844,9 +866,22 @@ fun PromosiComposeScreen(viewModel: PosViewModel, uiState: PosUiState) {
                         style = MaterialTheme.typography.bodySmall,
                         color = MaterialTheme.colorScheme.onSurfaceVariant
                     )
-                    Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.spacedBy(8.dp),
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
                         OutlinedButton(onClick = { viewModel.togglePromotionActive(promo.id) }) {
                             Text(if (promo.active) "Nonaktifkan" else "Aktifkan")
+                        }
+                        Spacer(Modifier.weight(1f))
+                        OutlinedButton(
+                            onClick = { promoToDelete = promo },
+                            colors = ButtonDefaults.outlinedButtonColors(contentColor = MaterialTheme.colorScheme.error)
+                        ) {
+                            Icon(Icons.Outlined.Delete, contentDescription = null, modifier = Modifier.size(16.dp))
+                            Spacer(Modifier.width(4.dp))
+                            Text("Hapus")
                         }
                     }
                 }

@@ -894,6 +894,49 @@ class CafeFlowRepository(private val context: Context) {
             buildHeaders(creds, "return=minimal"))
     }
 
+    private suspend fun callOwnerManagement(payload: JsonObject): JsonObject {
+        val creds = requireVerifiedCredentials()
+        val raw = executeJsonRequest(
+            method = "POST",
+            url = "${creds.supabaseUrl}/functions/v1/create-owner",
+            headers = buildHeaders(creds),
+            bodyJson = json.encodeToString(JsonObject.serializer(), payload)
+        )
+        val response = json.parseToJsonElement(raw).jsonObject
+        if (response["ok"]?.jsonPrimitive?.booleanOrNull != true) {
+            throw IllegalStateException(response["error"]?.jsonPrimitive?.contentOrNull ?: "Permintaan Manajemen Owner gagal.")
+        }
+        return response
+    }
+
+    suspend fun fetchOwners(): List<OwnerAccount> {
+        val response = callOwnerManagement(buildJsonObject { put("action", "list") })
+        val owners = response["owners"] ?: return emptyList()
+        return json.decodeFromJsonElement(kotlinx.serialization.builtins.ListSerializer(OwnerAccount.serializer()), owners)
+    }
+
+    suspend fun createOwner(fullName: String, email: String) {
+        callOwnerManagement(buildJsonObject {
+            put("full_name", fullName.trim())
+            put("email", email.trim())
+        })
+    }
+
+    suspend fun setOwnerActive(userId: String, active: Boolean) {
+        callOwnerManagement(buildJsonObject {
+            put("action", "set_active")
+            put("user_id", userId)
+            put("is_active", active)
+        })
+    }
+
+    suspend fun deleteOwner(userId: String) {
+        callOwnerManagement(buildJsonObject {
+            put("action", "delete")
+            put("user_id", userId)
+        })
+    }
+
     suspend fun fetchPaymentMethods(): List<PaymentMethod> {
         val creds = requireVerifiedCredentials()
         val raw = executeJsonRequest("GET",

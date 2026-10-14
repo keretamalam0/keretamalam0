@@ -675,6 +675,7 @@ class CafeFlowRepository(private val context: Context) {
             put("type", promotion.type)
             put("value", promotion.value)
             put("min_purchase", promotion.minPurchase)
+            put("max_purchase", promotion.maxPurchase)
             put("min_quantity", promotion.minQuantity.coerceAtLeast(1))
             put("scope", promotion.scope)
             if (promotion.productId.isNullOrBlank()) put("product_id", JsonNull) else put("product_id", promotion.productId)

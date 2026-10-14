@@ -762,9 +762,9 @@ class PosViewModel(application: Application) : AndroidViewModel(application) {
         }
     }
 
-    fun askAiAssistant(prompt: String) {
-        if (prompt.isBlank()) {
-            showNotice("Masukkan pertanyaan analisis terlebih dahulu.", isError = true)
+    fun askAiAssistant(prompt: String, imageBase64: String? = null, imageMimeType: String = "image/jpeg") {
+        if (prompt.isBlank() && imageBase64.isNullOrBlank()) {
+            showNotice("Tulis pertanyaan atau lampirkan screenshot terlebih dahulu.", isError = true)
             return
         }
         viewModelScope.launch {
@@ -779,7 +779,7 @@ class PosViewModel(application: Application) : AndroidViewModel(application) {
             }
             _uiState.update { it.copy(isLoading = true, errorMessage = null) }
             runCatching {
-                repository.invokeAiAssistant(prompt)
+                repository.invokeAiAssistant(prompt, imageBase64, imageMimeType)
             }.onSuccess { reply ->
                 _uiState.update {
                     it.copy(isLoading = false, aiReplyText = reply)

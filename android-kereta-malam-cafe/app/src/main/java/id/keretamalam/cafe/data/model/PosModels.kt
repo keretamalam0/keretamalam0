@@ -25,7 +25,14 @@ enum class PermissionKey(val key: String) {
     CUSTOMERS("customers"),
     PROMOTIONS("promotions"),
     SETTINGS("settings"),
-    OWNER_MANAGEMENT("owner_management")
+    OWNER_MANAGEMENT("owner_management"),
+    AI_ASSISTANT("ai_assistant"),
+    SHIFT_MANAGEMENT("shift_management"),
+    SHIFT_AUDIT("shift_audit"),
+    ACTIVITY_LOG("activity_log"),
+    EXPENSES("expenses"),
+    STAFF_MANAGEMENT("staff_management"),
+    PRINTER_MANAGEMENT("printer_management")
 }
 
 @Serializable

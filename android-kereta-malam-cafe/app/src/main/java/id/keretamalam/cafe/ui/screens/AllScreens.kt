@@ -37,6 +37,7 @@ import androidx.compose.material.icons.outlined.History
 import androidx.compose.material.icons.outlined.Refresh
 import androidx.compose.material.icons.outlined.Search
 import androidx.compose.material.icons.outlined.WarningAmber
+import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
@@ -806,7 +807,7 @@ private fun KasirComposeScreen(
                                 style = MaterialTheme.typography.bodyMedium,
                                 fontWeight = FontWeight.SemiBold,
                                 maxLines = 1,
-                                overflow = TextOverflow.Ellipsis
+                                overflow = androidx.compose.ui.text.style.TextOverflow.Ellipsis
                             )
                             Row(
                                 modifier = Modifier.fillMaxWidth(),

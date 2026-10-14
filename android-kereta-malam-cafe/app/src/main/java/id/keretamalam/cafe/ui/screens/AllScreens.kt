@@ -1388,8 +1388,8 @@ private fun PesananComposeScreen(
                             if (lane != "riwayat") {
                                 if (order.source == "qr" && !order.isPaid && order.status != OrderStatus.CANCELLED) {
                                     Row(horizontalArrangement = Arrangement.spacedBy(6.dp)) {
-                                        Button(onClick = { viewModel.approveQrOrder(order, "qris") { lane = "diproses" } }) { Text("Konfirmasi QRIS") }
-                                        OutlinedButton(onClick = { viewModel.approveQrOrder(order, "cash") { lane = "diproses" } }) { Text("Terima Tunai") }
+                                        Button(onClick = { viewModel.approveQrOrder(order, "qris") { lane = if (order.status == OrderStatus.READY) "siap" else "diproses" } }) { Text("Konfirmasi QRIS") }
+                                        OutlinedButton(onClick = { viewModel.approveQrOrder(order, "cash") { lane = if (order.status == OrderStatus.READY) "siap" else "diproses" } }) { Text("Terima Tunai") }
                                         OutlinedButton(onClick = { viewModel.rejectQrOrder(order) }) { Text("Tolak") }
                                     }
                                 }

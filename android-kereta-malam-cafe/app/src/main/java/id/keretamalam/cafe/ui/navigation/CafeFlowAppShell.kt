@@ -132,22 +132,12 @@ fun CafeFlowAppShell(
                         verticalAlignment = Alignment.CenterVertically
                     ) {
                         Column(modifier = Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                            Image(
-                                painter = painterResource(id = R.drawable.launcher_logo),
-                                contentDescription = "Logo Kereta Malam Cafe",
-                                modifier = Modifier.fillMaxWidth().height(108.dp)
-                            )
-                            Text(
-                                text = uiState.outletSettings.name,
-                                style = MaterialTheme.typography.titleLarge,
-                                fontWeight = FontWeight.Bold,
-                                maxLines = 1,
-                                overflow = TextOverflow.Ellipsis
-                            )
                             Text(
                                 text = "Kereta Malam Cafe",
-                                style = MaterialTheme.typography.bodyMedium,
-                                color = MaterialTheme.colorScheme.onSurfaceVariant
+                                style = MaterialTheme.typography.titleLarge,
+                                fontWeight = FontWeight.Bold,
+                                maxLines = 2,
+                                overflow = TextOverflow.Ellipsis
                             )
                         }
                     }

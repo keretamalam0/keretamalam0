@@ -1118,6 +1118,59 @@ class PosViewModel(application: Application) : AndroidViewModel(application) {
         }
     }
 
+    fun confirmOrderPayment(
+        order: OrderWithItems,
+        paymentMethod: String,
+        cashReceived: Double?,
+        onSuccess: (() -> Unit)? = null
+    ) {
+        viewModelScope.launch {
+            if (_uiState.value.backendStatus == BackendIntegrationStatus.ACTIVE_VERIFIED) {
+                runCatching {
+                    repository.confirmOrderPayment(order.id, paymentMethod, cashReceived)
+                }.onSuccess {
+                    refreshOrdersSilently()
+                    showNotice("Pembayaran Order #${order.orderNo} dikonfirmasi.")
+                    onSuccess?.invoke()
+                }.onFailure {
+                    showNotice(it.message ?: "Gagal mengonfirmasi pembayaran.", isError = true)
+                }
+                return@launch
+            }
+
+            val method = paymentMethod.lowercase()
+            if (method == "cash" && (cashReceived == null || cashReceived < order.total)) {
+                showNotice("Uang diterima belum mencukupi.", isError = true)
+                return@launch
+            }
+            val received = if (method == "cash") cashReceived else null
+            val change = if (received != null) received - order.total else null
+            _uiState.update { state ->
+                state.copy(
+                    orders = state.orders.map { current ->
+                        if (current.id != order.id) current else current.copy(
+                            isPaid = true,
+                            paymentMethod = method,
+                            paymentStatus = PaymentStatus.PAID,
+                            status = if (current.status == OrderStatus.NEW) OrderStatus.PREPARING else current.status,
+                            payments = current.payments + PaymentRecord(
+                                id = "pay-${System.currentTimeMillis()}",
+                                orderId = order.id,
+                                method = method,
+                                amount = order.total,
+                                cashReceived = received,
+                                changeAmount = change
+                            )
+                        )
+                    }
+                )
+            }
+            showNotice("Pembayaran Order #${order.orderNo} dikonfirmasi.")
+            appendAuditLog("order.confirm_payment", "orders", order.id, "{\"method\":\"$method\"}")
+            onSuccess?.invoke()
+        }
+    }
+
     fun rejectQrOrder(order: OrderWithItems) {
         viewModelScope.launch {
             if (_uiState.value.backendStatus == BackendIntegrationStatus.ACTIVE_VERIFIED) {

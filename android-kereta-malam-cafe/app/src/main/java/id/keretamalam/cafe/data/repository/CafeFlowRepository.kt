@@ -717,23 +717,47 @@ class CafeFlowRepository(private val context: Context) {
             headers = buildHeaders(creds)
         )
         val existing = json.parseToJsonElement(existingRaw).jsonArray.firstOrNull()
-        if (existing != null) {
-            val id = existing.jsonObject["id"]?.jsonPrimitive?.contentOrNull
-                ?: throw IllegalStateException("Data outlet tidak memiliki ID.")
-            val encodedId = URLEncoder.encode(id, "UTF-8")
-            executeJsonRequest(
-                method = "PATCH",
-                url = "${creds.supabaseUrl}/rest/v1/outlet_settings?id=eq.$encodedId&owner_id=eq.$encodedOwner",
-                headers = buildHeaders(creds, "return=representation"),
-                bodyJson = json.encodeToString(JsonObject.serializer(), payload)
-            )
-        } else {
-            executeJsonRequest(
-                method = "POST",
-                url = "${creds.supabaseUrl}/rest/v1/outlet_settings",
-                headers = buildHeaders(creds, "return=representation"),
-                bodyJson = json.encodeToString(JsonObject.serializer(), payload)
-            )
+        val encodedId = existing?.jsonObject?.get("id"]?.jsonPrimitive?.contentOrNull
+            ?.let { URLEncoder.encode(it, "UTF-8") }
+        if (existing != null && encodedId == null) {
+            throw IllegalStateException("Data outlet tidak memiliki ID.")
+        }
+
+        suspend fun persist(payloadToSave: JsonObject) {
+            if (existing != null) {
+                executeJsonRequest(
+                    method = "PATCH",
+                    url = "${creds.supabaseUrl}/rest/v1/outlet_settings?id=eq.$encodedId&owner_id=eq.$encodedOwner",
+                    headers = buildHeaders(creds, "return=representation"),
+                    bodyJson = json.encodeToString(JsonObject.serializer(), payloadToSave)
+                )
+            } else {
+                executeJsonRequest(
+                    method = "POST",
+                    url = "${creds.supabaseUrl}/rest/v1/outlet_settings",
+                    headers = buildHeaders(creds, "return=representation"),
+                    bodyJson = json.encodeToString(JsonObject.serializer(), payloadToSave)
+                )
+            }
+        }
+
+        try {
+            persist(payload)
+        } catch (error: IllegalStateException) {
+            val detail = error.message.orEmpty()
+            val stalePublicUrlColumn = detail.contains("public_web_base_url", ignoreCase = true) &&
+                (detail.contains("schema cache", ignoreCase = true) ||
+                    detail.contains("PGRST204", ignoreCase = true))
+            if (!stalePublicUrlColumn) throw error
+
+            // A stale PostgREST schema cache must not block tax/service-charge settings.
+            // Retry only this known compatibility failure; all other errors remain visible.
+            val compatiblePayload = buildJsonObject {
+                payload.forEach { (key, value) ->
+                    if (key != "public_web_base_url") put(key, value)
+                }
+            }
+            persist(compatiblePayload)
         }
     }
 

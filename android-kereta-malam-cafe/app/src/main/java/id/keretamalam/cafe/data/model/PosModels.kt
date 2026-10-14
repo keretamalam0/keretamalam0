@@ -298,10 +298,11 @@ data class CartItem(
     val sugarLevel: String = "Normal Sugar",
     val iceLevel: String = "Normal Ice",
     val cupSize: String = "Regular",
-    val selectedAddons: List<ProductAddon> = emptyList()
+    val selectedAddons: List<ProductAddon> = emptyList(),
+    val selectedCustomizationOptions: List<ProductCustomizationOption> = emptyList()
 ) {
     val unitPriceWithAddons: Double
-        get() = product.price + selectedAddons.sumOf { it.price }
+        get() = product.price + selectedAddons.sumOf { it.price } + selectedCustomizationOptions.sumOf { it.priceDelta }
     val lineTotal: Double
         get() = unitPriceWithAddons * quantity
 }

@@ -227,11 +227,23 @@ export default function App() {
   const [orderNotes, setOrderNotes] = useState('');
   const [selectedPromoId, setSelectedPromoId] = useState<string>('');
   const [paymentMethod, setPaymentMethod] = useState<string>('cash');
+  const [selectedPaymentMethodId, setSelectedPaymentMethodId] = useState<string>('');
   const [cashReceivedInput, setCashReceivedInput] = useState<string>('');
   const [confirmCheckoutModalOpen, setConfirmCheckoutModalOpen] = useState(false);
   const [isCheckoutProcessing, setIsCheckoutProcessing] = useState(false);
   const checkoutLockRef = useRef(false);
   const [receiptModalOrder, setReceiptModalOrder] = useState<OrderWithItems | null>(null);
+
+  useEffect(() => {
+    if (!paymentMethods.length) return;
+    const active = paymentMethods.filter((method) => method.is_active);
+    if (!active.length) return;
+    const selectedStillActive = active.some((method) => method.id === selectedPaymentMethodId);
+    if (selectedStillActive) return;
+    const preferred = active.find((method) => method.type === 'cash') ?? active[0];
+    setSelectedPaymentMethodId(preferred.id);
+    setPaymentMethod(preferred.type === 'bank_transfer' ? 'transfer' : preferred.type);
+  }, [paymentMethods, selectedPaymentMethodId]);
 
   // Item Customization Modal State
   const [customizingProduct, setCustomizingProduct] = useState<Product | null>(null);
@@ -630,6 +642,16 @@ export default function App() {
     return Math.max(0, cashReceivedAmount - cartGrandTotal);
   }, [cashReceivedAmount, cartGrandTotal]);
 
+  const activePaymentMethods = paymentMethods.filter((method) => method.is_active);
+  const selectedPaymentMethod = activePaymentMethods.find((method) => method.id === selectedPaymentMethodId)
+    ?? activePaymentMethods.find((method) => (method.type === 'bank_transfer' ? 'transfer' : method.type) === paymentMethod)
+    ?? null;
+  const paymentMethodRecord = paymentMethod === 'cash'
+    ? 'cash'
+    : selectedPaymentMethod
+      ? `${paymentMethod} - ${selectedPaymentMethod.name}${selectedPaymentMethod.account_number ? ` (${selectedPaymentMethod.account_number})` : ''}`
+      : paymentMethod;
+
   const handleAddToCartQuick = (product: Product) => {
     if (product.stock <= 0) {
       showNotice('error', `Stok ${product.name} sudah habis.`);
@@ -726,7 +748,11 @@ export default function App() {
   // ============================================================================
   const handleExecuteCheckout = async () => {
     if (cart.length === 0 || isCheckoutProcessing || checkoutLockRef.current) return;
-    if (selectedPromoId && (!selectedPromo || !promoEligibility.eligible)) {\n      showNotice('error', promoEligibility.reason || 'Promo tidak aktif atau tidak tersedia untuk kasir.');\n      return;\n    }\n    if (paymentMethod === 'cash' && cashReceivedAmount < cartGrandTotal) {
+    if (selectedPromoId && (!selectedPromo || !promoEligibility.eligible)) {
+      showNotice('error', promoEligibility.reason || 'Promo tidak aktif atau tidak tersedia untuk kasir.');
+      return;
+    }
+    if (paymentMethod === 'cash' && cashReceivedAmount < cartGrandTotal) {
       showNotice('error', 'Nominal uang tunai yang diterima kurang dari total tagihan.');
       return;
     }
@@ -756,7 +782,7 @@ export default function App() {
             tax: cartTaxAndService,
             total: cartGrandTotal,
             is_paid: true,
-            payment_method: paymentMethod,
+            payment_method: paymentMethodRecord,
             payment_status: 'paid',
           },
           p_items: cart.map((c) => ({
@@ -765,7 +791,7 @@ export default function App() {
             note: c.note || null,
           })),
           p_payment: {
-            method: paymentMethod,
+            method: paymentMethodRecord,
             cash_received: paymentMethod === 'cash' ? cashReceivedAmount : null,
           },
         };
@@ -804,7 +830,8 @@ export default function App() {
         tax: cartTaxAndService,
         total: cartGrandTotal,
         is_paid: true,
-        payment_method: paymentMethod,
+        payment_method: paymentMethodRecord,
+        promotion_id: selectedPromo?.id ?? null,
         payment_status: 'paid',
         created_at: nowIso,
         updated_at: nowIso,
@@ -827,7 +854,7 @@ export default function App() {
         payments: [
           {
             id: `pay-${Date.now()}`,
-            method: paymentMethod,
+            method: paymentMethodRecord,
             amount: cartGrandTotal,
             cash_received: paymentMethod === 'cash' ? cashReceivedAmount : null,
             change_amount: paymentMethod === 'cash' ? cashChangeAmount : null,
@@ -1936,7 +1963,7 @@ export default function App() {
                 onClick={() => {
                   const rows = [
                     ['Riwayat Transaksi Kereta Malam Cafe'],
-                    ['No Order', 'Waktu', 'Sumber', 'Meja', 'Pelanggan', 'Status', 'Metode', 'Total (Rp)'],
+                    ['No Order', 'Waktu', 'Sumber', 'Meja', 'Pelanggan', 'Status', 'Metode Pembayaran', 'Promo', 'Diskon (Rp)', 'Total (Rp)'],
                     ...orders.map((o) => [
                       `#${o.order_no}`,
                       o.created_at,
@@ -1945,6 +1972,8 @@ export default function App() {
                       o.customer_name ?? '-',
                       STATUS_LABELS[o.status],
                       o.payment_method ?? '-',
+                      o.promotion_id ? promotions.find((p) => p.id === o.promotion_id)?.name ?? 'Promo' : (o.discount > 0 ? 'Diskon' : '-'),
+                      o.discount,
                       o.total,
                     ]),
                   ];
@@ -1966,7 +1995,8 @@ export default function App() {
                     <th className="px-4 py-3">Waktu</th>
                     <th className="px-4 py-3">Meja / Kanal</th>
                     <th className="px-4 py-3">Pelanggan</th>
-                    <th className="px-4 py-3">Metode</th>
+                    <th className="px-4 py-3">Metode / Tujuan</th>
+                    <th className="px-4 py-3">Promo / Diskon</th>
                     <th className="px-4 py-3">Status</th>
                     <th className="px-4 py-3 text-right">Total</th>
                     <th className="px-4 py-3 text-right">Aksi</th>
@@ -1983,7 +2013,11 @@ export default function App() {
                         {o.restaurant_tables?.name ?? 'Takeaway'} · {o.source.toUpperCase()}
                       </td>
                       <td className="px-4 py-3">{o.customer_name || '-'}</td>
-                      <td className="px-4 py-3 uppercase">{o.payment_method || '-'}</td>
+                      <td className="px-4 py-3">{o.payment_method || '-'}</td>
+                      <td className="px-4 py-3">
+                        <div className="font-medium">{o.promotion_id ? promotions.find((p) => p.id === o.promotion_id)?.name ?? 'Promo' : (o.discount > 0 ? 'Diskon' : '-')}</div>
+                        {o.discount > 0 && <div className="mt-0.5 text-[11px] font-semibold text-emerald-600">-{formatRupiah(o.discount)}</div>}
+                      </td>
                       <td className="px-4 py-3 font-medium">{STATUS_LABELS[o.status]}</td>
                       <td className="num px-4 py-3 text-right font-bold">{formatRupiah(o.total)}</td>
                       <td className="px-4 py-3 text-right">

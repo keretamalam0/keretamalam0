@@ -612,7 +612,7 @@ export default function App() {
       return { eligible: false, reason: 'Produk yang memenuhi promo belum ada di keranjang.', eligibleSubtotal: 0 };
     }
     return { eligible: true, reason: '', eligibleSubtotal };
-  }, [selectedPromo, cart, cartSubtotal]);
+  }, [selectedPromo, selectedPromoId, cart, cartSubtotal]);
 
   const cartDiscount = useMemo(() => {
     if (!selectedPromo || !promoEligibility.eligible) return 0;

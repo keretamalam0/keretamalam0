@@ -185,7 +185,6 @@ data class Promotion(
     val type: String = "percentage", // "percentage" | "fixed"
     val value: Double = 0.0,
     @SerialName("min_purchase") val minPurchase: Double = 0.0,
-    @SerialName("max_purchase") val maxPurchase: Double = 0.0,
     @SerialName("min_quantity") val minQuantity: Int = 1,
     val scope: String = "order", // "order" | "product"
     @SerialName("product_id") val productId: String? = null,
@@ -193,7 +192,8 @@ data class Promotion(
     @SerialName("created_at") val createdAt: String? = null,
     @SerialName("campaign_type") val campaignType: String = "promotion",
     @SerialName("allow_customer") val allowCustomer: Boolean = true,
-    @SerialName("allow_cashier") val allowCashier: Boolean = true
+    @SerialName("allow_cashier") val allowCashier: Boolean = true,
+    @SerialName("max_purchase") val maxPurchase: Double = 0.0
 )
 
 @Serializable

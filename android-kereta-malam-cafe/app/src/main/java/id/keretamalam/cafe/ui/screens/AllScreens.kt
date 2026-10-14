@@ -955,6 +955,22 @@ private fun AiAssistantComposeScreen(viewModel: PosViewModel, uiState: PosUiStat
     }
 }
 
+// Render common Markdown bold markers in assistant chat without showing raw ** symbols.
+private fun formatAssistantMarkdown(source: String): androidx.compose.ui.text.AnnotatedString {
+    val boldPattern = Regex("""\*\*(.+?)\*\*""")
+    return androidx.compose.ui.text.buildAnnotatedString {
+        var cursor = 0
+        boldPattern.findAll(source).forEach { match ->
+            append(source.substring(cursor, match.range.first))
+            pushStyle(androidx.compose.ui.text.SpanStyle(fontWeight = FontWeight.Bold))
+            append(match.groupValues[1])
+            pop()
+            cursor = match.range.last + 1
+        }
+        append(source.substring(cursor))
+    }
+}
+
 // ============================================================================
 // 3. KASIR (POS) SCREEN — ADAPTIVE PHONE & TABLET
 // ============================================================================

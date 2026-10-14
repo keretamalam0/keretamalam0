@@ -920,8 +920,6 @@ fun LaporanPenjualanComposeScreen(viewModel: PosViewModel, uiState: PosUiState, 
     }
 }
 
-}
-
 // ============================================================================
 // 15. PEGAWAI & SHIFT (RBAC) SCREEN
 // ============================================================================

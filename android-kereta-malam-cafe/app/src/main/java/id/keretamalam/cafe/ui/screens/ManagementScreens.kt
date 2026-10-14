@@ -271,29 +271,36 @@ fun ProdukStokComposeScreen(viewModel: PosViewModel, uiState: PosUiState) {
         }
         Dialog(onDismissRequest = { editingProduct = null }, properties = DialogProperties(usePlatformDefaultWidth = false)) {
             Surface(shape = RoundedCornerShape(16.dp), color = MaterialTheme.colorScheme.surface, modifier = Modifier.fillMaxWidth(0.92f).widthIn(max = 460.dp).heightIn(max = 760.dp).padding(8.dp)) {
-                Column(Modifier.padding(12.dp).verticalScroll(rememberScrollState()), verticalArrangement = Arrangement.spacedBy(6.dp)) {
+                Column(Modifier.padding(12.dp).verticalScroll(rememberScrollState()), verticalArrangement = Arrangement.spacedBy(8.dp)) {
                     Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
                         Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(2.dp)) {
                             Text(if (targetEdit.id.isBlank()) "Tambah Produk" else "Edit Produk", style = MaterialTheme.typography.titleLarge, fontWeight = FontWeight.Bold)
-                            Text("Detail produk dan pilihan pelanggan", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                            Text("Kelola detail, topping, dan opsi dalam satu form", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
                         }
-                        TextButton(onClick = { editingProduct = null }) { Text("Tutup") }
+                        TextButton(onClick = { editingProduct = null }) { Text("✕") }
                     }
-                    OutlinedTextField(value = name, onValueChange = { name = it }, label = { Text("Nama produk *") }, modifier = Modifier.fillMaxWidth(), singleLine = true)
-                    OutlinedTextField(value = desc, onValueChange = { desc = it }, label = { Text("Deskripsi (opsional)") }, modifier = Modifier.fillMaxWidth(), maxLines = 2)
-                    Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(10.dp)) {
-                        Box(Modifier.size(78.dp), contentAlignment = Alignment.Center) {
-                            Surface(Modifier.fillMaxSize(), shape = RoundedCornerShape(8.dp), color = MaterialTheme.colorScheme.surfaceVariant) { Box(contentAlignment = Alignment.Center) { Text("FOTO", style = MaterialTheme.typography.labelSmall) } }
-                            if (imageUrl.isNotBlank()) AsyncImage(model = imageUrl, contentDescription = "Foto produk", modifier = Modifier.fillMaxSize(), contentScale = androidx.compose.ui.layout.ContentScale.Crop)
-                        }
-                        Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(4.dp)) {
-                            OutlinedButton(onClick = { imagePicker.launch("image/*") }, enabled = !uploadingImage) { Text(if (uploadingImage) "Mengunggah..." else if (imageUrl.isBlank()) "Upload foto" else "Ganti foto") }
-                            Text("Foto maksimal 8 MB.", style = MaterialTheme.typography.bodySmall)
+                    OutlinedCard(Modifier.fillMaxWidth()) {
+                        Column(Modifier.padding(10.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                            Text("INFORMASI PRODUK", style = MaterialTheme.typography.labelMedium, color = MaterialTheme.colorScheme.primary, fontWeight = FontWeight.Bold)
+                            Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(10.dp)) {
+                                Box(Modifier.size(84.dp), contentAlignment = Alignment.Center) {
+                                    Surface(Modifier.fillMaxSize(), shape = RoundedCornerShape(10.dp), color = MaterialTheme.colorScheme.surfaceVariant) { Box(contentAlignment = Alignment.Center) { Text("FOTO", style = MaterialTheme.typography.labelSmall) } }
+                                    if (imageUrl.isNotBlank()) AsyncImage(model = imageUrl, contentDescription = "Foto produk", modifier = Modifier.fillMaxSize(), contentScale = androidx.compose.ui.layout.ContentScale.Crop)
+                                }
+                                Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(5.dp)) {
+                                    OutlinedTextField(value = name, onValueChange = { name = it }, label = { Text("Nama produk *") }, modifier = Modifier.fillMaxWidth(), singleLine = true)
+                                    OutlinedButton(onClick = { imagePicker.launch("image/*") }, enabled = !uploadingImage, modifier = Modifier.fillMaxWidth()) { Text(if (uploadingImage) "Mengunggah foto..." else if (imageUrl.isBlank()) "＋ Upload foto" else "Ganti foto") }
+                                }
+                            }
+                            OutlinedTextField(value = desc, onValueChange = { desc = it }, label = { Text("Deskripsi (opsional)") }, modifier = Modifier.fillMaxWidth(), maxLines = 2)
                         }
                     }
                     var categoryMenuExpanded by remember(targetEdit) { mutableStateOf(false) }
-                    Text("Kategori", style = MaterialTheme.typography.labelLarge)
-                    Box {
+                    OutlinedCard(Modifier.fillMaxWidth()) {
+                        Column(Modifier.padding(10.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                            Text("HARGA & PERSEDIAAN", style = MaterialTheme.typography.labelMedium, color = MaterialTheme.colorScheme.primary, fontWeight = FontWeight.Bold)
+                            Text("Kategori", style = MaterialTheme.typography.labelLarge)
+                            Box {
                         OutlinedButton(
                             onClick = { categoryMenuExpanded = true },
                             modifier = Modifier.fillMaxWidth(),
@@ -326,15 +333,27 @@ fun ProdukStokComposeScreen(viewModel: PosViewModel, uiState: PosUiState) {
                         OutlinedTextField(value = price, onValueChange = { price = it.filter(Char::isDigit) }, label = { Text("Harga jual (Rp)") }, modifier = Modifier.weight(1f), singleLine = true)
                         OutlinedTextField(value = cost, onValueChange = { cost = it.filter(Char::isDigit) }, label = { Text("Modal / HPP (Rp)") }, modifier = Modifier.weight(1f), singleLine = true)
                     }
-                    Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                        OutlinedTextField(value = stock, onValueChange = { stock = it.filter(Char::isDigit) }, label = { Text("Stok awal") }, modifier = Modifier.weight(1f), singleLine = true)
-                        OutlinedTextField(value = threshold, onValueChange = { threshold = it.filter(Char::isDigit) }, label = { Text("Ambang menipis") }, modifier = Modifier.weight(1f), singleLine = true)
+                            Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                                OutlinedTextField(value = stock, onValueChange = { stock = it.filter(Char::isDigit) }, label = { Text("Stok awal") }, modifier = Modifier.weight(1f), singleLine = true)
+                                OutlinedTextField(value = threshold, onValueChange = { threshold = it.filter(Char::isDigit) }, label = { Text("Batas stok menipis") }, modifier = Modifier.weight(1f), singleLine = true)
+                            }
+                            Row(verticalAlignment = Alignment.CenterVertically) {
+                                Column(Modifier.weight(1f)) { Text("Produk aktif", fontWeight = FontWeight.Medium); Text("Bisa dijual di kasir", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant) }
+                                Switch(checked = isActive, onCheckedChange = { isActive = it })
+                            }
+                            Row(verticalAlignment = Alignment.CenterVertically) {
+                                Column(Modifier.weight(1f)) { Text("Tampilkan di QR Menu", fontWeight = FontWeight.Medium); Text("Pelanggan bisa melihat produk ini", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant) }
+                                Switch(checked = showOnMenu, onCheckedChange = { showOnMenu = it })
+                            }
+                        }
                     }
-                    Row(verticalAlignment = Alignment.CenterVertically) { Text("Produk aktif", Modifier.weight(1f)); Switch(checked = isActive, onCheckedChange = { isActive = it }) }
-                    Row(verticalAlignment = Alignment.CenterVertically) { Text("Tampilkan di QR Menu", Modifier.weight(1f)); Switch(checked = showOnMenu, onCheckedChange = { showOnMenu = it }) }
-                    HorizontalDivider()
-                    Text("Tambahan / topping", style = MaterialTheme.typography.titleSmall, fontWeight = FontWeight.SemiBold)
-                    Text("Nama topping dan harga tambahannya.", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                    Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
+                        Column(Modifier.weight(1f)) {
+                            Text("TOPPING & TAMBAHAN", style = MaterialTheme.typography.titleSmall, fontWeight = FontWeight.Bold)
+                            Text("Ekstra yang bisa dipilih pelanggan", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                        }
+                        Text((if (targetEdit.id.isBlank()) 0 else uiState.productAddons.count { it.productId == targetEdit.id }).toString() + " item", color = MaterialTheme.colorScheme.primary, style = MaterialTheme.typography.labelMedium)
+                    }
                     if (targetEdit.id.isBlank()) {
                         Text("Simpan produk dulu, lalu topping bisa ditambahkan di form ini.", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.primary)
                     } else {
@@ -362,8 +381,13 @@ fun ProdukStokComposeScreen(viewModel: PosViewModel, uiState: PosUiState) {
                         }
                     }
                     HorizontalDivider()
-                    Text("Opsi kustomisasi", style = MaterialTheme.typography.titleSmall, fontWeight = FontWeight.SemiBold)
-                    Text("Atur gula, es/suhu, dan ukuran cup. Harga tambahan opsional.", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                    Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
+                        Column(Modifier.weight(1f)) {
+                            Text("OPSI KUSTOMISASI", style = MaterialTheme.typography.titleSmall, fontWeight = FontWeight.Bold)
+                            Text("Ukuran cup, es/suhu, dan tingkat gula", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                        }
+                        Text((if (targetEdit.id.isBlank()) 0 else uiState.customizationOptions.count { it.productId == targetEdit.id }).toString() + " opsi", color = MaterialTheme.colorScheme.primary, style = MaterialTheme.typography.labelMedium)
+                    }
                     if (targetEdit.id.isBlank()) {
                         Text("Simpan produk dulu, lalu opsi ukuran, es, dan gula bisa ditambahkan di sini.", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.primary)
                     } else {
@@ -398,8 +422,8 @@ fun ProdukStokComposeScreen(viewModel: PosViewModel, uiState: PosUiState) {
                         }
                     }
                     HorizontalDivider()
-                    Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.End) {
-                        OutlinedButton(onClick = { editingProduct = null }) { Text("Selesai") }
+                    Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                        OutlinedButton(onClick = { editingProduct = null }, modifier = Modifier.weight(0.8f)) { Text("Batal") }
                         Button(enabled = name.isNotBlank() && (price.toDoubleOrNull() ?: 0.0) > 0 && !uploadingImage, onClick = {
                             viewModel.saveProductItem(targetEdit.copy(name = name.trim(), description = desc.trim().ifBlank { null }, imageUrl = imageUrl.ifBlank { null }, categoryId = catId, price = price.toDoubleOrNull() ?: 0.0, costPrice = cost.toDoubleOrNull() ?: 0.0, stock = stock.toIntOrNull() ?: 0, lowStockThreshold = threshold.toIntOrNull() ?: 5, isActive = isActive, showOnMenu = showOnMenu)) { saved ->
                                 editingProduct = saved

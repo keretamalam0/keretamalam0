@@ -1901,13 +1901,6 @@ private fun HistoryComposeScreen(viewModel: PosViewModel, uiState: PosUiState) {
                                     color = Color(0xFF15803D)
                                 )
                             }
-                            if (order.discount > 0) {
-                                Text(
-                                    "Promo: ${uiState.promotions.firstOrNull { it.id == order.promotionId }?.name ?: "Diskon"} · Potongan: ${RupiahFormatter.format(order.discount)}",
-                                    style = MaterialTheme.typography.bodySmall,
-                                    color = Color(0xFF15803D)
-                                )
-                            }
                             Text("Dibayar: ${if (order.isPaid) "LUNAS" else "BELUM LUNAS"}", color = if (order.isPaid) Color(0xFF15803D) else MaterialTheme.colorScheme.error, style = MaterialTheme.typography.bodySmall)
                         }
                         Column(horizontalAlignment = Alignment.End, verticalArrangement = Arrangement.spacedBy(5.dp)) {

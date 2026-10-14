@@ -250,6 +250,11 @@ fun ProdukStokComposeScreen(viewModel: PosViewModel, uiState: PosUiState) {
         var imageUrl by remember(targetEdit) { mutableStateOf(targetEdit.imageUrl.orEmpty()) }
         var isActive by remember(targetEdit) { mutableStateOf(targetEdit.isActive) }
         var showOnMenu by remember(targetEdit) { mutableStateOf(targetEdit.showOnMenu) }
+        var inlineAddonName by remember(targetEdit) { mutableStateOf("") }
+        var inlineAddonPrice by remember(targetEdit) { mutableStateOf("0") }
+        var inlineOptionGroup by remember(targetEdit) { mutableStateOf("sugar") }
+        var inlineOptionName by remember(targetEdit) { mutableStateOf("") }
+        var inlineOptionPrice by remember(targetEdit) { mutableStateOf("0") }
         var uploadingImage by remember { mutableStateOf(false) }
         val context = LocalContext.current
         val imagePicker = rememberLauncherForActivityResult(ActivityResultContracts.GetContent()) { uri: Uri? ->
@@ -267,7 +272,7 @@ fun ProdukStokComposeScreen(viewModel: PosViewModel, uiState: PosUiState) {
                 Column(Modifier.padding(16.dp).verticalScroll(rememberScrollState()), verticalArrangement = Arrangement.spacedBy(10.dp)) {
                     Text(if (targetEdit.id.isBlank()) "Tambah Produk" else "Edit Produk", style = MaterialTheme.typography.titleLarge, fontWeight = FontWeight.Bold)
                     Text(
-                        "Foto, detail, harga, kategori, stok, dan status diatur di sini. Setelah disimpan, topping serta opsi gula/es bisa diatur dari tombol pada kartu produk.",
+                        "Atur detail produk, topping, dan pilihan minuman dari satu popup. Untuk produk baru, simpan detail produk dulu agar opsi tersambung ke ID produk.",
                         style = MaterialTheme.typography.bodySmall,
                         color = MaterialTheme.colorScheme.onSurfaceVariant
                     )
@@ -297,12 +302,71 @@ fun ProdukStokComposeScreen(viewModel: PosViewModel, uiState: PosUiState) {
                     }
                     Row(verticalAlignment = Alignment.CenterVertically) { Text("Produk aktif", Modifier.weight(1f)); Switch(checked = isActive, onCheckedChange = { isActive = it }) }
                     Row(verticalAlignment = Alignment.CenterVertically) { Text("Tampilkan di QR Menu", Modifier.weight(1f)); Switch(checked = showOnMenu, onCheckedChange = { showOnMenu = it }) }
+                    HorizontalDivider()
+                    Text("Topping tambahan", style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.SemiBold)
+                    Text("Tambahkan topping yang bisa dipilih kasir/pelanggan beserta harga tambahannya.", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                    if (targetEdit.id.isBlank()) {
+                        Text("Simpan produk terlebih dahulu. Setelah tersimpan, popup tetap terbuka untuk menambahkan topping.", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.primary)
+                    } else {
+                        Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp), verticalAlignment = Alignment.CenterVertically) {
+                            OutlinedTextField(value = inlineAddonName, onValueChange = { inlineAddonName = it }, label = { Text("Nama topping") }, modifier = Modifier.weight(1.3f), singleLine = true)
+                            OutlinedTextField(value = inlineAddonPrice, onValueChange = { inlineAddonPrice = it.filter(Char::isDigit) }, label = { Text("Harga +Rp") }, modifier = Modifier.weight(0.8f), singleLine = true)
+                        }
+                        Button(enabled = inlineAddonName.isNotBlank(), onClick = {
+                            viewModel.saveProductAddon(ProductAddon(productId = targetEdit.id, name = inlineAddonName.trim(), price = inlineAddonPrice.toDoubleOrNull() ?: 0.0, isActive = true))
+                            inlineAddonName = ""; inlineAddonPrice = "0"
+                        }, modifier = Modifier.fillMaxWidth()) { Text("+ Tambah Topping") }
+                        uiState.productAddons.filter { it.productId == targetEdit.id }.forEach { addon ->
+                            Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(6.dp)) {
+                                Column(Modifier.weight(1f)) {
+                                    Text(addon.name, style = MaterialTheme.typography.bodyMedium, fontWeight = FontWeight.Medium)
+                                    Text(RupiahFormatter.format(addon.price), style = MaterialTheme.typography.bodySmall)
+                                }
+                                Switch(checked = addon.isActive, onCheckedChange = { viewModel.saveProductAddon(addon.copy(isActive = it)) })
+                                TextButton(onClick = { viewModel.deleteProductAddon(addon.id) }) { Text("Hapus") }
+                            }
+                        }
+                    }
+                    HorizontalDivider()
+                    Text("Opsi kustomisasi minuman", style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.SemiBold)
+                    Text("Bisa tambah banyak pilihan untuk gula, es/suhu, ukuran cup, dan harga masing-masing.", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                    if (targetEdit.id.isBlank()) {
+                        Text("Opsi kustomisasi bisa ditambahkan setelah detail produk pertama kali disimpan.", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.primary)
+                    } else {
+                        Row(Modifier.fillMaxWidth().horizontalScroll(rememberScrollState()), horizontalArrangement = Arrangement.spacedBy(6.dp)) {
+                            listOf("sugar" to "Tingkat kemanisan", "ice" to "Pilihan es / suhu", "size" to "Ukuran cup").forEach { (key, label) ->
+                                FilterChip(selected = inlineOptionGroup == key, onClick = { inlineOptionGroup = key }, label = { Text(label, style = MaterialTheme.typography.labelSmall) })
+                            }
+                        }
+                        Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp), verticalAlignment = Alignment.CenterVertically) {
+                            OutlinedTextField(value = inlineOptionName, onValueChange = { inlineOptionName = it }, label = { Text("Nama pilihan") }, modifier = Modifier.weight(1.3f), singleLine = true)
+                            OutlinedTextField(value = inlineOptionPrice, onValueChange = { inlineOptionPrice = it.filter(Char::isDigit) }, label = { Text("Harga tambahan Rp") }, modifier = Modifier.weight(0.8f), singleLine = true)
+                        }
+                        Button(enabled = inlineOptionName.isNotBlank(), onClick = {
+                            val nextOrder = uiState.customizationOptions.count { it.productId == targetEdit.id && it.groupKey == inlineOptionGroup }
+                            viewModel.saveCustomizationOption(ProductCustomizationOption(productId = targetEdit.id, groupKey = inlineOptionGroup, name = inlineOptionName.trim(), priceDelta = inlineOptionPrice.toDoubleOrNull() ?: 0.0, isActive = true, sortOrder = nextOrder))
+                            inlineOptionName = ""; inlineOptionPrice = "0"
+                        }, modifier = Modifier.fillMaxWidth()) { Text("+ Tambah Opsi") }
+                        uiState.customizationOptions.filter { it.productId == targetEdit.id }.forEach { option ->
+                            val groupLabel = when (option.groupKey) { "sugar" -> "Kemanisan"; "ice" -> "Es / suhu"; else -> "Ukuran cup" }
+                            Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(6.dp)) {
+                                Column(Modifier.weight(1f)) {
+                                    Text(option.name, style = MaterialTheme.typography.bodyMedium, fontWeight = FontWeight.Medium)
+                                    Text("$groupLabel · \${RupiahFormatter.format(option.priceDelta)} tambahan", style = MaterialTheme.typography.bodySmall)
+                                }
+                                Switch(checked = option.isActive, onCheckedChange = { viewModel.saveCustomizationOption(option.copy(isActive = it)) })
+                                TextButton(onClick = { viewModel.deleteCustomizationOption(option.id) }) { Text("Hapus") }
+                            }
+                        }
+                    }
+                    HorizontalDivider()
                     Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.End) {
-                        OutlinedButton(onClick = { editingProduct = null }) { Text("Batal") }
+                        OutlinedButton(onClick = { editingProduct = null }) { Text("Selesai") }
                         Button(enabled = name.isNotBlank() && (price.toDoubleOrNull() ?: 0.0) > 0 && !uploadingImage, onClick = {
-                            viewModel.saveProductItem(targetEdit.copy(name = name.trim(), description = desc.trim().ifBlank { null }, imageUrl = imageUrl.ifBlank { null }, categoryId = catId, price = price.toDoubleOrNull() ?: 0.0, costPrice = cost.toDoubleOrNull() ?: 0.0, stock = stock.toIntOrNull() ?: 0, lowStockThreshold = threshold.toIntOrNull() ?: 5, isActive = isActive, showOnMenu = showOnMenu))
-                            editingProduct = null
-                        }) { Text("Simpan Produk") }
+                            viewModel.saveProductItem(targetEdit.copy(name = name.trim(), description = desc.trim().ifBlank { null }, imageUrl = imageUrl.ifBlank { null }, categoryId = catId, price = price.toDoubleOrNull() ?: 0.0, costPrice = cost.toDoubleOrNull() ?: 0.0, stock = stock.toIntOrNull() ?: 0, lowStockThreshold = threshold.toIntOrNull() ?: 5, isActive = isActive, showOnMenu = showOnMenu)) { saved ->
+                                editingProduct = saved
+                            }
+                        }) { Text(if (targetEdit.id.isBlank()) "Simpan Produk & Lanjut" else "Simpan Produk") }
                     }
                 }
             }

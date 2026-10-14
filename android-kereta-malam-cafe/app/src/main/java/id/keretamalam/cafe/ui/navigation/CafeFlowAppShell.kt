@@ -239,7 +239,7 @@ fun CafeFlowAppShell(
             Scaffold(
                 topBar = {
                     TopAppBar(
-                        modifier = Modifier.height(if (isLandscapePhone) 48.dp else 56.dp),
+                        modifier = Modifier.height(if (isLandscapePhone) 56.dp else 60.dp),
                         colors = TopAppBarDefaults.topAppBarColors(
                             containerColor = if (uiState.darkTheme) androidx.compose.ui.graphics.Color(0xFF080A0D) else androidx.compose.ui.graphics.Color(0xFFFFFFFF),
                             titleContentColor = if (uiState.darkTheme) androidx.compose.ui.graphics.Color(0xFFF7FAFF) else androidx.compose.ui.graphics.Color(0xFF111827),
@@ -260,28 +260,27 @@ fun CafeFlowAppShell(
                             }
                         },
                         actions = {
-                            // Header dipadatkan; kontrol skala disembunyikan di landscape agar area kasir lega.
-                            if (!isLandscapePhone) {
-                                Row(verticalAlignment = Alignment.CenterVertically) {
-                                    IconButton(
-                                        modifier = Modifier.size(36.dp),
-                                        onClick = { viewModel.setUiScale(uiState.uiScalePercent - 10) },
-                                        enabled = uiState.uiScalePercent > 40
-                                    ) {
-                                        Icon(Icons.Outlined.Remove, contentDescription = "Perkecil tampilan")
-                                    }
-                                    Text(
-                                        text = "${uiState.uiScalePercent}%",
-                                        style = MaterialTheme.typography.labelSmall,
-                                        fontWeight = FontWeight.Bold
-                                    )
-                                    IconButton(
-                                        modifier = Modifier.size(36.dp),
-                                        onClick = { viewModel.setUiScale(uiState.uiScalePercent + 10) },
-                                        enabled = uiState.uiScalePercent < 120
-                                    ) {
-                                        Icon(Icons.Outlined.Add, contentDescription = "Perbesar tampilan")
-                                    }
+                            // Kontrol skala tetap tersedia di landscape, dengan ukuran lebih ringkas.
+                            Row(verticalAlignment = Alignment.CenterVertically) {
+                                IconButton(
+                                    modifier = Modifier.size(if (isLandscapePhone) 30.dp else 36.dp),
+                                    onClick = { viewModel.setUiScale(uiState.uiScalePercent - 10) },
+                                    enabled = uiState.uiScalePercent > 40
+                                ) {
+                                    Icon(Icons.Outlined.Remove, contentDescription = "Perkecil tampilan")
+                                }
+                                Text(
+                                    text = "${uiState.uiScalePercent}%",
+                                    style = if (isLandscapePhone) MaterialTheme.typography.labelSmall else MaterialTheme.typography.labelMedium,
+                                    fontWeight = FontWeight.Bold,
+                                    maxLines = 1
+                                )
+                                IconButton(
+                                    modifier = Modifier.size(if (isLandscapePhone) 30.dp else 36.dp),
+                                    onClick = { viewModel.setUiScale(uiState.uiScalePercent + 10) },
+                                    enabled = uiState.uiScalePercent < 120
+                                ) {
+                                    Icon(Icons.Outlined.Add, contentDescription = "Perbesar tampilan")
                                 }
                             }
                             IconButton(modifier = Modifier.size(if (isLandscapePhone) 34.dp else 40.dp), onClick = { viewModel.setThemeMode(!uiState.darkTheme) }) {
@@ -357,9 +356,9 @@ fun CafeFlowAppShell(
                                     )
                                 } else {
                                     listOf(
-                                        androidx.compose.ui.graphics.Color(0xFFF0F3F8),
-                                        androidx.compose.ui.graphics.Color(0xFFE8EEF5),
-                                        androidx.compose.ui.graphics.Color(0xFFF4F6FA)
+                                        androidx.compose.ui.graphics.Color(0xFFF3F4F6),
+                                        androidx.compose.ui.graphics.Color(0xFFEEF0F3),
+                                        androidx.compose.ui.graphics.Color(0xFFF7F8FA)
                                     )
                                 }
                             )
@@ -371,7 +370,8 @@ fun CafeFlowAppShell(
                         isTabletOrWide = isTabletOrWide,
                         onNavigateModule = { activeModule = it },
                         viewModel = viewModel,
-                        uiState = uiState
+                        uiState = uiState,
+                        isLandscapePhone = isLandscapePhone
                     )
 
                 }

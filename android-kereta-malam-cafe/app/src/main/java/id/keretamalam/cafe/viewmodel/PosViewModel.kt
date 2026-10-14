@@ -699,17 +699,27 @@ class PosViewModel(application: Application) : AndroidViewModel(application) {
         }
     }
 
+    fun loadOrderAlertSoundUrl(onLoaded: (String?) -> Unit) {
+        viewModelScope.launch {
+            val result = runCatching { repository.fetchOrderAlertSoundUrl() }
+            onLoaded(result.getOrNull())
+        }
+    }
+
     fun uploadOrderAlertSound(bytes: ByteArray, mimeType: String, extension: String, onUploaded: (String) -> Unit) {
         if (_uiState.value.backendStatus != BackendIntegrationStatus.ACTIVE_VERIFIED) {
             showNotice("Upload suara memerlukan koneksi Supabase aktif.", isError = true)
             return
         }
         viewModelScope.launch {
-            runCatching { repository.uploadOrderAlertSound(bytes, mimeType, extension) }
-                .onSuccess { url ->
-                    onUploaded(url)
-                    showNotice("Suara pesanan berhasil diunggah. Alarm aktif di perangkat ini.")
-                }
+            runCatching {
+                val url = repository.uploadOrderAlertSound(bytes, mimeType, extension)
+                repository.saveOrderAlertSoundUrl(url)
+                url
+            }.onSuccess { url ->
+                onUploaded(url)
+                showNotice("Suara pesanan berhasil diunggah dan disimpan ke pengaturan outlet.")
+            }
                 .onFailure { showNotice(it.message ?: "Gagal mengunggah suara pesanan.", isError = true) }
         }
     }

@@ -109,6 +109,7 @@ export interface Promotion {
   type: 'percentage' | 'fixed';
   value: number;
   min_purchase: number;
+  max_purchase?: number;
   min_quantity: number;
   scope: 'order' | 'product';
   product_id: string | null;

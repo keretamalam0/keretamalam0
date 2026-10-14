@@ -513,6 +513,7 @@ class CafeFlowRepository(private val context: Context) {
         tax: Double,
         total: Double,
         paymentMethod: String,
+        paymentRecordMethod: String = paymentMethod,
         cashReceived: Double?,
         items: List<CartItem>
     ): OrderWithItems {
@@ -546,7 +547,7 @@ class CafeFlowRepository(private val context: Context) {
                 }
             }
             putJsonObject("p_payment") {
-                put("method", paymentMethod)
+                put("method", paymentRecordMethod)
                 if (cashReceived != null) put("cash_received", cashReceived) else put("cash_received", JsonNull)
             }
         }

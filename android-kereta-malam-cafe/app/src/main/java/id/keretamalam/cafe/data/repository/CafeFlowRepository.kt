@@ -986,7 +986,11 @@ class CafeFlowRepository(private val context: Context) {
         return json.decodeFromString(raw)
     }
 
-    suspend fun invokeAiAssistant(prompt: String): String {
+    suspend fun invokeAiAssistant(
+        prompt: String,
+        imageBase64: String? = null,
+        imageMimeType: String = "image/jpeg"
+    ): String {
         val creds = requireVerifiedCredentials()
         val payload = buildJsonObject {
             put("app_name", "Kereta Malam Cafe")
@@ -994,9 +998,13 @@ class CafeFlowRepository(private val context: Context) {
             put("messages", buildJsonArray {
                 add(buildJsonObject {
                     put("role", "user")
-                    put("content", prompt.trim())
+                    put("content", prompt.trim().ifBlank { "Tolong analisis screenshot ini dan jelaskan masalahnya dalam konteks aplikasi Kereta Malam Cafe." })
                 })
             })
+            if (!imageBase64.isNullOrBlank()) {
+                put("image_base64", imageBase64)
+                put("image_mime_type", imageMimeType)
+            }
         }
         val raw = executeJsonRequest(
             method = "POST",

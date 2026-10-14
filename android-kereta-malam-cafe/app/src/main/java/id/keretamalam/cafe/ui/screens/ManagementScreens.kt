@@ -21,6 +21,7 @@ import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.*
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.outlined.DateRange
+import androidx.compose.material.icons.outlined.Search
 import androidx.compose.material.icons.outlined.FileDownload
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
@@ -77,24 +78,22 @@ fun ProdukStokComposeScreen(viewModel: PosViewModel, uiState: PosUiState) {
     }
     val selectedProduct = uiState.products.firstOrNull { it.id == selectedProductId }
 
-    Column(Modifier.fillMaxSize(), verticalArrangement = Arrangement.spacedBy(10.dp)) {
-        Text("Produk & Stok", style = MaterialTheme.typography.headlineSmall, fontWeight = FontWeight.Bold)
-        Text("Atur produk, kategori, topping, dan pilihan minuman.", style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
-        Row(Modifier.fillMaxWidth().horizontalScroll(rememberScrollState()), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+    Column(Modifier.fillMaxSize(), verticalArrangement = Arrangement.spacedBy(5.dp)) {
+        Row(Modifier.fillMaxWidth().horizontalScroll(rememberScrollState()), horizontalArrangement = Arrangement.spacedBy(6.dp)) {
             listOf("PRODUK" to "Produk", "KATEGORI" to "Kelola Kategori").forEach { (key, label) ->
-                FilterChip(selected = section == key, onClick = { section = key }, label = { Text(label) })
+                FilterChip(selected = section == key, onClick = { section = key }, label = { Text(label, style = MaterialTheme.typography.labelSmall) }, modifier = Modifier.height(34.dp))
             }
         }
 
         when (section) {
             "PRODUK" -> {
-                Row(Modifier.fillMaxWidth().horizontalScroll(rememberScrollState()), horizontalArrangement = Arrangement.spacedBy(8.dp), verticalAlignment = Alignment.CenterVertically) {
-                    FilterChip(selected = stockFilter == "ALL", onClick = { stockFilter = "ALL" }, label = { Text("Semua (${uiState.products.size})") })
-                    FilterChip(selected = stockFilter == "LOW", onClick = { stockFilter = "LOW" }, label = { Text("Menipis (${uiState.products.count { it.isLowStock }})") })
-                    FilterChip(selected = stockFilter == "OUT", onClick = { stockFilter = "OUT" }, label = { Text("Habis (${uiState.products.count { it.isOutOfStock }})") })
-                    Button(onClick = { editingProduct = Product(id = "", name = "", price = 0.0, costPrice = 0.0, categoryId = uiState.categories.firstOrNull()?.id, stock = 0, lowStockThreshold = 5) }) { Text("+ Tambah Produk") }
+                Row(Modifier.fillMaxWidth().horizontalScroll(rememberScrollState()), horizontalArrangement = Arrangement.spacedBy(5.dp), verticalAlignment = Alignment.CenterVertically) {
+                    FilterChip(selected = stockFilter == "ALL", onClick = { stockFilter = "ALL" }, label = { Text("Semua ${uiState.products.size}", style = MaterialTheme.typography.labelSmall) }, modifier = Modifier.height(32.dp))
+                    FilterChip(selected = stockFilter == "LOW", onClick = { stockFilter = "LOW" }, label = { Text("Menipis ${uiState.products.count { it.isLowStock }}", style = MaterialTheme.typography.labelSmall) }, modifier = Modifier.height(32.dp))
+                    FilterChip(selected = stockFilter == "OUT", onClick = { stockFilter = "OUT" }, label = { Text("Habis ${uiState.products.count { it.isOutOfStock }}", style = MaterialTheme.typography.labelSmall) }, modifier = Modifier.height(32.dp))
+                    OutlinedButton(onClick = { editingProduct = Product(id = "", name = "", price = 0.0, costPrice = 0.0, categoryId = uiState.categories.firstOrNull()?.id, stock = 0, lowStockThreshold = 5) }, modifier = Modifier.height(34.dp), contentPadding = PaddingValues(horizontal = 9.dp, vertical = 0.dp)) { Text("+ Produk", style = MaterialTheme.typography.labelSmall) }
                 }
-                OutlinedTextField(value = searchQuery, onValueChange = { searchQuery = it }, label = { Text("Cari nama produk") }, modifier = Modifier.fillMaxWidth(), singleLine = true)
+                OutlinedTextField(value = searchQuery, onValueChange = { searchQuery = it }, label = { Text("Cari produk") }, leadingIcon = { Icon(Icons.Outlined.Search, contentDescription = null, modifier = Modifier.size(18.dp)) }, modifier = Modifier.fillMaxWidth().heightIn(max = 56.dp), singleLine = true, textStyle = MaterialTheme.typography.bodySmall)
                 LazyColumn(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(8.dp)) {
                     items(displayed, key = { it.id }) { p ->
                         val category = uiState.categories.firstOrNull { it.id == p.categoryId }?.name ?: "Tanpa kategori"

@@ -841,24 +841,13 @@ class PosViewModel(application: Application) : AndroidViewModel(application) {
             if (currentTotalQty + 1 > product.stock) {
                 return@update state.copy(errorMessage = "Stok ${product.name} hanya tersisa ${product.stock}.")
             }
-            val customizationSummary = if (customizationOptions.isNotEmpty()) {
-                customizationOptions.joinToString(" · ") { option ->
-                    val label = when (option.groupKey) {
-                        "sugar" -> "Gula"
-                        "ice" -> "Es/suhu"
-                        "size" -> "Ukuran cup"
-                        else -> option.groupKey
-                    }
-                    "$label: ${option.name}"
-                }
-            } else {
-                listOfNotNull(
-                    "Gula: $sugar",
-                    "Es/suhu: $ice",
-                    "Ukuran cup: $cupSize"
-                ).joinToString(" · ")
-            }
-            val addonSummary = if (addons.isNotEmpty()) "Topping: ${addons.joinToString(", ") { it.name }}" else null
+            val selectedByGroup = customizationOptions.associateBy { it.groupKey }
+            val customizationSummary = listOf(
+                "Gula: ${selectedByGroup["sugar"]?.name ?: sugar}",
+                "Es/suhu: ${selectedByGroup["ice"]?.name ?: ice}",
+                "Ukuran cup: ${selectedByGroup["size"]?.name ?: cupSize}"
+            ).joinToString(" · ")
+            val addonSummary = if (addons.isNotEmpty()) "Tambahan: ${addons.joinToString(", ") { it.name }}" else null
             val combinedNote = listOfNotNull(
                 customizationSummary,
                 addonSummary,

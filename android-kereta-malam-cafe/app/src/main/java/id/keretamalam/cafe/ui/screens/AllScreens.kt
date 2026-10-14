@@ -169,7 +169,9 @@ fun RenderModuleScreen(
     onNavigateModule: (PosModuleRoute) -> Unit,
     viewModel: PosViewModel,
     uiState: PosUiState,
-    isLandscapePhone: Boolean = false
+    isLandscapePhone: Boolean = false,
+    selectedReportPage: String = "Ringkasan Laporan",
+    onSelectedReportPageChange: (String) -> Unit = {}
 ) {
     val activeMsg = uiState.errorMessage ?: uiState.successMessage
     LaunchedEffect(activeMsg) {
@@ -200,7 +202,7 @@ fun RenderModuleScreen(
                 PosModuleRoute.INVENTORY -> InventoryComposeScreen(viewModel, uiState)
                 PosModuleRoute.PROMOSI -> PromosiComposeScreen(viewModel, uiState)
                 PosModuleRoute.KEUANGAN -> KeuanganComposeScreen(viewModel, uiState)
-                PosModuleRoute.LAPORAN -> LaporanPenjualanComposeScreen(viewModel, uiState)
+                PosModuleRoute.LAPORAN -> LaporanPenjualanComposeScreen(viewModel, uiState, selectedReportPage, onSelectedReportPageChange)
                 PosModuleRoute.PEGAWAI -> PegawaiComposeScreen(viewModel, uiState)
                 PosModuleRoute.PENGATURAN -> PengaturanOutletComposeScreen(viewModel, uiState)
                 PosModuleRoute.PRINTER -> PrinterComposeScreen(viewModel, uiState, isTabletOrWide)

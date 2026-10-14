@@ -8,6 +8,7 @@ alter table public.promotions
   add column if not exists scope text not null default 'order',
   add column if not exists product_id uuid null,
   add column if not exists min_purchase numeric(12,2) not null default 0,
+  add column if not exists max_purchase numeric(12,2) not null default 0,
   add column if not exists active boolean not null default true;
 
 alter table public.promotions
@@ -33,6 +34,12 @@ alter table public.promotions
 alter table public.promotions
   add constraint promotions_min_purchase_check
   check (min_purchase >= 0);
+
+alter table public.promotions
+  drop constraint if exists promotions_max_purchase_check;
+alter table public.promotions
+  add constraint promotions_max_purchase_check
+  check (max_purchase >= 0);
 
 create index if not exists promotions_active_created_at_idx
   on public.promotions (active, created_at desc);

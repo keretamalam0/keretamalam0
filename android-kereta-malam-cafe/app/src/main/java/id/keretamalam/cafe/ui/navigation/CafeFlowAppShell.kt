@@ -89,6 +89,9 @@ fun CafeFlowAppShell(
     uiState: PosUiState
 ) {
     var activeModule by remember { mutableStateOf(PosModuleRoute.DASHBOARD) }
+    var reportMenuExpanded by remember { mutableStateOf(false) }
+    var selectedReportPage by remember { mutableStateOf("Ringkasan Laporan") }
+    val reportPages = listOf("Ringkasan Laporan", "Penjualan Harian", "Penjualan Produk", "Penjualan per Jam", "Laporan Pembayaran", "Laporan Kanal", "Detail Pesanan")
     val drawerState = rememberDrawerState(initialValue = DrawerValue.Closed)
     val scope = rememberCoroutineScope()
 
@@ -151,57 +154,48 @@ fun CafeFlowAppShell(
                         grouped.forEach { (group, items) ->
                             val visible = items.filter { uiState.staffProfile.canAccess(it.permission) }
                             if (visible.isNotEmpty()) {
-                                Text(
-                                    text = group,
-                                    style = MaterialTheme.typography.labelMedium,
-                                    color = if (uiState.darkTheme) androidx.compose.ui.graphics.Color(0xFFCBD5E1) else androidx.compose.ui.graphics.Color(0xFF64748B),
-                                    fontWeight = FontWeight.Bold,
-                                    modifier = Modifier.padding(top = 8.dp, bottom = 4.dp, start = 8.dp)
-                                )
+                                Text(group, style = MaterialTheme.typography.labelMedium, color = if (uiState.darkTheme) androidx.compose.ui.graphics.Color(0xFFCBD5E1) else androidx.compose.ui.graphics.Color(0xFF64748B), fontWeight = FontWeight.Bold, modifier = Modifier.padding(top = 8.dp, bottom = 4.dp, start = 8.dp))
                                 visible.forEach { item ->
-                                    val badgeText = when (item) {
-                                        PosModuleRoute.KASIR -> uiState.cart.sumOf { it.quantity }.takeIf { it > 0 }?.toString()
-                                        PosModuleRoute.PESANAN -> uiState.activeOrdersCount.takeIf { it > 0 }?.toString()
-                                        PosModuleRoute.PRODUK -> uiState.lowStockProducts.size.takeIf { it > 0 }?.toString()
-                                        else -> null
-                                    }
-                                    NavigationDrawerItem(
-                                        colors = NavigationDrawerItemDefaults.colors(
-                                            selectedContainerColor = if (uiState.darkTheme) androidx.compose.ui.graphics.Color(0xFF203A56) else androidx.compose.ui.graphics.Color(0xFFE8EEF5),
-                                            unselectedContainerColor = androidx.compose.ui.graphics.Color.Transparent,
-                                            selectedTextColor = if (uiState.darkTheme) androidx.compose.ui.graphics.Color(0xFFFFFFFF) else androidx.compose.ui.graphics.Color(0xFF111827),
-                                            unselectedTextColor = if (uiState.darkTheme) androidx.compose.ui.graphics.Color(0xFFF5F7FA) else androidx.compose.ui.graphics.Color(0xFF334155),
-                                            selectedIconColor = if (uiState.darkTheme) androidx.compose.ui.graphics.Color(0xFFD6E8FF) else androidx.compose.ui.graphics.Color(0xFF334155),
-                                            unselectedIconColor = if (uiState.darkTheme) androidx.compose.ui.graphics.Color(0xFFD1D9E3) else androidx.compose.ui.graphics.Color(0xFF64748B)
-                                        ),
-                                        label = {
-                                            Text(
-                                                text = localizedRouteTitle(item.titleId, uiState.outletSettings.appLanguage),
-                                                fontWeight = if (activeModule == item) FontWeight.Bold else FontWeight.SemiBold,
-                                                maxLines = 1,
-                                                overflow = TextOverflow.Ellipsis
+                                    if (item == PosModuleRoute.LAPORAN) {
+                                        NavigationDrawerItem(
+                                            colors = NavigationDrawerItemDefaults.colors(selectedContainerColor = if (uiState.darkTheme) androidx.compose.ui.graphics.Color(0xFF203A56) else androidx.compose.ui.graphics.Color(0xFFE8EEF5), unselectedContainerColor = androidx.compose.ui.graphics.Color.Transparent),
+                                            label = { Text(localizedRouteTitle(item.titleId, uiState.outletSettings.appLanguage), fontWeight = FontWeight.SemiBold, maxLines = 1, overflow = TextOverflow.Ellipsis) },
+                                            icon = { Icon(item.icon, contentDescription = item.titleId, tint = moduleIconTint(item)) },
+                                            badge = { Icon(if (reportMenuExpanded) Icons.Outlined.ExpandLess else Icons.Outlined.ExpandMore, contentDescription = "Tampilkan submenu laporan") },
+                                            selected = activeModule == item, onClick = { reportMenuExpanded = !reportMenuExpanded }, shape = RoundedCornerShape(10.dp)
+                                        )
+                                        if (reportMenuExpanded) reportPages.forEach { page ->
+                                            NavigationDrawerItem(
+                                                modifier = Modifier.padding(start = 20.dp),
+                                                colors = NavigationDrawerItemDefaults.colors(selectedContainerColor = if (uiState.darkTheme) androidx.compose.ui.graphics.Color(0xFF203A56) else androidx.compose.ui.graphics.Color(0xFFE8EEF5), unselectedContainerColor = androidx.compose.ui.graphics.Color.Transparent),
+                                                label = { Text(page, fontWeight = if (activeModule == PosModuleRoute.LAPORAN && selectedReportPage == page) FontWeight.Bold else FontWeight.Normal, style = MaterialTheme.typography.bodyMedium, maxLines = 1, overflow = TextOverflow.Ellipsis) },
+                                                icon = { Text("•", color = if (activeModule == PosModuleRoute.LAPORAN && selectedReportPage == page) androidx.compose.ui.graphics.Color(0xFF6F91C5) else MaterialTheme.colorScheme.onSurfaceVariant) },
+                                                selected = activeModule == PosModuleRoute.LAPORAN && selectedReportPage == page,
+                                                onClick = { selectedReportPage = page; activeModule = PosModuleRoute.LAPORAN; if (!isTabletOrWide) scope.launch { drawerState.close() } },
+                                                shape = RoundedCornerShape(9.dp)
                                             )
-                                        },
-                                        icon = { Icon(item.icon, contentDescription = localizedRouteTitle(item.titleId, uiState.outletSettings.appLanguage), tint = moduleIconTint(item)) },
-                                        badge = badgeText?.let { b ->
-                                            {
-                                                Badge { Text(b) }
-                                            }
-                                        },
-                                        selected = activeModule == item,
-                                        onClick = {
-                                            activeModule = item
-                                            if (!isTabletOrWide) {
-                                                scope.launch { drawerState.close() }
-                                            }
-                                        },
-                                        shape = RoundedCornerShape(10.dp)
-                                    )
+                                        }
+                                    } else {
+                                        val badgeText = when (item) {
+                                            PosModuleRoute.KASIR -> uiState.cart.sumOf { it.quantity }.takeIf { it > 0 }?.toString()
+                                            PosModuleRoute.PESANAN -> uiState.activeOrdersCount.takeIf { it > 0 }?.toString()
+                                            PosModuleRoute.PRODUK -> uiState.lowStockProducts.size.takeIf { it > 0 }?.toString()
+                                            else -> null
+                                        }
+                                        NavigationDrawerItem(
+                                            colors = NavigationDrawerItemDefaults.colors(selectedContainerColor = if (uiState.darkTheme) androidx.compose.ui.graphics.Color(0xFF203A56) else androidx.compose.ui.graphics.Color(0xFFE8EEF5), unselectedContainerColor = androidx.compose.ui.graphics.Color.Transparent),
+                                            label = { Text(localizedRouteTitle(item.titleId, uiState.outletSettings.appLanguage), fontWeight = if (activeModule == item) FontWeight.Bold else FontWeight.SemiBold, maxLines = 1, overflow = TextOverflow.Ellipsis) },
+                                            icon = { Icon(item.icon, contentDescription = localizedRouteTitle(item.titleId, uiState.outletSettings.appLanguage), tint = moduleIconTint(item)) },
+                                            badge = badgeText?.let { b -> { Badge { Text(b) } } },
+                                            selected = activeModule == item,
+                                            onClick = { activeModule = item; if (!isTabletOrWide) scope.launch { drawerState.close() } },
+                                            shape = RoundedCornerShape(10.dp)
+                                        )
+                                    }
                                 }
                             }
                         }
                     }
-
                     HorizontalDivider(modifier = Modifier.padding(vertical = 8.dp))
                     Row(
                         modifier = Modifier.fillMaxWidth(),
@@ -365,14 +359,7 @@ fun CafeFlowAppShell(
                         )
                         .padding(innerPadding)
                 ) {
-                    RenderModuleScreen(
-                        module = activeModule,
-                        isTabletOrWide = isTabletOrWide,
-                        onNavigateModule = { activeModule = it },
-                        viewModel = viewModel,
-                        uiState = uiState,
-                        isLandscapePhone = isLandscapePhone
-                    )
+                    RenderModuleScreen(module = activeModule, isTabletOrWide = isTabletOrWide, onNavigateModule = { activeModule = it }, viewModel = viewModel, uiState = uiState, isLandscapePhone = isLandscapePhone, selectedReportPage = selectedReportPage, onSelectedReportPageChange = { selectedReportPage = it })
 
                 }
             }

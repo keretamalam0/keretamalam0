@@ -260,7 +260,8 @@ class PosViewModel(application: Application) : AndroidViewModel(application) {
                 return@launch
             }
 
-            _uiState.update { it.copy(isLoading = true, errorMessage = null) }
+            // Verify backend in background; never block first render or login form.
+            _uiState.update { it.copy(errorMessage = null) }
             runCatching {
                 repository.verifyDatabaseConnection(
                     projectId = creds.projectId,
@@ -276,13 +277,12 @@ class PosViewModel(application: Application) : AndroidViewModel(application) {
                 )
             }.onSuccess {
                 refreshBackendConfigStatus()
-                _uiState.update { it.copy(isLoading = false, errorMessage = null) }
+                _uiState.update { it.copy(errorMessage = null) }
             }.onFailure {
                 SupabaseConfigManager.deactivateIntegration(getApplication())
                 refreshBackendConfigStatus()
                 _uiState.update {
                     it.copy(
-                        isLoading = false,
                         errorMessage = "Layanan sementara tidak tersedia. Periksa koneksi internet lalu coba lagi."
                     )
                 }

@@ -168,7 +168,8 @@ fun RenderModuleScreen(
     isTabletOrWide: Boolean,
     onNavigateModule: (PosModuleRoute) -> Unit,
     viewModel: PosViewModel,
-    uiState: PosUiState
+    uiState: PosUiState,
+    isLandscapePhone: Boolean = false
 ) {
     val activeMsg = uiState.errorMessage ?: uiState.successMessage
     LaunchedEffect(activeMsg) {
@@ -188,8 +189,8 @@ fun RenderModuleScreen(
             when (module) {
                 PosModuleRoute.DASHBOARD -> DashboardComposeScreen(uiState, isTabletOrWide, onNavigateModule)
                 PosModuleRoute.AI_ASSISTANT -> AiAssistantComposeScreen(viewModel, uiState)
-                PosModuleRoute.KASIR -> KasirComposeScreen(viewModel, uiState, isTabletOrWide)
-                PosModuleRoute.PESANAN -> PesananComposeScreen(viewModel, uiState, isTabletOrWide)
+                PosModuleRoute.KASIR -> KasirComposeScreen(viewModel, uiState, isTabletOrWide, isLandscapePhone)
+                PosModuleRoute.PESANAN -> PesananComposeScreen(viewModel, uiState, isTabletOrWide, isLandscapePhone)
                 PosModuleRoute.HISTORY -> HistoryComposeScreen(viewModel, uiState)
                 PosModuleRoute.SHIFT_KASIR -> ShiftKasirComposeScreen(viewModel, uiState)
                 PosModuleRoute.AUDIT_SHIFT -> AuditShiftComposeScreen(viewModel, uiState)
@@ -508,11 +509,11 @@ private fun DashboardComposeScreen(
     }
 }
 
-private val DashboardChartColors = listOf(Color(0xFF2878F0), Color(0xFF16A085), Color(0xFFF59E0B), Color(0xFF8B5CF6), Color(0xFFEC4899), Color(0xFF0891B2), Color(0xFF64748B))
+private val DashboardChartColors = listOf(Color(0xFF7B91AA), Color(0xFF6F9B91), Color(0xFFC5A56E), Color(0xFF998AB8), Color(0xFFB98FA1), Color(0xFF729DA8), Color(0xFF7B8794))
 
 @Composable
 private fun DashboardLineChart(values: List<Float>, modifier: Modifier = Modifier) {
-    val blue = Color(0xFF2878F0)
+    val blue = Color(0xFF7B91AA)
     val grid = MaterialTheme.colorScheme.outline.copy(alpha = 0.22f)
     Canvas(modifier) {
         if (values.isEmpty()) return@Canvas
@@ -530,7 +531,7 @@ private fun DashboardLineChart(values: List<Float>, modifier: Modifier = Modifie
 
 @Composable
 private fun DashboardBarChart(values: List<Float>, modifier: Modifier = Modifier) {
-    val blue = Color(0xFF2878F0); val grid = MaterialTheme.colorScheme.outline.copy(alpha = 0.22f)
+    val blue = Color(0xFF7B91AA); val grid = MaterialTheme.colorScheme.outline.copy(alpha = 0.22f)
     Canvas(modifier) {
         val max = (values.maxOrNull() ?: 0f).coerceAtLeast(1f); val step = size.width / values.size.coerceAtLeast(1)
         repeat(3) { i -> val y = size.height * (i+1) / 4f; drawLine(grid, androidx.compose.ui.geometry.Offset(0f,y), androidx.compose.ui.geometry.Offset(size.width,y), strokeWidth = 1.dp.toPx()) }
@@ -701,7 +702,8 @@ private fun AiAssistantComposeScreen(viewModel: PosViewModel, uiState: PosUiStat
 private fun KasirComposeScreen(
     viewModel: PosViewModel,
     uiState: PosUiState,
-    isTabletOrWide: Boolean
+    isTabletOrWide: Boolean,
+    isLandscapePhone: Boolean
 ) {
     var showConfirmCheckoutDialog by remember { mutableStateOf(false) }
     var customizingProduct by remember { mutableStateOf<Product?>(null) }
@@ -1089,8 +1091,9 @@ private fun KasirComposeScreen(
         }
     }
 
-    if (isTabletOrWide) {
-        Row(modifier = Modifier.fillMaxSize(), horizontalArrangement = Arrangement.spacedBy(16.dp)) {
+    val useSideBySideCashier = isTabletOrWide || (isLandscapePhone && androidx.compose.ui.platform.LocalConfiguration.current.screenWidthDp >= 700)
+    if (useSideBySideCashier) {
+        Row(modifier = Modifier.fillMaxSize(), horizontalArrangement = Arrangement.spacedBy(if (isLandscapePhone) 10.dp else 16.dp)) {
             catalogContent(Modifier.weight(1.3f).fillMaxHeight())
             cartContent(Modifier.weight(1f).fillMaxHeight())
         }
@@ -1331,7 +1334,8 @@ private fun KasirComposeScreen(
 private fun PesananComposeScreen(
     viewModel: PosViewModel,
     uiState: PosUiState,
-    isTabletOrWide: Boolean
+    isTabletOrWide: Boolean,
+    isLandscapePhone: Boolean
 ) {
     var lane by remember { mutableStateOf("baru") }
     var sourceFilter by remember { mutableStateOf("ALL") }
@@ -1416,10 +1420,16 @@ private fun PesananComposeScreen(
                             }
                             if (lane != "riwayat") {
                                 if (order.source == "qr" && !order.isPaid && order.status != OrderStatus.CANCELLED) {
-                                    Row(horizontalArrangement = Arrangement.spacedBy(6.dp)) {
+                                    Row(
+                                        modifier = Modifier.fillMaxWidth().horizontalScroll(rememberScrollState()),
+                                        horizontalArrangement = Arrangement.spacedBy(6.dp)
+                                    ) {
                                         Button(onClick = { viewModel.approveQrOrder(order, "qris") { lane = if (order.status == OrderStatus.READY) "siap" else "diproses" } }) { Text("Konfirmasi QRIS") }
                                         OutlinedButton(onClick = { viewModel.approveQrOrder(order, "cash") { lane = if (order.status == OrderStatus.READY) "siap" else "diproses" } }) { Text("Terima Tunai") }
-                                        OutlinedButton(onClick = { viewModel.rejectQrOrder(order) }) { Text("Tolak") }
+                                        OutlinedButton(
+                                            onClick = { viewModel.rejectQrOrder(order) },
+                                            colors = ButtonDefaults.outlinedButtonColors(contentColor = MaterialTheme.colorScheme.error)
+                                        ) { Text("Tolak") }
                                     }
                                 }
                                 Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {

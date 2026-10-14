@@ -1951,6 +1951,15 @@ private fun PesananComposeScreen(
                                 }
                             }
                             Text("Metode customer: ${paymentLabel(order.customerPaymentMethod ?: order.paymentMethod)}", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                            if (order.discount > 0) {
+                                val appliedPromoName = uiState.promotions.firstOrNull { it.id == order.promotionId }?.name
+                                Text(
+                                    "PROMO DIPAKAI: ${appliedPromoName ?: "Promo/Diskon"} · Hemat ${RupiahFormatter.format(order.discount)}",
+                                    style = MaterialTheme.typography.bodySmall,
+                                    color = Color(0xFF15803D),
+                                    fontWeight = FontWeight.SemiBold
+                                )
+                            }
                             HorizontalDivider()
                             order.orderItems.forEach { item ->
                                 Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {

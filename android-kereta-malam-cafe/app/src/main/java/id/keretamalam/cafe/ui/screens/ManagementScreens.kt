@@ -250,8 +250,10 @@ fun ProdukStokComposeScreen(viewModel: PosViewModel, uiState: PosUiState) {
         var imageUrl by remember(targetEdit) { mutableStateOf(targetEdit.imageUrl.orEmpty()) }
         var isActive by remember(targetEdit) { mutableStateOf(targetEdit.isActive) }
         var showOnMenu by remember(targetEdit) { mutableStateOf(targetEdit.showOnMenu) }
+        var inlineAddonId by remember(targetEdit) { mutableStateOf("") }
         var inlineAddonName by remember(targetEdit) { mutableStateOf("") }
         var inlineAddonPrice by remember(targetEdit) { mutableStateOf("0") }
+        var inlineOptionId by remember(targetEdit) { mutableStateOf("") }
         var inlineOptionGroup by remember(targetEdit) { mutableStateOf("sugar") }
         var inlineOptionName by remember(targetEdit) { mutableStateOf("") }
         var inlineOptionPrice by remember(targetEdit) { mutableStateOf("0") }
@@ -270,10 +272,15 @@ fun ProdukStokComposeScreen(viewModel: PosViewModel, uiState: PosUiState) {
         Dialog(onDismissRequest = { editingProduct = null }, properties = DialogProperties(usePlatformDefaultWidth = false)) {
             Surface(shape = RoundedCornerShape(16.dp), color = MaterialTheme.colorScheme.surface, modifier = Modifier.fillMaxWidth(0.92f).widthIn(max = 460.dp).heightIn(max = 760.dp).padding(8.dp)) {
                 Column(Modifier.padding(12.dp).verticalScroll(rememberScrollState()), verticalArrangement = Arrangement.spacedBy(6.dp)) {
-                    Text(if (targetEdit.id.isBlank()) "Tambah Produk" else "Edit Produk", style = MaterialTheme.typography.titleLarge, fontWeight = FontWeight.Bold)
-                    Text("Isi detail utama, lalu tambah topping atau opsi bila diperlukan.", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
-                    OutlinedTextField(value = name, onValueChange = { name = it }, label = { Text("Nama produk") }, modifier = Modifier.fillMaxWidth(), singleLine = true)
-                    OutlinedTextField(value = desc, onValueChange = { desc = it }, label = { Text("Deskripsi") }, modifier = Modifier.fillMaxWidth(), maxLines = 2)
+                    Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
+                        Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(2.dp)) {
+                            Text(if (targetEdit.id.isBlank()) "Tambah Produk" else "Edit Produk", style = MaterialTheme.typography.titleLarge, fontWeight = FontWeight.Bold)
+                            Text("Detail produk dan pilihan pelanggan", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                        }
+                        TextButton(onClick = { editingProduct = null }) { Text("Tutup") }
+                    }
+                    OutlinedTextField(value = name, onValueChange = { name = it }, label = { Text("Nama produk *") }, modifier = Modifier.fillMaxWidth(), singleLine = true)
+                    OutlinedTextField(value = desc, onValueChange = { desc = it }, label = { Text("Deskripsi (opsional)") }, modifier = Modifier.fillMaxWidth(), maxLines = 2)
                     Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(10.dp)) {
                         Box(Modifier.size(78.dp), contentAlignment = Alignment.Center) {
                             Surface(Modifier.fillMaxSize(), shape = RoundedCornerShape(8.dp), color = MaterialTheme.colorScheme.surfaceVariant) { Box(contentAlignment = Alignment.Center) { Text("FOTO", style = MaterialTheme.typography.labelSmall) } }
@@ -335,10 +342,13 @@ fun ProdukStokComposeScreen(viewModel: PosViewModel, uiState: PosUiState) {
                             OutlinedTextField(value = inlineAddonName, onValueChange = { inlineAddonName = it }, label = { Text("Nama topping") }, modifier = Modifier.weight(1.3f), singleLine = true)
                             OutlinedTextField(value = inlineAddonPrice, onValueChange = { inlineAddonPrice = it.filter(Char::isDigit) }, label = { Text("Harga +Rp") }, modifier = Modifier.weight(0.8f), singleLine = true)
                         }
-                        Button(enabled = inlineAddonName.isNotBlank(), onClick = {
-                            viewModel.saveProductAddon(ProductAddon(productId = targetEdit.id, name = inlineAddonName.trim(), price = inlineAddonPrice.toDoubleOrNull() ?: 0.0, isActive = true))
-                            inlineAddonName = ""; inlineAddonPrice = "0"
-                        }, modifier = Modifier.fillMaxWidth()) { Text("+ Tambah Topping") }
+                        Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                            Button(enabled = inlineAddonName.isNotBlank(), onClick = {
+                                viewModel.saveProductAddon(ProductAddon(id = inlineAddonId, productId = targetEdit.id, name = inlineAddonName.trim(), price = inlineAddonPrice.toDoubleOrNull() ?: 0.0, isActive = true))
+                                inlineAddonId = ""; inlineAddonName = ""; inlineAddonPrice = "0"
+                            }, modifier = Modifier.weight(1f)) { Text(if (inlineAddonId.isBlank()) "+ Tambah topping" else "Simpan topping") }
+                            if (inlineAddonId.isNotBlank()) OutlinedButton(onClick = { inlineAddonId = ""; inlineAddonName = ""; inlineAddonPrice = "0" }) { Text("Batal") }
+                        }
                         uiState.productAddons.filter { it.productId == targetEdit.id }.forEach { addon ->
                             Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(6.dp)) {
                                 Column(Modifier.weight(1f)) {
@@ -346,7 +356,8 @@ fun ProdukStokComposeScreen(viewModel: PosViewModel, uiState: PosUiState) {
                                     Text(RupiahFormatter.format(addon.price), style = MaterialTheme.typography.bodySmall)
                                 }
                                 Switch(checked = addon.isActive, onCheckedChange = { viewModel.saveProductAddon(addon.copy(isActive = it)) })
-                                TextButton(onClick = { viewModel.deleteProductAddon(addon.id) }) { Text("Hapus") }
+                                TextButton(onClick = { inlineAddonId = addon.id; inlineAddonName = addon.name; inlineAddonPrice = addon.price.toLong().toString() }) { Text("Edit") }
+                                TextButton(onClick = { viewModel.deleteProductAddon(addon.id); if (inlineAddonId == addon.id) { inlineAddonId = ""; inlineAddonName = ""; inlineAddonPrice = "0" } }) { Text("Hapus", color = MaterialTheme.colorScheme.error) }
                             }
                         }
                     }
@@ -365,11 +376,14 @@ fun ProdukStokComposeScreen(viewModel: PosViewModel, uiState: PosUiState) {
                             OutlinedTextField(value = inlineOptionName, onValueChange = { inlineOptionName = it }, label = { Text("Nama pilihan") }, modifier = Modifier.weight(1.3f), singleLine = true)
                             OutlinedTextField(value = inlineOptionPrice, onValueChange = { inlineOptionPrice = it.filter(Char::isDigit) }, label = { Text("Harga tambahan Rp") }, modifier = Modifier.weight(0.8f), singleLine = true)
                         }
-                        Button(enabled = inlineOptionName.isNotBlank(), onClick = {
-                            val nextOrder = uiState.customizationOptions.count { it.productId == targetEdit.id && it.groupKey == inlineOptionGroup }
-                            viewModel.saveCustomizationOption(ProductCustomizationOption(productId = targetEdit.id, groupKey = inlineOptionGroup, name = inlineOptionName.trim(), priceDelta = inlineOptionPrice.toDoubleOrNull() ?: 0.0, isActive = true, sortOrder = nextOrder))
-                            inlineOptionName = ""; inlineOptionPrice = "0"
-                        }, modifier = Modifier.fillMaxWidth()) { Text("+ Tambah Opsi") }
+                        Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                            Button(enabled = inlineOptionName.isNotBlank(), onClick = {
+                                val nextOrder = uiState.customizationOptions.count { it.productId == targetEdit.id && it.groupKey == inlineOptionGroup }
+                                viewModel.saveCustomizationOption(ProductCustomizationOption(id = inlineOptionId, productId = targetEdit.id, groupKey = inlineOptionGroup, name = inlineOptionName.trim(), priceDelta = inlineOptionPrice.toDoubleOrNull() ?: 0.0, isActive = true, sortOrder = nextOrder))
+                                inlineOptionId = ""; inlineOptionName = ""; inlineOptionPrice = "0"
+                            }, modifier = Modifier.weight(1f)) { Text(if (inlineOptionId.isBlank()) "+ Tambah opsi" else "Simpan opsi") }
+                            if (inlineOptionId.isNotBlank()) OutlinedButton(onClick = { inlineOptionId = ""; inlineOptionName = ""; inlineOptionPrice = "0" }) { Text("Batal") }
+                        }
                         uiState.customizationOptions.filter { it.productId == targetEdit.id }.forEach { option ->
                             val groupLabel = when (option.groupKey) { "sugar" -> "Kemanisan"; "ice" -> "Es / suhu"; else -> "Ukuran cup" }
                             Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(6.dp)) {
@@ -378,7 +392,8 @@ fun ProdukStokComposeScreen(viewModel: PosViewModel, uiState: PosUiState) {
                                     Text("$groupLabel · \${RupiahFormatter.format(option.priceDelta)} tambahan", style = MaterialTheme.typography.bodySmall)
                                 }
                                 Switch(checked = option.isActive, onCheckedChange = { viewModel.saveCustomizationOption(option.copy(isActive = it)) })
-                                TextButton(onClick = { viewModel.deleteCustomizationOption(option.id) }) { Text("Hapus") }
+                                TextButton(onClick = { inlineOptionId = option.id; inlineOptionGroup = option.groupKey; inlineOptionName = option.name; inlineOptionPrice = option.priceDelta.toLong().toString() }) { Text("Edit") }
+                                TextButton(onClick = { viewModel.deleteCustomizationOption(option.id); if (inlineOptionId == option.id) { inlineOptionId = ""; inlineOptionName = ""; inlineOptionPrice = "0" } }) { Text("Hapus", color = MaterialTheme.colorScheme.error) }
                             }
                         }
                     }

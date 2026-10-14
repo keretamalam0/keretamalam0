@@ -1717,7 +1717,16 @@ fun PrinterComposeScreen(
                         Text("Pindai Bluetooth")
                     }
                 }
-                Text("Mendukung 2 printer terpisah: Printer Struk Kasir & Printer Tiket Dapur via RFCOMM Socket (00001101-0000-1000-8000-00805F9B34FB). Pengujian fisik tetap diperlukan pada printer sebenarnya.")
+                Text(
+                    "Cara menghubungkan: 1) Nyalakan printer thermal dan aktifkan Bluetooth. 2) Buka Pengaturan Bluetooth Android, lalu pasangkan (pair) printer terlebih dahulu. 3) Kembali ke sini dan tekan Pindai Bluetooth. 4) Pilih perangkat pada bagian Printer Struk Kasir atau Printer Tiket Dapur. 5) Tekan Tes Cetak untuk memastikan koneksi.",
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                )
+                Text(
+                    "Catatan: gunakan printer thermal Bluetooth yang mendukung ESC/POS (Bluetooth Classic / SPP). Aplikasi dapat menyimpan dua printer terpisah. Printer harus sudah dipasangkan dari pengaturan Android; tombol Pindai hanya menampilkan perangkat yang sudah dipasangkan. Kompatibilitas tetap perlu diuji pada printer fisik.",
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                )
                 PrinterRole.entries.forEach { role ->
                     val saved = viewModel.printerManager.getSavedPrinter(role)
                     OutlinedCard(modifier = Modifier.fillMaxWidth()) {

@@ -1438,13 +1438,13 @@ class PosViewModel(application: Application) : AndroidViewModel(application) {
                 runCatching { repository.saveProduct(product) }
                     .onSuccess { saved ->
                         syncAllDataFromBackend()
-                        showNotice("Produk \"\${product.name}\" tersimpan di Supabase.")
+                        showNotice("Produk \"${product.name}\" tersimpan di Supabase.")
                         onSaved(saved)
                     }
                     .onFailure { showNotice(it.message ?: "Gagal menyimpan produk.", isError = true) }
                 return@launch
             }
-            val saved = product.copy(id = product.id.ifBlank { "prod-\${System.currentTimeMillis()}" })
+            val saved = product.copy(id = product.id.ifBlank { "prod-${System.currentTimeMillis()}" })
             _uiState.update { state ->
                 val updated = if (product.id.isNotBlank()) {
                     state.products.map { if (it.id == product.id) saved else it }
@@ -1453,7 +1453,7 @@ class PosViewModel(application: Application) : AndroidViewModel(application) {
                 }
                 state.copy(
                     products = updated,
-                    successMessage = "Produk \"\${product.name}\" berhasil disimpan."
+                    successMessage = "Produk \"${product.name}\" berhasil disimpan."
                 )
             }
             onSaved(saved)

@@ -740,41 +740,43 @@ private fun KasirComposeScreen(
                 }
             }
 
-            LazyVerticalGrid(
-                columns = GridCells.Adaptive(minSize = if (isTabletOrWide) 164.dp else 148.dp),
-                modifier = Modifier.fillMaxWidth().weight(1f),
-                horizontalArrangement = Arrangement.spacedBy(8.dp),
-                verticalArrangement = Arrangement.spacedBy(8.dp),
-                contentPadding = PaddingValues(end = 4.dp, bottom = 8.dp)
-            ) {
-                items(filteredProducts, key = { it.id }) { product ->
-                    OutlinedCard(
-                        modifier = Modifier.fillMaxWidth().height(158.dp),
-                        shape = RoundedCornerShape(10.dp)
-                    ) {
-                        Row(
-                            modifier = Modifier.fillMaxSize().padding(6.dp),
-                            horizontalArrangement = Arrangement.spacedBy(7.dp),
-                            verticalAlignment = Alignment.CenterVertically
+            BoxWithConstraints(modifier = Modifier.fillMaxWidth().weight(1f)) {
+                // Katalog digeser horizontal; jumlah baris mengikuti tinggi layar yang tersedia.
+                val productRows = when {
+                    maxHeight < 270.dp -> 1
+                    maxHeight < 430.dp -> 2
+                    else -> 3
+                }
+                LazyHorizontalGrid(
+                    rows = GridCells.Fixed(productRows),
+                    modifier = Modifier.fillMaxSize(),
+                    horizontalArrangement = Arrangement.spacedBy(14.dp),
+                    verticalArrangement = Arrangement.spacedBy(10.dp),
+                    contentPadding = PaddingValues(end = 10.dp, bottom = 6.dp)
+                ) {
+                    items(filteredProducts, key = { it.id }) { product ->
+                        Column(
+                            modifier = Modifier
+                                .width(if (isTabletOrWide) 210.dp else 188.dp)
+                                .fillMaxHeight()
+                                .padding(horizontal = 2.dp, vertical = 2.dp),
+                            verticalArrangement = Arrangement.spacedBy(4.dp)
                         ) {
                             Box(
-                                modifier = Modifier.size(if (isTabletOrWide) 58.dp else 52.dp),
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .weight(1f)
+                                    .defaultMinSize(minHeight = 58.dp)
+                                    .clip(RoundedCornerShape(10.dp))
+                                    .background(MaterialTheme.colorScheme.surfaceVariant),
                                 contentAlignment = Alignment.Center
                             ) {
-                                Surface(
-                                    modifier = Modifier.fillMaxSize(),
-                                    shape = RoundedCornerShape(7.dp),
-                                    color = MaterialTheme.colorScheme.surfaceVariant
-                                ) {
-                                    Box(contentAlignment = Alignment.Center) {
-                                        androidx.compose.material3.Icon(
-                                            imageVector = Icons.Outlined.Inventory2,
-                                            contentDescription = "Foto belum tersedia",
-                                            tint = MaterialTheme.colorScheme.onSurfaceVariant,
-                                            modifier = Modifier.size(22.dp)
-                                        )
-                                    }
-                                }
+                                androidx.compose.material3.Icon(
+                                    imageVector = Icons.Outlined.Inventory2,
+                                    contentDescription = "Foto belum tersedia",
+                                    tint = MaterialTheme.colorScheme.onSurfaceVariant,
+                                    modifier = Modifier.size(26.dp)
+                                )
                                 if (!product.imageUrl.isNullOrBlank()) {
                                     AsyncImage(
                                         model = product.imageUrl,
@@ -783,61 +785,77 @@ private fun KasirComposeScreen(
                                         contentScale = androidx.compose.ui.layout.ContentScale.Crop
                                     )
                                 }
+                                if (product.isOutOfStock) {
+                                    Surface(
+                                        modifier = Modifier.align(Alignment.TopEnd).padding(5.dp),
+                                        color = MaterialTheme.colorScheme.error,
+                                        shape = RoundedCornerShape(5.dp)
+                                    ) {
+                                        Text(
+                                            "HABIS",
+                                            modifier = Modifier.padding(horizontal = 6.dp, vertical = 2.dp),
+                                            color = MaterialTheme.colorScheme.onError,
+                                            style = MaterialTheme.typography.labelSmall,
+                                            fontWeight = FontWeight.Bold
+                                        )
+                                    }
+                                }
                             }
-                            Column(
-                                modifier = Modifier.weight(1f).fillMaxHeight(),
-                                verticalArrangement = Arrangement.spacedBy(2.dp)
+                            Text(
+                                text = product.name,
+                                style = MaterialTheme.typography.bodyMedium,
+                                fontWeight = FontWeight.SemiBold,
+                                maxLines = 1,
+                                overflow = TextOverflow.Ellipsis
+                            )
+                            Row(
+                                modifier = Modifier.fillMaxWidth(),
+                                horizontalArrangement = Arrangement.SpaceBetween,
+                                verticalAlignment = Alignment.CenterVertically
                             ) {
                                 Text(
-                                    text = product.name,
-                                    style = MaterialTheme.typography.labelLarge,
-                                    fontWeight = FontWeight.SemiBold,
-                                    maxLines = 1
-                                )
-                                Text(
                                     text = RupiahFormatter.format(product.price),
-                                    style = MaterialTheme.typography.labelMedium,
+                                    style = MaterialTheme.typography.labelLarge,
                                     fontWeight = FontWeight.Bold,
                                     maxLines = 1
                                 )
                                 Text(
-                                    text = when {
-                                        product.isOutOfStock -> "HABIS"
-                                        product.isLowStock -> "Stok tipis: ${product.stock}"
-                                        else -> "Stok: ${product.stock}"
-                                    },
+                                    text = "Stok ${product.stock}",
                                     style = MaterialTheme.typography.labelSmall,
-                                    color = if (product.isOutOfStock || product.isLowStock)
+                                    color = if (product.isLowStock || product.isOutOfStock)
                                         MaterialTheme.colorScheme.error
                                     else MaterialTheme.colorScheme.onSurfaceVariant,
                                     maxLines = 1
                                 )
-                                Spacer(modifier = Modifier.weight(1f))
-                                Row(
-                                    horizontalArrangement = Arrangement.spacedBy(4.dp),
-                                    verticalAlignment = Alignment.CenterVertically
+                            }
+                            Row(
+                                modifier = Modifier.fillMaxWidth(),
+                                horizontalArrangement = Arrangement.spacedBy(6.dp),
+                                verticalAlignment = Alignment.CenterVertically
+                            ) {
+                                OutlinedButton(
+                                    onClick = {
+                                        customizingProduct = product
+                                        customSugar = "Normal Sugar"
+                                        customIce = "Normal Ice"
+                                        customCup = "Regular"
+                                        customExtraShot = false
+                                        customOatMilk = false
+                                        customAddonIds = emptySet()
+                                        customNote = ""
+                                    },
+                                    enabled = !product.isOutOfStock,
+                                    contentPadding = PaddingValues(horizontal = 8.dp, vertical = 0.dp),
+                                    modifier = Modifier.weight(1f).height(32.dp)
                                 ) {
-                                    OutlinedButton(
-                                        onClick = {
-                                            customizingProduct = product
-                                            customSugar = "Normal Sugar"
-                                            customIce = "Normal Ice"
-                                            customCup = "Regular"
-                                            customExtraShot = false
-                                            customOatMilk = false
-                                            customAddonIds = emptySet()
-                                            customNote = ""
-                                        },
-                                        enabled = !product.isOutOfStock,
-                                        contentPadding = PaddingValues(horizontal = 7.dp, vertical = 0.dp),
-                                        modifier = Modifier.height(30.dp)
-                                    ) { Text("Opsi", style = MaterialTheme.typography.labelSmall) }
-                                    Button(
-                                        onClick = { viewModel.addToCart(product) },
-                                        enabled = !product.isOutOfStock,
-                                        contentPadding = PaddingValues(horizontal = 8.dp, vertical = 0.dp),
-                                        modifier = Modifier.height(30.dp)
-                                    ) { Text("+") }
+                                    Text("Opsi", style = MaterialTheme.typography.labelMedium)
+                                }
+                                FilledIconButton(
+                                    onClick = { viewModel.addToCart(product) },
+                                    enabled = !product.isOutOfStock,
+                                    modifier = Modifier.size(32.dp)
+                                ) {
+                                    Text("+", style = MaterialTheme.typography.titleMedium)
                                 }
                             }
                         }

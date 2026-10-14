@@ -70,19 +70,54 @@ data class PosUiState(
     val subtotal: Double
         get() = cart.sumOf { it.lineTotal }
 
+    val selectedPromotion: Promotion?
+        get() = promotions.firstOrNull { it.id == selectedPromotionId }
+
     val activePromotion: Promotion?
-        get() = promotions.firstOrNull { it.id == selectedPromotionId && it.active }
+        get() = selectedPromotion?.takeIf { it.active && it.allowCashier }
+
+    val selectedPaymentOption: PaymentMethod?
+        get() = paymentMethods.firstOrNull { it.code.equals(paymentMethod, true) }
+            ?: paymentMethods.firstOrNull { it.type.equals(paymentMethod, true) }
+
+    val paymentMethodType: String
+        get() = selectedPaymentOption?.type?.lowercase() ?: paymentMethod.lowercase()
+
+    val promotionEligibilityReason: String?
+        get() {
+            val promo = selectedPromotion ?: return if (selectedPromotionId == null) null else "Promo tidak ditemukan. Pilih promo lain."
+            if (!promo.active) return "Promo ini sedang nonaktif."
+            if (!promo.allowCashier) return "Promo ini tidak tersedia untuk kasir."
+            if (subtotal < promo.minPurchase) return "Minimum belanja ${RupiahFormatter.format(promo.minPurchase)} belum tercapai."
+            val matchingItems = if (promo.scope == "product") cart.filter { it.product.id == promo.productId } else cart
+            val matchingQuantity = matchingItems.sumOf { it.quantity }
+            if (matchingQuantity < promo.minQuantity.coerceAtLeast(1)) {
+                return if (promo.scope == "product") "Minimal ${promo.minQuantity} item produk yang dipilih diperlukan untuk promo ini."
+                else "Minimal ${promo.minQuantity} item diperlukan untuk promo ini."
+            }
+            if (promo.scope == "product" && matchingItems.isEmpty()) {
+                return "Tambahkan produk yang memenuhi promo ke keranjang."
+            }
+            return null
+        }
+
+    val isPromotionEligible: Boolean
+        get() = selectedPromotionId == null || (activePromotion != null && promotionEligibilityReason == null)
 
     val discountAmount: Double
         get() {
             val promo = activePromotion ?: return 0.0
-            if (subtotal < promo.minPurchase) return 0.0
+            if (promotionEligibilityReason != null) return 0.0
+            val eligibleSubtotal = if (promo.scope == "product") {
+                cart.filter { it.product.id == promo.productId }.sumOf { it.lineTotal }
+            } else subtotal
+            if (eligibleSubtotal <= 0.0) return 0.0
             val raw = if (promo.type == "percentage") {
-                subtotal * (promo.value / 100.0)
+                eligibleSubtotal * (promo.value / 100.0)
             } else {
                 promo.value
             }
-            return raw.coerceAtMost(subtotal)
+            return raw.coerceIn(0.0, eligibleSubtotal)
         }
 
     val taxableBase: Double

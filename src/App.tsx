@@ -1610,23 +1610,46 @@ export default function App() {
                   )}
 
                   <div>
-                    <label className="block text-[11px] font-medium text-zinc-500">Metode Pembayaran</label>
-                    <div className="mt-1 grid grid-cols-4 gap-1.5">
-                      {(paymentMethods.filter(pm => pm.is_active).length ? paymentMethods.filter(pm => pm.is_active).map(pm => ({ code: pm.type === 'bank_transfer' ? 'transfer' : pm.type, label: pm.name })) : [{code:'cash',label:'Tunai'},{code:'qris',label:'QRIS'},{code:'transfer',label:'Transfer'},{code:'ewallet',label:'E-Wallet'}]).map(({code,label}) => (
-                        <button
-                          key={code}
-                          type="button"
-                          onClick={() => setPaymentMethod(code)}
-                          className={`rounded-lg py-2 text-xs font-semibold transition-colors whitespace-nowrap shrink-0 ${
-                            paymentMethod === code
-                              ? 'bg-zinc-900 text-white dark:bg-zinc-100 dark:text-zinc-900'
-                              : 'border border-zinc-200 bg-zinc-50 text-zinc-700 dark:border-zinc-800 dark:bg-zinc-950 dark:text-zinc-300'
-                          }`}
-                        >
-                          {label}
-                        </button>
-                      ))}
-                    </div>
+                    <label className="block text-[11px] font-medium text-zinc-500">Metode / Tujuan Pembayaran</label>
+                    <select
+                      value={selectedPaymentMethod?.id ?? `fallback:${paymentMethod}`}
+                      onChange={(e) => {
+                        const method = activePaymentMethods.find((item) => item.id === e.target.value);
+                        if (method) {
+                          setSelectedPaymentMethodId(method.id);
+                          setPaymentMethod(method.type === 'bank_transfer' ? 'transfer' : method.type);
+                        } else {
+                          setSelectedPaymentMethodId('');
+                          setPaymentMethod(e.target.value.replace('fallback:', ''));
+                        }
+                      }}
+                      className="mt-1 w-full rounded-lg border border-zinc-200 bg-zinc-50 px-2.5 py-2.5 text-xs dark:border-zinc-800 dark:bg-zinc-950"
+                    >
+                      {activePaymentMethods.length ? activePaymentMethods.map((method) => (
+                        <option key={method.id} value={method.id}>
+                          {method.name} · {method.type === 'cash' ? 'Cash / Tunai' : method.type === 'bank_transfer' ? 'Transfer Bank' : method.type === 'ewallet' ? 'E-Wallet' : method.type === 'qris' ? 'QRIS' : 'Lainnya'}
+                        </option>
+                      )) : (
+                        <>
+                          <option value="fallback:cash">Cash / Tunai</option>
+                          <option value="fallback:transfer">Transfer Bank</option>
+                          <option value="fallback:ewallet">E-Wallet</option>
+                          <option value="fallback:qris">QRIS</option>
+                        </>
+                      )}
+                    </select>
+                    {selectedPaymentMethod && paymentMethod !== 'cash' && (
+                      <div className="mt-2 rounded-lg border border-zinc-200 bg-zinc-50 p-3 dark:border-zinc-800 dark:bg-zinc-950">
+                        <div className="font-semibold">{selectedPaymentMethod.name}</div>
+                        {selectedPaymentMethod.provider && <p className="mt-1 text-[11px] text-zinc-500">{selectedPaymentMethod.provider}</p>}
+                        {selectedPaymentMethod.account_name && <p className="mt-1 text-[11px]">Atas nama: <strong>{selectedPaymentMethod.account_name}</strong></p>}
+                        {selectedPaymentMethod.account_number && <p className="mt-1 break-all text-sm font-bold tracking-wide">{selectedPaymentMethod.account_number}</p>}
+                        {selectedPaymentMethod.instructions && <p className="mt-1 whitespace-pre-wrap text-[11px] text-zinc-600 dark:text-zinc-300">{selectedPaymentMethod.instructions}</p>}
+                        {selectedPaymentMethod.image_url && (
+                          <img src={selectedPaymentMethod.image_url} alt={`Instruksi pembayaran ${selectedPaymentMethod.name}`} className="mt-2 max-h-44 max-w-full rounded-lg border border-zinc-200 object-contain dark:border-zinc-700" />
+                        )}
+                      </div>
+                    )}
                   </div>
 
                   {paymentMethod === 'cash' && (

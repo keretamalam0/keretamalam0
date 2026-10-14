@@ -1755,7 +1755,7 @@ fun PrinterComposeScreen(
                             ) {
                                 uiState.pairedBluetoothDevices.forEach { (devName, mac) ->
                                     AssistChip(
-                                        onClick = { viewModel.bindPrinterDevice(role, devName, mac, true) },
+                                        onClick = { viewModel.bindPrinterDevice(role, devName, mac, false) },
                                         label = { Text("Pasangkan: $devName ($mac)") }
                                     )
                                 }

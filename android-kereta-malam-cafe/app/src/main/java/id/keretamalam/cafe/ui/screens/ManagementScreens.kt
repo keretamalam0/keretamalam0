@@ -290,7 +290,17 @@ fun ProdukStokComposeScreen(viewModel: PosViewModel, uiState: PosUiState) {
                     }
                     Text("Kategori", style = MaterialTheme.typography.labelLarge)
                     Row(Modifier.fillMaxWidth().horizontalScroll(rememberScrollState()), horizontalArrangement = Arrangement.spacedBy(6.dp)) {
-                        uiState.categories.forEach { cat -> FilterChip(selected = catId == cat.id, onClick = { catId = cat.id }, label = { Text(cat.name) }) }
+                        listOf("Coffee", "Non Coffee", "Makanan", "Snack", "Juice", "Alkohol").forEach { categoryName ->
+                            val category = uiState.categories.firstOrNull { it.name.equals(categoryName, ignoreCase = true) }
+                            FilterChip(selected = category != null && catId == category.id, onClick = {
+                                if (category != null) catId = category.id else viewModel.addCategory(categoryName)
+                            }, label = { Text(categoryName) })
+                        }
+                    }
+                    Row(Modifier.fillMaxWidth().horizontalScroll(rememberScrollState()), horizontalArrangement = Arrangement.spacedBy(6.dp)) {
+                        uiState.categories.filter { it.name !in listOf("Coffee", "Non Coffee", "Makanan", "Snack", "Juice", "Alkohol") }.forEach { cat ->
+                            FilterChip(selected = catId == cat.id, onClick = { catId = cat.id }, label = { Text(cat.name) })
+                        }
                     }
                     Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                         OutlinedTextField(value = price, onValueChange = { price = it.filter(Char::isDigit) }, label = { Text("Harga jual (Rp)") }, modifier = Modifier.weight(1f), singleLine = true)

@@ -543,6 +543,20 @@ class CafeFlowRepository(private val context: Context) {
                         put("product_id", cartItem.product.id)
                         put("quantity", cartItem.quantity)
                         put("note", cartItem.note.ifBlank { null })
+                        putJsonArray("selected_option_ids") {
+                            cartItem.selectedCustomizationOptions
+                                .map { it.id }
+                                .filter { it.matches(Regex("(?i)^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$")) }
+                                .distinct()
+                                .forEach { add(it) }
+                        }
+                        putJsonArray("selected_addon_ids") {
+                            cartItem.selectedAddons
+                                .map { it.id }
+                                .filter { it.matches(Regex("(?i)^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$")) }
+                                .distinct()
+                                .forEach { add(it) }
+                        }
                     }
                 }
             }

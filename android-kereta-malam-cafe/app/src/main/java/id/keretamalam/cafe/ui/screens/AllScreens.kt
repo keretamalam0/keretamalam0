@@ -550,11 +550,11 @@ private fun DashboardDonutChart(values: List<Float>, modifier: Modifier = Modifi
     val total = values.sum().coerceAtLeast(1f)
     Box(modifier) {
         Canvas(Modifier.fillMaxSize().pointerInput(values) {
-            detectTapGestures { selected = ((it.x / size.width.coerceAtLeast(1f)) * values.size).toInt().coerceIn(0, (values.size - 1).coerceAtLeast(0)) }
+            detectTapGestures { selected = ((it.x / size.width.coerceAtLeast(1).toFloat()) * values.size).toInt().coerceIn(0, (values.size - 1).coerceAtLeast(0)) }
         }.pointerInput(values) {
             detectHorizontalDragGestures { change, _ ->
                 change.consume()
-                selected = ((change.position.x / size.width.coerceAtLeast(1f)) * values.size).toInt().coerceIn(0, (values.size - 1).coerceAtLeast(0))
+                selected = ((change.position.x / size.width.coerceAtLeast(1).toFloat()) * values.size).toInt().coerceIn(0, (values.size - 1).coerceAtLeast(0))
             }
         }) {
             val stroke = 18.dp.toPx(); var start = -90f

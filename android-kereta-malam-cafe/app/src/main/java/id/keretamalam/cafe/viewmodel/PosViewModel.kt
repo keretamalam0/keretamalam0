@@ -907,15 +907,25 @@ class PosViewModel(application: Application) : AndroidViewModel(application) {
     fun submitPosCheckout() {
         val currentState = _uiState.value
         if (currentState.cart.isEmpty() || currentState.isCheckoutProcessing) return
+        if (!currentState.isPromotionEligible) {
+            showNotice(currentState.promotionEligibilityReason ?: "Syarat promo belum terpenuhi.", isError = true)
+            return
+        }
         if (!checkoutMutex.tryLock()) return
 
         val idempotencyKey = UUID.randomUUID().toString()
+        val paymentRecordMethod = currentState.selectedPaymentOption?.let { method ->
+            listOf(method.name, method.provider, method.accountName, method.accountNumber)
+                .filter { it.isNotBlank() }
+                .distinct()
+                .joinToString(" · ")
+        }?.ifBlank { currentState.paymentMethodType } ?: currentState.paymentMethodType
 
         viewModelScope.launch {
             try {
                 _uiState.update { it.copy(isCheckoutProcessing = true, errorMessage = null) }
 
-                if (currentState.paymentMethod == "cash" && currentState.cashReceivedValue < currentState.grandTotal) {
+                if (currentState.paymentMethodType == "cash" && currentState.cashReceivedValue < currentState.grandTotal) {
                     throw IllegalArgumentException("Nominal uang tunai kurang dari total tagihan.")
                 }
 
@@ -930,8 +940,9 @@ class PosViewModel(application: Application) : AndroidViewModel(application) {
                         discount = currentState.discountAmount,
                         tax = currentState.taxAndServiceAmount,
                         total = currentState.grandTotal,
-                        paymentMethod = currentState.paymentMethod,
-                        cashReceived = if (currentState.paymentMethod == "cash") currentState.cashReceivedValue else null,
+                        paymentMethod = currentState.paymentMethodType,
+                        paymentRecordMethod = paymentRecordMethod,
+                        cashReceived = if (currentState.paymentMethodType == "cash") currentState.cashReceivedValue else null,
                         items = currentState.cart
                     )
                     printerManager.getSavedPrinter(PrinterRole.CASHIER)?.let {
@@ -971,7 +982,8 @@ class PosViewModel(application: Application) : AndroidViewModel(application) {
                         tax = currentState.taxAndServiceAmount,
                         total = currentState.grandTotal,
                         isPaid = true,
-                        paymentMethod = currentState.paymentMethod,
+                        paymentMethod = currentState.paymentMethodType,
+                        promotionId = currentState.selectedPromotionId,
                         paymentStatus = PaymentStatus.PAID,
                         createdAt = nowString(),
                         updatedAt = nowString(),
@@ -993,10 +1005,10 @@ class PosViewModel(application: Application) : AndroidViewModel(application) {
                             PaymentRecord(
                                 id = "pay-${System.currentTimeMillis()}",
                                 orderId = orderId,
-                                method = currentState.paymentMethod,
+                                method = paymentRecordMethod,
                                 amount = currentState.grandTotal,
-                                cashReceived = if (currentState.paymentMethod == "cash") currentState.cashReceivedValue else null,
-                                changeAmount = if (currentState.paymentMethod == "cash") currentState.changeAmount else null
+                                cashReceived = if (currentState.paymentMethodType == "cash") currentState.cashReceivedValue else null,
+                                changeAmount = if (currentState.paymentMethodType == "cash") currentState.changeAmount else null
                             )
                         )
                     )

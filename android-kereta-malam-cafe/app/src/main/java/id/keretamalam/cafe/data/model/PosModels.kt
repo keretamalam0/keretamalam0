@@ -41,7 +41,9 @@ data class StaffProfile(
     fun canAccess(permission: PermissionKey): Boolean = canAccessKey(permission.key)
 
     fun canAccessKey(key: String): Boolean {
-        if (!isActive || role == StaffRole.SUPER_ADMIN) return false
+        if (!isActive) return false
+        if (key == PermissionKey.OWNER_MANAGEMENT.key) return role == StaffRole.SUPER_ADMIN
+        if (role == StaffRole.SUPER_ADMIN) return false
         if (role == StaffRole.OWNER) return true
         return permissions[key] == true
     }

@@ -158,7 +158,7 @@ fun CafeFlowAppShell(
                                 visible.forEach { item ->
                                     if (item == PosModuleRoute.LAPORAN) {
                                         NavigationDrawerItem(
-                                            colors = NavigationDrawerItemDefaults.colors(selectedContainerColor = if (uiState.darkTheme) androidx.compose.ui.graphics.Color(0xFF203A56) else androidx.compose.ui.graphics.Color(0xFFE8EEF5), unselectedContainerColor = androidx.compose.ui.graphics.Color.Transparent),
+                                            colors = NavigationDrawerItemDefaults.colors(selectedContainerColor = if (uiState.darkTheme) androidx.compose.ui.graphics.Color(0xFF183252) else androidx.compose.ui.graphics.Color(0xFFEAF2FF), unselectedContainerColor = androidx.compose.ui.graphics.Color.Transparent),
                                             label = { Text(localizedRouteTitle(item.titleId, uiState.outletSettings.appLanguage), fontWeight = FontWeight.SemiBold, maxLines = 1, overflow = TextOverflow.Ellipsis) },
                                             icon = { Icon(item.icon, contentDescription = item.titleId, tint = moduleIconTint(item)) },
                                             badge = { Icon(if (reportMenuExpanded) Icons.Outlined.ExpandLess else Icons.Outlined.ExpandMore, contentDescription = "Tampilkan submenu laporan") },
@@ -167,9 +167,21 @@ fun CafeFlowAppShell(
                                         if (reportMenuExpanded) reportPages.forEach { page ->
                                             NavigationDrawerItem(
                                                 modifier = Modifier.padding(start = 20.dp),
-                                                colors = NavigationDrawerItemDefaults.colors(selectedContainerColor = if (uiState.darkTheme) androidx.compose.ui.graphics.Color(0xFF203A56) else androidx.compose.ui.graphics.Color(0xFFE8EEF5), unselectedContainerColor = androidx.compose.ui.graphics.Color.Transparent),
+                                                colors = NavigationDrawerItemDefaults.colors(selectedContainerColor = if (uiState.darkTheme) androidx.compose.ui.graphics.Color(0xFF183252) else androidx.compose.ui.graphics.Color(0xFFEAF2FF), unselectedContainerColor = androidx.compose.ui.graphics.Color.Transparent),
                                                 label = { Text(page, fontWeight = if (activeModule == PosModuleRoute.LAPORAN && selectedReportPage == page) FontWeight.Bold else FontWeight.Normal, style = MaterialTheme.typography.bodyMedium, maxLines = 1, overflow = TextOverflow.Ellipsis) },
-                                                icon = { Text("•", color = if (activeModule == PosModuleRoute.LAPORAN && selectedReportPage == page) androidx.compose.ui.graphics.Color(0xFF6F91C5) else MaterialTheme.colorScheme.onSurfaceVariant) },
+                                                icon = {
+                                                    val selectedPage = activeModule == PosModuleRoute.LAPORAN && selectedReportPage == page
+                                                    val pageIcon = when (page) {
+                                                        "Ringkasan Laporan" -> Icons.Outlined.Insights
+                                                        "Penjualan Harian" -> Icons.Outlined.CalendarMonth
+                                                        "Penjualan Produk" -> Icons.Outlined.Inventory2
+                                                        "Penjualan per Jam" -> Icons.Outlined.Schedule
+                                                        "Laporan Pembayaran" -> Icons.Outlined.Payments
+                                                        "Laporan Kanal" -> Icons.Outlined.PieChart
+                                                        else -> Icons.Outlined.ReceiptLong
+                                                    }
+                                                    Icon(pageIcon, contentDescription = page, modifier = Modifier.size(19.dp), tint = if (selectedPage) androidx.compose.ui.graphics.Color(0xFF4C86D9) else MaterialTheme.colorScheme.onSurfaceVariant)
+                                                },
                                                 selected = activeModule == PosModuleRoute.LAPORAN && selectedReportPage == page,
                                                 onClick = { selectedReportPage = page; activeModule = PosModuleRoute.LAPORAN; if (!isTabletOrWide) scope.launch { drawerState.close() } },
                                                 shape = RoundedCornerShape(9.dp)
@@ -183,7 +195,7 @@ fun CafeFlowAppShell(
                                             else -> null
                                         }
                                         NavigationDrawerItem(
-                                            colors = NavigationDrawerItemDefaults.colors(selectedContainerColor = if (uiState.darkTheme) androidx.compose.ui.graphics.Color(0xFF203A56) else androidx.compose.ui.graphics.Color(0xFFE8EEF5), unselectedContainerColor = androidx.compose.ui.graphics.Color.Transparent),
+                                            colors = NavigationDrawerItemDefaults.colors(selectedContainerColor = if (uiState.darkTheme) androidx.compose.ui.graphics.Color(0xFF183252) else androidx.compose.ui.graphics.Color(0xFFEAF2FF), unselectedContainerColor = androidx.compose.ui.graphics.Color.Transparent),
                                             label = { Text(localizedRouteTitle(item.titleId, uiState.outletSettings.appLanguage), fontWeight = if (activeModule == item) FontWeight.Bold else FontWeight.SemiBold, maxLines = 1, overflow = TextOverflow.Ellipsis) },
                                             icon = { Icon(item.icon, contentDescription = localizedRouteTitle(item.titleId, uiState.outletSettings.appLanguage), tint = moduleIconTint(item)) },
                                             badge = badgeText?.let { b -> { Badge { Text(b) } } },

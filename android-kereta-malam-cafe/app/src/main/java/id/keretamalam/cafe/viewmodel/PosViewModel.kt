@@ -2011,23 +2011,24 @@ class PosViewModel(application: Application) : AndroidViewModel(application) {
     fun updateOutletSettings(settings: OutletSettings) {
         if (_uiState.value.backendStatus == BackendIntegrationStatus.ACTIVE_VERIFIED) {
             viewModelScope.launch {
-                _uiState.update { it.copy(isLoading = true, errorMessage = null, successMessage = null) }
-                val current = _uiState.value.outletSettings
-                val languageOnly = settings.copy(appLanguage = current.appLanguage) == current &&
-                    settings.appLanguage != current.appLanguage
+                val previous = _uiState.value.outletSettings
+                val languageOnly = settings.copy(appLanguage = previous.appLanguage) == previous &&
+                    settings.appLanguage != previous.appLanguage
+                // Apply the new settings immediately; restore the last confirmed state if Supabase rejects the write.
+                _uiState.update { it.copy(outletSettings = settings, isLoading = false, errorMessage = null, successMessage = null) }
                 runCatching {
                     if (languageOnly) repository.updateOutletLanguage(settings.appLanguage)
                     else repository.updateOutletSettings(settings)
                 }
                     .onSuccess {
-                        _uiState.update { it.copy(outletSettings = settings, isLoading = false, successMessage = "Pengaturan outlet berhasil disimpan.") }
+                        _uiState.update { it.copy(outletSettings = settings, successMessage = "Pengaturan outlet berhasil disimpan.") }
                     }
                     .onFailure { error ->
                         val detail = error.message?.replace("\n", " ")?.replace("\r", " ")?.take(220)?.takeIf { it.isNotBlank() }
                         _uiState.update {
                             it.copy(
-                                isLoading = false,
-                                errorMessage = if (detail == null) "Pengaturan outlet gagal disimpan. Periksa koneksi."
+                                outletSettings = previous,
+                                errorMessage = if (detail == null) "Pengaturan outlet gagal disimpan. Perubahan dibatalkan."
                                 else "Pengaturan outlet gagal disimpan: $detail"
                             )
                         }

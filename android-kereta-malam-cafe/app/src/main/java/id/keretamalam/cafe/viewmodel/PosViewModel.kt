@@ -1178,36 +1178,48 @@ class PosViewModel(application: Application) : AndroidViewModel(application) {
 
     fun updateOrderStatus(order: OrderWithItems, nextStatus: OrderStatus, onSuccess: (() -> Unit)? = null) {
         viewModelScope.launch {
-            if (_uiState.value.backendStatus == BackendIntegrationStatus.ACTIVE_VERIFIED) {
-                runCatching { repository.updateOrderStatus(order.id, nextStatus) }
-                    .onSuccess {
-                        refreshOrdersSilently()
-                        onSuccess?.invoke()
-                    }
-                    .onFailure { showNotice(it.message ?: "Gagal memperbarui status pesanan.", isError = true) }
-                return@launch
-            }
+            val liveBackend = _uiState.value.backendStatus == BackendIntegrationStatus.ACTIVE_VERIFIED
+            val previousOrder = _uiState.value.orders.firstOrNull { it.id == order.id } ?: order
+            val previousProducts = _uiState.value.products
 
+            // Optimistic UI: move the order out of its current lane immediately.
             _uiState.update { state ->
-                val updatedProducts = if (nextStatus == OrderStatus.CANCELLED && order.status != OrderStatus.CANCELLED) {
+                val updatedProducts = if (nextStatus == OrderStatus.CANCELLED && previousOrder.status != OrderStatus.CANCELLED) {
                     state.products.map { prod ->
-                        val cancelledQty = order.orderItems
+                        val cancelledQty = previousOrder.orderItems
                             .filter { it.productId == prod.id }
                             .sumOf { it.quantity }
                         if (cancelledQty > 0) prod.copy(stock = prod.stock + cancelledQty) else prod
                     }
                 } else state.products
-
-                val updatedOrders = state.orders.map {
-                    if (it.id == order.id) it.copy(status = nextStatus, updatedAt = nowString()) else it
-                }
                 state.copy(
                     products = updatedProducts,
-                    orders = updatedOrders,
-                    successMessage = "Status Order #${order.orderNo} diubah ke ${nextStatus.labelId}."
+                    orders = state.orders.map {
+                        if (it.id == order.id) it.copy(status = nextStatus, updatedAt = nowString()) else it
+                    },
+                    successMessage = if (liveBackend) null else "Status Order #\${order.orderNo} diubah ke \${nextStatus.labelId}."
                 )
             }
-            appendAuditLog("order.update_status", "orders", order.id, "{\"to\":\"${nextStatus.raw}\"}")
+
+            if (liveBackend) {
+                runCatching { repository.updateOrderStatus(order.id, nextStatus) }
+                    .onSuccess {
+                        onSuccess?.invoke()
+                        refreshOrdersSilently()
+                    }
+                    .onFailure { error ->
+                        _uiState.update { state ->
+                            state.copy(
+                                orders = state.orders.map { if (it.id == order.id) previousOrder else it },
+                                products = previousProducts
+                            )
+                        }
+                        showNotice(error.message ?: "Gagal memperbarui status pesanan. Pesanan dikembalikan ke daftar.", isError = true)
+                    }
+                return@launch
+            }
+
+            appendAuditLog("order.update_status", "orders", order.id, "{\"to\":\"\${nextStatus.raw}\"}")
             onSuccess?.invoke()
         }
     }

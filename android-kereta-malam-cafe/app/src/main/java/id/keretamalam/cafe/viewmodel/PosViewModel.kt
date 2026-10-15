@@ -1910,15 +1910,19 @@ class PosViewModel(application: Application) : AndroidViewModel(application) {
         )
         if (_uiState.value.backendStatus == BackendIntegrationStatus.ACTIVE_VERIFIED) {
             viewModelScope.launch {
+                val pendingId = "pending-${UUID.randomUUID()}"
+                val optimistic = promo.copy(id = pendingId)
+                _uiState.update { state -> state.copy(promotions = listOf(optimistic) + state.promotions) }
                 runCatching { repository.createPromotion(promo) }
                     .onSuccess { created ->
-                        _uiState.update {
-                            it.copy(promotions = listOf(created) + it.promotions, successMessage = "Promosi \"${created.name}\" berhasil disimpan.")
+                        _uiState.update { state ->
+                            state.copy(promotions = (state.promotions.filterNot { it.id == pendingId } + created).distinctBy { it.id })
                         }
                         showNotice("Promosi \"${created.name}\" berhasil disimpan.")
                     }
                     .onFailure { err ->
-                        showNotice(err.message ?: "Promosi gagal disimpan ke server.", isError = true)
+                        _uiState.update { state -> state.copy(promotions = state.promotions.filterNot { it.id == pendingId }) }
+                        showNotice(err.message ?: "Promosi gagal disimpan. Perubahan dibatalkan.", isError = true)
                     }
             }
             return
@@ -1936,14 +1940,14 @@ class PosViewModel(application: Application) : AndroidViewModel(application) {
         val nextActive = !promo.active
         if (_uiState.value.backendStatus == BackendIntegrationStatus.ACTIVE_VERIFIED) {
             viewModelScope.launch {
+                val before = _uiState.value.promotions
+                _uiState.update { state -> state.copy(promotions = state.promotions.map { if (it.id == promoId) it.copy(active = nextActive) else it }) }
                 runCatching { repository.updatePromotionActive(promoId, nextActive) }
-                    .onSuccess {
-                        _uiState.update { state ->
-                            state.copy(promotions = state.promotions.map { if (it.id == promoId) it.copy(active = nextActive) else it })
-                        }
-                        showNotice("Promo \"${promo.name}\" ${if (nextActive) "diaktifkan" else "dinonaktifkan"}.")
+                    .onSuccess { showNotice("Promo \"${promo.name}\" ${if (nextActive) "diaktifkan" else "dinonaktifkan"}.") }
+                    .onFailure { err ->
+                        _uiState.update { state -> state.copy(promotions = before) }
+                        showNotice(err.message ?: "Status promo gagal diubah. Perubahan dibatalkan.", isError = true)
                     }
-                    .onFailure { err -> showNotice(err.message ?: "Status promo gagal diubah.", isError = true) }
             }
             return
         }
@@ -1959,14 +1963,14 @@ class PosViewModel(application: Application) : AndroidViewModel(application) {
         val promo = _uiState.value.promotions.firstOrNull { it.id == promoId }
         if (_uiState.value.backendStatus == BackendIntegrationStatus.ACTIVE_VERIFIED) {
             viewModelScope.launch {
+                val before = _uiState.value.promotions
+                _uiState.update { state -> state.copy(promotions = state.promotions.filterNot { it.id == promoId }) }
                 runCatching { repository.deletePromotion(promoId) }
-                    .onSuccess {
-                        _uiState.update { state ->
-                            state.copy(promotions = state.promotions.filterNot { it.id == promoId })
-                        }
-                        showNotice("Promo berhasil dihapus.")
+                    .onSuccess { showNotice("Promo berhasil dihapus.") }
+                    .onFailure { err ->
+                        _uiState.update { state -> state.copy(promotions = before) }
+                        showNotice(err.message ?: "Promo gagal dihapus. Promo dikembalikan.", isError = true)
                     }
-                    .onFailure { err -> showNotice(err.message ?: "Promo gagal dihapus.", isError = true) }
             }
             return
         }

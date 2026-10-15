@@ -1524,12 +1524,14 @@ class PosViewModel(application: Application) : AndroidViewModel(application) {
         val category = _uiState.value.categories.firstOrNull { it.id == categoryId } ?: return
         viewModelScope.launch {
             if (_uiState.value.backendStatus == BackendIntegrationStatus.ACTIVE_VERIFIED) {
+                val before = _uiState.value.categories
+                _uiState.update { state -> state.copy(categories = state.categories.map { if (it.id == categoryId) it.copy(isActive = active) else it }) }
                 runCatching { repository.setCategoryActive(categoryId, active) }
-                    .onSuccess {
-                        _uiState.update { state -> state.copy(categories = state.categories.map { if (it.id == categoryId) it.copy(isActive = active) else it }) }
-                        showNotice(if (active) "Kategori diaktifkan." else "Kategori dinonaktifkan.")
+                    .onSuccess { showNotice(if (active) "Kategori diaktifkan." else "Kategori dinonaktifkan.") }
+                    .onFailure {
+                        _uiState.update { state -> state.copy(categories = before) }
+                        showNotice(it.message ?: "Status kategori gagal diubah. Perubahan dibatalkan.", isError = true)
                     }
-                    .onFailure { showNotice(it.message ?: "Status kategori gagal diubah.", isError = true) }
             } else {
                 _uiState.update { state -> state.copy(categories = state.categories.map { if (it.id == categoryId) it.copy(isActive = active) else it }) }
             }
@@ -1578,13 +1580,26 @@ class PosViewModel(application: Application) : AndroidViewModel(application) {
         }
         viewModelScope.launch {
             if (_uiState.value.backendStatus == BackendIntegrationStatus.ACTIVE_VERIFIED) {
+                val before = _uiState.value.products
+                val optimisticId = product.id.ifBlank { "pending-${UUID.randomUUID()}" }
+                val optimistic = product.copy(id = optimisticId)
+                _uiState.update { state ->
+                    state.copy(products = if (product.id.isNotBlank()) {
+                        state.products.map { if (it.id == product.id) optimistic else it }
+                    } else listOf(optimistic) + state.products)
+                }
                 runCatching { repository.saveProduct(product) }
                     .onSuccess { saved ->
-                        syncAllDataFromBackend()
+                        _uiState.update { state ->
+                            state.copy(products = (state.products.filterNot { it.id == optimisticId || (product.id.isNotBlank() && it.id == product.id) } + saved).distinctBy { it.id })
+                        }
                         showNotice("Produk \"${product.name}\" tersimpan di Supabase.")
                         onSaved(saved)
                     }
-                    .onFailure { showNotice(it.message ?: "Gagal menyimpan produk.", isError = true) }
+                    .onFailure {
+                        _uiState.update { state -> state.copy(products = before) }
+                        showNotice(it.message ?: "Gagal menyimpan produk. Perubahan dibatalkan.", isError = true)
+                    }
                 return@launch
             }
             val saved = product.copy(id = product.id.ifBlank { "prod-${System.currentTimeMillis()}" })
@@ -1606,12 +1621,14 @@ class PosViewModel(application: Application) : AndroidViewModel(application) {
     fun deleteProductItem(productId: String) {
         viewModelScope.launch {
             if (_uiState.value.backendStatus == BackendIntegrationStatus.ACTIVE_VERIFIED) {
+                val before = _uiState.value.products
+                _uiState.update { state -> state.copy(products = state.products.filterNot { it.id == productId }) }
                 runCatching { repository.deleteProduct(productId) }
-                    .onSuccess {
-                        syncAllDataFromBackend()
-                        showNotice("Produk berhasil dihapus dari Supabase.")
+                    .onSuccess { showNotice("Produk berhasil dihapus dari Supabase.") }
+                    .onFailure {
+                        _uiState.update { state -> state.copy(products = before) }
+                        showNotice(it.message ?: "Gagal menghapus produk. Produk dikembalikan.", isError = true)
                     }
-                    .onFailure { showNotice(it.message ?: "Gagal menghapus produk.", isError = true) }
                 return@launch
             }
             _uiState.update { state ->

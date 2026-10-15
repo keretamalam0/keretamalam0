@@ -29,6 +29,9 @@ Project directory: `android-kereta-malam-cafe/`
 - [x] Removed Website Management UI, local CMS state/actions, and unused CMS models from Android. [ ] Secure Super Admin separation remains pending.
 
 ## Work log
+- `232d98da98c7b95755e01a2e12bc6a3681c51fd9`: outlet settings now update the screen immediately and roll back if Supabase rejects the save.
+- `bd3896884d67c137f81089c45bfb7c5fd613d729`: promotion create/activate/deactivate/delete now update the local UI immediately and restore prior state on server failure.
+- `51dd90d5deb2ba739f4936fc0fe188209c0bb9b0`: product save/delete and category activation now update optimistically with rollback on failed writes. Build and runtime verification still pending.
 - `becd58e893ccf8791fbf8c16c40fe4e70551be97`: added optimistic order-lane updates for approve, reject, and status changes. Orders leave the visible lane immediately while Supabase writes continue; failed writes restore the previous order state and show an error. APK build and device behavior still need verification.
 - `934c849217e75e18ad1403ba941ac3c1db5c7de2`: `StaffProfile.canAccess` now denies operational POS module permissions to `SUPER_ADMIN`; the global admin is treated as a separate control plane. This is client-side separation only; the actual Super Admin portal and server-side authorization/audit policy remain pending.
 - `42337a532981d5e7a917e667e601cd3f2b52a776`: disabled staff-profile switching in live mode at the UI layer; the ViewModel now permits profile switching only in explicitly labeled local sandbox mode. Staff permissions still require server-side RLS/RPC enforcement and a successful build/runtime test.

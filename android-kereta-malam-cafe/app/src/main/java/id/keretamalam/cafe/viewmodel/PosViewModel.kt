@@ -1226,44 +1226,47 @@ class PosViewModel(application: Application) : AndroidViewModel(application) {
 
     fun approveQrOrder(order: OrderWithItems, method: String, onSuccess: (() -> Unit)? = null) {
         viewModelScope.launch {
-            if (_uiState.value.backendStatus == BackendIntegrationStatus.ACTIVE_VERIFIED) {
-                runCatching {
-                    repository.approveQrOrder(order.id, method, if (method == "cash") order.total else null)
-                }.onSuccess {
-                    refreshOrdersSilently()
-                    onSuccess?.invoke()
-                }.onFailure {
-                    showNotice(it.message ?: "Gagal menyetujui pembayaran QR.", isError = true)
-                }
-                return@launch
-            }
-
+            val liveBackend = _uiState.value.backendStatus == BackendIntegrationStatus.ACTIVE_VERIFIED
+            val previousOrder = _uiState.value.orders.firstOrNull { it.id == order.id } ?: order
+            val paymentRecord = PaymentRecord(
+                id = "pending-pay-\${System.currentTimeMillis()}",
+                orderId = order.id,
+                method = method,
+                amount = order.total,
+                cashReceived = if (method == "cash") order.total else null,
+                changeAmount = if (method == "cash") 0.0 else null
+            )
+            // Update the lane immediately; the network request continues in the background.
             _uiState.update { state ->
-                val updated = state.orders.map {
-                    if (it.id == order.id) {
-                        it.copy(
+                state.copy(
+                    orders = state.orders.map {
+                        if (it.id == order.id) it.copy(
                             isPaid = true,
                             paymentMethod = method,
                             paymentStatus = PaymentStatus.PAID,
                             status = if (it.status == OrderStatus.NEW) OrderStatus.PREPARING else it.status,
-                            payments = listOf(
-                                PaymentRecord(
-                                    id = "pay-${System.currentTimeMillis()}",
-                                    orderId = order.id,
-                                    method = method,
-                                    amount = order.total,
-                                    cashReceived = if (method == "cash") order.total else null,
-                                    changeAmount = if (method == "cash") 0.0 else null
-                                )
-                            )
-                        )
-                    } else it
-                }
-                state.copy(
-                    orders = updated,
-                    successMessage = "Pembayaran QR Order #${order.orderNo} (${method.uppercase()}) dikonfirmasi."
+                            payments = if (liveBackend) it.payments else listOf(paymentRecord)
+                        ) else it
+                    },
+                    successMessage = if (liveBackend) null else "Pembayaran QR Order #\${order.orderNo} (\${method.uppercase()}) dikonfirmasi."
                 )
             }
+
+            if (liveBackend) {
+                runCatching {
+                    repository.approveQrOrder(order.id, method, if (method == "cash") order.total else null)
+                }.onSuccess {
+                    onSuccess?.invoke()
+                    refreshOrdersSilently()
+                }.onFailure { error ->
+                    _uiState.update { state ->
+                        state.copy(orders = state.orders.map { if (it.id == order.id) previousOrder else it })
+                    }
+                    showNotice(error.message ?: "Gagal menyetujui pembayaran QR. Pesanan dikembalikan ke daftar.", isError = true)
+                }
+                return@launch
+            }
+
             appendAuditLog("order.approve_qr", "orders", order.id, "{\"method\":\"$method\"}")
             onSuccess?.invoke()
         }
@@ -1326,24 +1329,35 @@ class PosViewModel(application: Application) : AndroidViewModel(application) {
 
     fun rejectQrOrder(order: OrderWithItems) {
         viewModelScope.launch {
-            if (_uiState.value.backendStatus == BackendIntegrationStatus.ACTIVE_VERIFIED) {
-                runCatching { repository.rejectQrOrder(order.id) }
-                    .onSuccess {
-                        syncAllDataFromBackend()
-                        showNotice("Pesanan QR #${order.orderNo} ditolak.")
-                    }
-                return@launch
-            }
+            val liveBackend = _uiState.value.backendStatus == BackendIntegrationStatus.ACTIVE_VERIFIED
+            val previousOrder = _uiState.value.orders.firstOrNull { it.id == order.id } ?: order
+
+            // Hide the rejected order from the active lane immediately.
             _uiState.update { state ->
                 state.copy(
                     orders = state.orders.map {
-                        if (it.id == order.id) {
-                            it.copy(status = OrderStatus.CANCELLED, paymentStatus = PaymentStatus.REJECTED, isPaid = false)
-                        } else it
+                        if (it.id == order.id) it.copy(
+                            status = OrderStatus.CANCELLED,
+                            paymentStatus = PaymentStatus.REJECTED,
+                            isPaid = false
+                        ) else it
                     },
-                    successMessage = "Pesanan QR #${order.orderNo} telah ditolak."
+                    successMessage = if (liveBackend) null else "Pesanan QR #\${order.orderNo} telah ditolak."
                 )
             }
+
+            if (liveBackend) {
+                runCatching { repository.rejectQrOrder(order.id) }
+                    .onSuccess { refreshOrdersSilently() }
+                    .onFailure { error ->
+                        _uiState.update { state ->
+                            state.copy(orders = state.orders.map { if (it.id == order.id) previousOrder else it })
+                        }
+                        showNotice(error.message ?: "Pesanan gagal ditolak. Pesanan dikembalikan ke daftar.", isError = true)
+                    }
+                return@launch
+            }
+
             appendAuditLog("order.reject_qr", "orders", order.id, "{}")
         }
     }

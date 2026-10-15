@@ -1197,7 +1197,7 @@ class PosViewModel(application: Application) : AndroidViewModel(application) {
                     orders = state.orders.map {
                         if (it.id == order.id) it.copy(status = nextStatus, updatedAt = nowString()) else it
                     },
-                    successMessage = if (liveBackend) null else "Status Order #\${order.orderNo} diubah ke \${nextStatus.labelId}."
+                    successMessage = if (liveBackend) null else "Status Order #${order.orderNo} diubah ke ${nextStatus.labelId}."
                 )
             }
 
@@ -1219,7 +1219,7 @@ class PosViewModel(application: Application) : AndroidViewModel(application) {
                 return@launch
             }
 
-            appendAuditLog("order.update_status", "orders", order.id, "{\"to\":\"\${nextStatus.raw}\"}")
+            appendAuditLog("order.update_status", "orders", order.id, "{\"to\":\"${nextStatus.raw}\"}")
             onSuccess?.invoke()
         }
     }
@@ -1229,7 +1229,7 @@ class PosViewModel(application: Application) : AndroidViewModel(application) {
             val liveBackend = _uiState.value.backendStatus == BackendIntegrationStatus.ACTIVE_VERIFIED
             val previousOrder = _uiState.value.orders.firstOrNull { it.id == order.id } ?: order
             val paymentRecord = PaymentRecord(
-                id = "pending-pay-\${System.currentTimeMillis()}",
+                id = "pending-pay-${System.currentTimeMillis()}",
                 orderId = order.id,
                 method = method,
                 amount = order.total,
@@ -1248,7 +1248,7 @@ class PosViewModel(application: Application) : AndroidViewModel(application) {
                             payments = if (liveBackend) it.payments else listOf(paymentRecord)
                         ) else it
                     },
-                    successMessage = if (liveBackend) null else "Pembayaran QR Order #\${order.orderNo} (\${method.uppercase()}) dikonfirmasi."
+                    successMessage = if (liveBackend) null else "Pembayaran QR Order #${order.orderNo} (${method.uppercase()}) dikonfirmasi."
                 )
             }
 
@@ -1342,7 +1342,7 @@ class PosViewModel(application: Application) : AndroidViewModel(application) {
                             isPaid = false
                         ) else it
                     },
-                    successMessage = if (liveBackend) null else "Pesanan QR #\${order.orderNo} telah ditolak."
+                    successMessage = if (liveBackend) null else "Pesanan QR #${order.orderNo} telah ditolak."
                 )
             }
 

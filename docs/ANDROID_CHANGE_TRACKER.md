@@ -28,10 +28,12 @@ Project directory: `android-kereta-malam-cafe/`
 - [ ] Payment methods and QRIS/bank/e-wallet configuration (Android form now supports active/inactive action and only shows QR photo upload for QRIS; build, persistence, and QR Ordering integration verification pending)
 - [x] Order alert sound: if local cached URL is missing, the app now attempts to recover the saved URL from Supabase when a new order arrives; actual playback and live-backend persistence still require device verification.
 - [ ] Bluetooth printer discovery and receipt printing
-- [x] Added native Android "Chat ke Kasir" inbox screen, table-based conversations, and reply RPC integration; QR Ordering customer entry point and web cashier chat route already exist in Cafe Flow. Build, database migration deployment, RLS, and device-level end-to-end verification remain pending.
+- [x] Added native Android "Chat ke Kasir" inbox screen, table-based conversations, and reply RPC integration; menu label is now explicit in the Android navigation. QR Ordering customer entry point and web cashier chat route already exist in Cafe Flow. Build, database migration deployment, RLS, and device-level end-to-end verification remain pending.
 - [x] Removed Website Management UI, local CMS state/actions, and unused CMS models from Android. [ ] Secure Super Admin separation remains pending.
 
 ## Work log
+- `0e7fe44b6157a2799cb65568b4e04a37400c3cc5` / `a7ca7fcf5be6b22697733b177a82a9fedb36078b`: renamed the native cashier inbox menu/screen to “Chat ke Kasir” so it is easier to find in the Android module drawer; still requires APK build and live chat/RLS verification.
+- `a8561ed1eaff7b3cc85d78d80191a3783b0d446a` / `497c9be7839b7bc8539151083a1d3d880757adb7` / `95ba1b118f03aff06558cb9993858ff29f531f49`: securely persist Supabase refresh tokens, refresh/retry password changes on an Auth 401, and display a readable server diagnostic when the error response is plain text/HTML or malformed JSON. APK build and real password-change verification remain pending.
 - `232d98da98c7b95755e01a2e12bc6a3681c51fd9`: outlet settings now update the screen immediately and roll back if Supabase rejects the save.
 - `bd3896884d67c137f81089c45bfb7c5fd613d729`: promotion create/activate/deactivate/delete now update the local UI immediately and restore prior state on server failure.
 - `51dd90d5deb2ba739f4936fc0fe188209c0bb9b0`: product save/delete and category activation now update optimistically with rollback on failed writes. Build and runtime verification still pending.

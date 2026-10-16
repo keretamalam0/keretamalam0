@@ -127,6 +127,28 @@ data class ProductCustomizationOption(
 )
 
 @Serializable
+data class CashierChatThread(
+    val id: String,
+    @SerialName("owner_id") val ownerId: String,
+    @SerialName("table_id") val tableId: String,
+    @SerialName("table_code") val tableCode: String,
+    @SerialName("table_name") val tableName: String,
+    @SerialName("customer_name") val customerName: String = "Customer",
+    val status: String = "open",
+    @SerialName("last_message_at") val lastMessageAt: String = "",
+    @SerialName("created_at") val createdAt: String = ""
+)
+
+@Serializable
+data class CashierChatMessage(
+    val id: String,
+    @SerialName("thread_id") val threadId: String,
+    @SerialName("sender_role") val senderRole: String,
+    val body: String,
+    @SerialName("created_at") val createdAt: String = ""
+)
+
+@Serializable
 data class RestaurantTable(
     val id: String = "",
     val name: String,

@@ -1831,6 +1831,43 @@ private fun PesananComposeScreen(
                         }
                     }
 
+                    if (methodType == "qris" || selectedMethod?.code?.contains("qris", true) == true || selectedMethod?.name?.contains("qris", true) == true) {
+                        if (selectedMethod?.imageUrl.isNullOrBlank()) {
+                            Text(
+                                "Foto QRIS belum diatur untuk metode ini. Tambahkan foto di Pengaturan Outlet → Metode Pembayaran.",
+                                style = MaterialTheme.typography.bodySmall,
+                                color = MaterialTheme.colorScheme.error
+                            )
+                        } else {
+                            OutlinedCard(Modifier.fillMaxWidth()) {
+                                Column(
+                                    Modifier.fillMaxWidth().padding(12.dp),
+                                    horizontalAlignment = Alignment.CenterHorizontally,
+                                    verticalArrangement = Arrangement.spacedBy(8.dp)
+                                ) {
+                                    Text(
+                                        selectedMethod?.name ?: "QRIS",
+                                        style = MaterialTheme.typography.titleMedium,
+                                        fontWeight = FontWeight.Bold
+                                    )
+                                    AsyncImage(
+                                        model = selectedMethod?.imageUrl,
+                                        contentDescription = "Kode QRIS untuk dipindai pelanggan",
+                                        modifier = Modifier
+                                            .fillMaxWidth()
+                                            .heightIn(min = 280.dp, max = 440.dp),
+                                        contentScale = androidx.compose.ui.layout.ContentScale.Fit
+                                    )
+                                    Text(
+                                        "Tunjukkan layar ini ke pelanggan untuk dipindai.",
+                                        style = MaterialTheme.typography.bodySmall,
+                                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                                    )
+                                }
+                            }
+                        }
+                    }
+
                     if (isCash) {
                         OutlinedTextField(
                             value = cashReceived,

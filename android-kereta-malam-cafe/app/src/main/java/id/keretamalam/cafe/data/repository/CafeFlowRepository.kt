@@ -147,9 +147,9 @@ class CafeFlowRepository(private val context: Context) {
                     403 -> "Akun tidak diizinkan melakukan tindakan ini."
                     else -> "Server tidak mengirim detail error."
                 })
-                    .replace("\\n", " ")
-                    .replace("\\r", " ")
-                    .replace("\\t", " ")
+                    .replace("\n", " ")
+                    .replace("\r", " ")
+                    .replace("\t", " ")
                     .take(160)
                 // Show only short server diagnostics; never expose request headers, keys, or password.
                 throw IllegalStateException(

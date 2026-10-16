@@ -19,6 +19,7 @@ data class SupabaseRuntimeCredentials(
     val publicWebMenuBaseUrl: String,
     val isVerifiedByUser: Boolean,
     val accessToken: String = "",
+    val refreshToken: String = "",
     val authenticatedUserId: String = "",
     val authenticatedEmail: String = ""
 ) {
@@ -46,6 +47,7 @@ object SupabaseConfigManager {
     private const val KEY_WEB_BASE_URL = "public_web_menu_base_url"
     private const val KEY_VERIFIED = "supabase_verified_by_user"
     private const val KEY_ACCESS_TOKEN = "supabase_access_token"
+    private const val KEY_REFRESH_TOKEN = "supabase_refresh_token"
     private const val KEY_AUTH_USER_ID = "supabase_auth_user_id"
     private const val KEY_AUTH_EMAIL = "supabase_auth_email"
 
@@ -81,6 +83,7 @@ object SupabaseConfigManager {
         // must explicitly set KEY_VERIFIED to true.
         val verified = prefs.getBoolean(KEY_VERIFIED, false)
         val accessToken = prefs.getString(KEY_ACCESS_TOKEN, "").orEmpty()
+        val refreshToken = prefs.getString(KEY_REFRESH_TOKEN, "").orEmpty()
         val userId = prefs.getString(KEY_AUTH_USER_ID, "").orEmpty()
         val email = prefs.getString(KEY_AUTH_EMAIL, "").orEmpty()
 
@@ -91,6 +94,7 @@ object SupabaseConfigManager {
             publicWebMenuBaseUrl = webUrl,
             isVerifiedByUser = verified,
             accessToken = accessToken,
+            refreshToken = refreshToken,
             authenticatedUserId = userId,
             authenticatedEmail = email
         )
@@ -114,6 +118,7 @@ object SupabaseConfigManager {
             .putString(KEY_WEB_BASE_URL, publicWebMenuBaseUrl.trim().removeSuffix("/"))
             .putBoolean(KEY_VERIFIED, false)
             .remove(KEY_ACCESS_TOKEN)
+            .remove(KEY_REFRESH_TOKEN)
             .remove(KEY_AUTH_USER_ID)
             .remove(KEY_AUTH_EMAIL)
             .apply()
@@ -139,10 +144,11 @@ object SupabaseConfigManager {
             .apply()
     }
 
-    fun saveAuthSession(context: Context, accessToken: String, userId: String, email: String) {
+    fun saveAuthSession(context: Context, accessToken: String, userId: String, email: String, refreshToken: String = "") {
         val prefs = encryptedPrefs(context)
         prefs.edit()
             .putString(KEY_ACCESS_TOKEN, accessToken)
+            .putString(KEY_REFRESH_TOKEN, refreshToken)
             .putString(KEY_AUTH_USER_ID, userId)
             .putString(KEY_AUTH_EMAIL, email)
             .apply()
@@ -152,6 +158,7 @@ object SupabaseConfigManager {
         val prefs = encryptedPrefs(context)
         prefs.edit()
             .remove(KEY_ACCESS_TOKEN)
+            .remove(KEY_REFRESH_TOKEN)
             .remove(KEY_AUTH_USER_ID)
             .remove(KEY_AUTH_EMAIL)
             .apply()

@@ -1076,9 +1076,47 @@ class CafeFlowRepository(private val context: Context) {
 
     suspend fun fetchStaffShifts(): List<StaffShift> {
         val creds = requireVerifiedCredentials()
-        val url = "${creds.supabaseUrl}/rest/v1/staff_shifts?select=*&order=opened_at.desc"
+        val owner = URLEncoder.encode(creds.authenticatedUserId, "UTF-8")
+        val url = "${creds.supabaseUrl}/rest/v1/staff_shifts?select=*&owner_id=eq.$owner&order=opened_at.desc"
         val raw = executeJsonRequest("GET", url, buildHeaders(creds))
         return json.decodeFromString(raw)
+    }
+
+    suspend fun createStaffShift(shift: StaffShift): StaffShift {
+        val creds = requireVerifiedCredentials()
+        require(shift.openingCash >= 0.0) { "Modal awal tidak boleh negatif." }
+        require(shift.staffUserId == creds.authenticatedUserId) { "Akun kasir aktif tidak cocok dengan sesi login." }
+        require(shift.ownerId.isNotBlank() && !shift.ownerId.startsWith("usr-")) { "ID owner outlet tidak valid. Login ulang dengan akun staf yang terhubung ke outlet." }
+        val payload = buildJsonObject {
+            put("owner_id", shift.ownerId)
+            put("staff_user_id", shift.staffUserId)
+            put("opened_at", shift.openedAt)
+            put("opening_cash", shift.openingCash)
+            put("status", "open")
+            put("note", shift.notes ?: "")
+        }
+        val raw = executeJsonRequest("POST", "${creds.supabaseUrl}/rest/v1/staff_shifts", buildHeaders(creds, "return=representation"), json.encodeToString(JsonObject.serializer(), payload))
+        return json.decodeFromString<List<StaffShift>>(raw).firstOrNull()
+            ?: throw IllegalStateException("Supabase tidak mengembalikan shift yang dibuat.")
+    }
+
+    suspend fun closeStaffShift(shift: StaffShift, closingCash: Double, notes: String): StaffShift {
+        val creds = requireVerifiedCredentials()
+        require(shift.id.isNotBlank()) { "ID shift tidak valid." }
+        require(shift.ownerId.isNotBlank() && !shift.ownerId.startsWith("usr-")) { "ID owner outlet tidak valid. Muat ulang sesi outlet." }
+        require(closingCash >= 0.0) { "Kas akhir tidak boleh negatif." }
+        val encodedId = URLEncoder.encode(shift.id, "UTF-8")
+        val owner = URLEncoder.encode(shift.ownerId, "UTF-8")
+        val payload = buildJsonObject {
+            put("closing_cash", closingCash)
+            put("closed_at", java.time.Instant.now().toString())
+            put("status", "closed")
+            put("closed_by_user_id", creds.authenticatedUserId)
+            put("audit_note", notes.ifBlank { shift.notes ?: "" })
+        }
+        val raw = executeJsonRequest("PATCH", "${creds.supabaseUrl}/rest/v1/staff_shifts?id=eq.$encodedId&owner_id=eq.$owner&status=eq.open&select=*", buildHeaders(creds, "return=representation"), json.encodeToString(JsonObject.serializer(), payload))
+        return json.decodeFromString<List<StaffShift>>(raw).firstOrNull()
+            ?: throw IllegalStateException("Shift tidak berubah. Mungkin sudah ditutup atau izin UPDATE/RLS shift.manage belum diberikan.")
     }
 
     suspend fun verifyStaffShiftAudit(shiftId: String): StaffShift {

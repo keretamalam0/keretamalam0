@@ -1091,6 +1091,33 @@ class CafeFlowRepository(private val context: Context) {
             ?: throw IllegalStateException("Supabase tidak mengembalikan shift yang diperbarui. Periksa izin UPDATE, RLS, dan kolom audit_verified.")
     }
 
+    suspend fun createExpense(expense: Expense): Expense {
+        val creds = requireVerifiedCredentials()
+        require(expense.amount > 0.0) { "Nominal pengeluaran harus lebih dari Rp0." }
+        require(expense.category.isNotBlank() && expense.description.isNotBlank()) {
+            "Kategori dan keterangan pengeluaran wajib diisi."
+        }
+        val ownerId = expense.ownerId.takeIf { it.isNotBlank() && !it.startsWith("usr-") }
+            ?: creds.authenticatedUserId
+        require(ownerId.isNotBlank()) { "Akun pemilik outlet tidak ditemukan." }
+        val payload = buildJsonObject {
+            put("owner_id", ownerId)
+            put("amount", expense.amount)
+            put("category", expense.category.trim())
+            put("description", expense.description.trim())
+            put("expense_date", expense.expenseDate)
+            put("payment_method", expense.paymentMethod.ifBlank { "cash" })
+        }
+        val raw = executeJsonRequest(
+            "POST",
+            "${creds.supabaseUrl}/rest/v1/expenses",
+            buildHeaders(creds, "return=representation"),
+            json.encodeToString(JsonObject.serializer(), payload)
+        )
+        return json.decodeFromString<List<Expense>>(raw).firstOrNull()
+            ?: throw IllegalStateException("Supabase tidak mengembalikan data pengeluaran yang tersimpan.")
+    }
+
     suspend fun fetchExpenses(): List<Expense> {
         val creds = requireVerifiedCredentials()
         val url = "${creds.supabaseUrl}/rest/v1/expenses?select=*&order=expense_date.desc"

@@ -148,6 +148,47 @@ data class PosUiState(
     val paidOrders: List<OrderWithItems>
         get() = orders.filter { it.isPaid && it.status != OrderStatus.CANCELLED }
 
+    /**
+     * Cash collected for one shift only. Prefer payment timestamps because an order
+     * can be created before a shift opens and paid during that shift.
+     */
+    fun cashSalesForShift(shift: StaffShift): Double {
+        val opened = parseShiftTimestamp(shift.openedAt) ?: return 0.0
+        val closed = parseShiftTimestamp(shift.closedAt)
+        return paidOrders.sumOf { order ->
+            val payments = order.payments
+            if (payments.isNotEmpty()) {
+                payments.filter { payment ->
+                    val method = payment.method.lowercase()
+                    val isCash = method == "cash" || method == "tunai"
+                    val paidAt = parseShiftTimestamp(payment.createdAt)
+                    isCash && payment.amount > 0.0 && paidAt != null &&
+                        paidAt >= opened && (closed == null || paidAt <= closed)
+                }.sumOf { it.amount }
+            } else {
+                // Legacy rows without payment records: updated_at is the best available
+                // proxy for when the payment was confirmed. Never use created_at here.
+                val paidAt = parseShiftTimestamp(order.updatedAt)
+                val method = (order.paymentMethod ?: order.customerPaymentMethod ?: "").lowercase()
+                if (method in setOf("cash", "tunai") && paidAt != null &&
+                    paidAt >= opened && (closed == null || paidAt <= closed)) order.total else 0.0
+            }
+        }
+    }
+
+    fun expectedDrawerCashForShift(shift: StaffShift): Double =
+        (shift.openingCash + cashSalesForShift(shift)).coerceAtLeast(0.0)
+
+    private fun parseShiftTimestamp(value: String?): java.time.Instant? {
+        if (value.isNullOrBlank()) return null
+        return runCatching { java.time.Instant.parse(value) }.getOrNull()
+            ?: runCatching { java.time.OffsetDateTime.parse(value).toInstant() }.getOrNull()
+            ?: runCatching {
+                java.time.LocalDateTime.parse(value.replace(' ', 'T'))
+                    .atZone(java.time.ZoneId.systemDefault()).toInstant()
+            }.getOrNull()
+    }
+
     val todayRevenue: Double
         get() = paidOrders.sumOf { it.total }
 
@@ -1471,6 +1512,7 @@ class PosViewModel(application: Application) : AndroidViewModel(application) {
                 showNotice("Shift ini sudah ditutup.", isError = true)
                 return@launch
             }
+            val calculatedExpectedCash = state.expectedDrawerCashForShift(shift)
             if (state.backendStatus == BackendIntegrationStatus.ACTIVE_VERIFIED) {
                 _uiState.update { it.copy(isLoading = true, errorMessage = null, successMessage = null) }
                 runCatching {
@@ -1478,9 +1520,9 @@ class PosViewModel(application: Application) : AndroidViewModel(application) {
                     repository.fetchStaffShifts()
                 }.onSuccess { refreshed ->
                     _uiState.update { current ->
-                        current.copy(isLoading = false, shifts = refreshed, successMessage = "Shift ditutup dan tersimpan di Supabase. Kas akhir: ${RupiahFormatter.format(closingCash)}.")
+                        current.copy(isLoading = false, shifts = refreshed, successMessage = "Shift ditutup dan tersimpan di Supabase. Kas seharusnya: ${RupiahFormatter.format(calculatedExpectedCash)}; kas aktual: ${RupiahFormatter.format(closingCash)}.")
                     }
-                    appendAuditLog("shift.close", "staff_shifts", shiftId, "{\"closing_cash\":${closingCash.toLong()},\"expected_cash\":${expectedCash.toLong()}}")
+                    appendAuditLog("shift.close", "staff_shifts", shiftId, "{\"closing_cash\":${closingCash.toLong()},\"expected_cash\":${calculatedExpectedCash.toLong()},\"cash_sales\":${state.cashSalesForShift(shift).toLong()}}")
                 }.onFailure { error ->
                     _uiState.update { it.copy(isLoading = false) }
                     showNotice(error.message ?: "Penutupan shift gagal disimpan ke Supabase.", isError = true)

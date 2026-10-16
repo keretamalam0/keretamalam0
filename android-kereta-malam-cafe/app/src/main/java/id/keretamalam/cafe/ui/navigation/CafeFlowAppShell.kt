@@ -33,6 +33,7 @@ private fun moduleIconTint(route: PosModuleRoute): androidx.compose.ui.graphics.
     PosModuleRoute.DASHBOARD -> androidx.compose.ui.graphics.Color(0xFF6F91C5) // soft blue
     PosModuleRoute.AI_ASSISTANT -> androidx.compose.ui.graphics.Color(0xFF9A83C7) // lavender
     PosModuleRoute.KASIR -> androidx.compose.ui.graphics.Color(0xFF5F9E91) // teal green
+    PosModuleRoute.CHAT_KASIR -> androidx.compose.ui.graphics.Color(0xFF6D9BC7) // chat blue
     PosModuleRoute.PESANAN -> androidx.compose.ui.graphics.Color(0xFF6D9BC7) // blue
     PosModuleRoute.HISTORY -> androidx.compose.ui.graphics.Color(0xFF8B91A7) // slate
     PosModuleRoute.SHIFT_KASIR -> androidx.compose.ui.graphics.Color(0xFFC29A5D) // muted amber

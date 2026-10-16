@@ -197,7 +197,7 @@ private fun ChatKasirComposeScreen(viewModel: PosViewModel, uiState: PosUiState)
     }
     val active = uiState.cashierChatThreads.firstOrNull { it.id == selectedThreadId }
     Column(Modifier.fillMaxSize(), verticalArrangement = Arrangement.spacedBy(10.dp)) {
-        Text("Chat ke Kasir", style = MaterialTheme.typography.headlineSmall, fontWeight = FontWeight.Bold)
+        Text("Chat Customer", style = MaterialTheme.typography.headlineSmall, fontWeight = FontWeight.Bold)
         Text("Pesan pelanggan dari QR Ordering. Pilih meja untuk membaca dan membalas.", style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
         if (uiState.backendStatus != BackendIntegrationStatus.ACTIVE_VERIFIED) {
             Card { Text("Hubungkan backend Supabase terlebih dahulu untuk menggunakan chat langsung.", Modifier.padding(16.dp)) }

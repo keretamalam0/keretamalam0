@@ -26,8 +26,8 @@
     <application
         android:allowBackup="false"
         android:label="Kereta Malam Cafe"
-        android:icon="@drawable/launcher_logo"
-        android:roundIcon="@drawable/ic_kereta_malam"
+        android:icon="@drawable/kereta_malam_logo"
+        android:roundIcon="@drawable/kereta_malam_logo"
         android:supportsRtl="true"
         android:theme="@android:style/Theme.Material.Light.NoActionBar">
         <activity

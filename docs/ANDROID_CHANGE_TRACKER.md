@@ -14,7 +14,7 @@ Project directory: `android-kereta-malam-cafe/`
 - [ ] Dashboard analytics and charts (partially implemented; date-range filter for paid revenue/payment breakdown/top products added in `bf5bd216430248d62bfb910c57cb5e845c1dab7d`; full KPI/chart review and build verification remain pending)
 - [ ] Cashier product grid, photos, and cart/table behavior
 - [ ] Order lanes and transaction history with guarded deletion
-- [ ] Shift opening/closing audit (live writes explicitly blocked until Supabase persistence is implemented)
+- [x] Shift opening/closing audit: live create/close writes now target the existing `staff_shifts` schema; Android build/RLS/device verification pending
 - [ ] Activity log filters and CSV export
 - [ ] Product, category, add-on, and customization management
 - [x] Removed manual “Simulasi Order QR Masuk” button; end-to-end live QR verification still pending
@@ -52,3 +52,5 @@ Project directory: `android-kereta-malam-cafe/`
 - Native Kotlin project only; do not edit the separate `keretacafe` web repo for Android work.
 - Android and Cafe Flow share Supabase; inspect schema, RPCs, and RLS before database changes.
 - Do not claim a feature is complete until code and build/runtime behavior have been checked.
+
+- Pending verification: shift open/close now writes to `staff_shifts` using owner/staff IDs from the authenticated outlet profile; model maps the database `note` column. Confirm Android build and live RLS behavior before considering fully verified.

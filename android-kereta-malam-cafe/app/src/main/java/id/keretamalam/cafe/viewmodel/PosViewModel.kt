@@ -1411,52 +1411,93 @@ class PosViewModel(application: Application) : AndroidViewModel(application) {
     // SHIFT KASIR & AUDIT SHIFT
     // ========================================================================
     fun openNewShift(openingCash: Double) {
-        if (_uiState.value.backendStatus == BackendIntegrationStatus.ACTIVE_VERIFIED) {
-            showNotice("Pencatatan shift live belum tersambung ke penyimpanan Supabase. Shift tidak dibuat agar data tidak hanya tersimpan lokal.", isError = true)
+        if (openingCash < 0.0) {
+            showNotice("Modal awal tidak boleh negatif.", isError = true)
             return
         }
-        val shift = StaffShift(
-            id = "shf-${System.currentTimeMillis()}",
-            staffUserId = _uiState.value.staffProfile.userId,
-            staffName = _uiState.value.staffProfile.fullName,
-            openingCash = openingCash,
-            closingCash = null,
-            expectedCash = openingCash,
-            status = "open",
-            notes = "Shift dibuka dari aplikasi Android",
-            openedAt = nowString()
-        )
-        _uiState.update {
-            it.copy(
-                shifts = listOf(shift) + it.shifts,
-                successMessage = "Shift baru dibuka dengan modal awal ${RupiahFormatter.format(openingCash)}."
+        viewModelScope.launch {
+            val liveBackend = _uiState.value.backendStatus == BackendIntegrationStatus.ACTIVE_VERIFIED
+            val state = _uiState.value
+            if (state.shifts.any { it.status.equals("open", true) && it.staffUserId == state.staffProfile.userId }) {
+                showNotice("Lu masih punya shift aktif. Tutup shift itu dulu sebelum buka shift baru.", isError = true)
+                return@launch
+            }
+            val shift = StaffShift(
+                staffUserId = state.staffProfile.userId,
+                ownerId = state.staffProfile.ownerId,
+                staffName = state.staffProfile.fullName,
+                openingCash = openingCash,
+                expectedCash = openingCash,
+                status = "open",
+                notes = "Shift dibuka dari aplikasi Android",
+                openedAt = java.time.Instant.now().toString()
             )
+            if (liveBackend) {
+                _uiState.update { it.copy(isLoading = true, errorMessage = null, successMessage = null) }
+                runCatching {
+                    repository.createStaffShift(shift)
+                    repository.fetchStaffShifts()
+                }.onSuccess { refreshed ->
+                    val saved = refreshed.firstOrNull { it.staffUserId == state.staffProfile.userId && it.status.equals("open", true) }
+                    _uiState.update { current ->
+                        current.copy(isLoading = false, shifts = refreshed, successMessage = "Shift berhasil dibuka di Supabase dengan modal awal ${RupiahFormatter.format(saved?.openingCash ?: openingCash)}.")
+                    }
+                    if (saved != null) appendAuditLog("shift.open", "staff_shifts", saved.id, "{\"opening_cash\":${openingCash.toLong()}}")
+                }.onFailure { error ->
+                    _uiState.update { it.copy(isLoading = false) }
+                    showNotice(error.message ?: "Shift gagal disimpan ke Supabase.", isError = true)
+                }
+            } else {
+                val local = shift.copy(id = "shf-${System.currentTimeMillis()}")
+                _uiState.update { it.copy(shifts = listOf(local) + it.shifts, successMessage = "Shift baru dibuka dengan modal awal ${RupiahFormatter.format(openingCash)} (mode lokal).") }
+                appendAuditLog("shift.open", "staff_shifts", local.id, "{\"opening_cash\":${openingCash.toLong()}}")
+            }
         }
-        appendAuditLog("shift.open", "staff_shifts", shift.id, "{\"opening_cash\":${openingCash.toLong()}}")
     }
 
     fun closeActiveShift(shiftId: String, closingCash: Double, expectedCash: Double, notes: String) {
-        if (_uiState.value.backendStatus == BackendIntegrationStatus.ACTIVE_VERIFIED) {
-            showNotice("Penutupan shift live belum tersambung ke Supabase. Data kas tidak diubah.", isError = true)
+        if (closingCash < 0.0) {
+            showNotice("Kas akhir tidak boleh negatif.", isError = true)
             return
         }
-        _uiState.update { state ->
-            state.copy(
-                shifts = state.shifts.map {
-                    if (it.id == shiftId) {
-                        it.copy(
-                            status = "closed",
-                            closingCash = closingCash,
-                            expectedCash = expectedCash,
-                            notes = notes.ifBlank { it.notes },
-                            closedAt = nowString()
-                        )
-                    } else it
-                },
-                successMessage = "Shift kasir berhasil ditutup dan dikirim ke Audit Shift."
-            )
+        viewModelScope.launch {
+            val state = _uiState.value
+            val shift = state.shifts.firstOrNull { it.id == shiftId }
+            if (shift == null) {
+                showNotice("Shift tidak ditemukan. Muat ulang data shift.", isError = true)
+                return@launch
+            }
+            if (!shift.status.equals("open", true)) {
+                showNotice("Shift ini sudah ditutup.", isError = true)
+                return@launch
+            }
+            if (state.backendStatus == BackendIntegrationStatus.ACTIVE_VERIFIED) {
+                _uiState.update { it.copy(isLoading = true, errorMessage = null, successMessage = null) }
+                runCatching {
+                    repository.closeStaffShift(shift, closingCash, notes)
+                    repository.fetchStaffShifts()
+                }.onSuccess { refreshed ->
+                    _uiState.update { current ->
+                        current.copy(isLoading = false, shifts = refreshed, successMessage = "Shift ditutup dan tersimpan di Supabase. Kas akhir: ${RupiahFormatter.format(closingCash)}.")
+                    }
+                    appendAuditLog("shift.close", "staff_shifts", shiftId, "{\"closing_cash\":${closingCash.toLong()},\"expected_cash\":${expectedCash.toLong()}}")
+                }.onFailure { error ->
+                    _uiState.update { it.copy(isLoading = false) }
+                    showNotice(error.message ?: "Penutupan shift gagal disimpan ke Supabase.", isError = true)
+                }
+            } else {
+                _uiState.update { current ->
+                    current.copy(
+                        shifts = current.shifts.map {
+                            if (it.id == shiftId) it.copy(status = "closed", closingCash = closingCash, expectedCash = expectedCash,
+                                notes = notes.ifBlank { it.notes }, closedAt = nowString()) else it
+                        },
+                        successMessage = "Shift kasir berhasil ditutup (mode lokal)."
+                    )
+                }
+                appendAuditLog("shift.close", "staff_shifts", shiftId, "{\"closing_cash\":${closingCash.toLong()}}")
+            }
         }
-        appendAuditLog("shift.close", "staff_shifts", shiftId, "{\"closing_cash\":${closingCash.toLong()}}")
     }
 
     fun verifyShiftAudit(shiftId: String) {

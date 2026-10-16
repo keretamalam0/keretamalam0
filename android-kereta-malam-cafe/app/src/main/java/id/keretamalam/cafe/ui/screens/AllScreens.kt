@@ -91,19 +91,26 @@ fun LoginComposeScreen(
     var email by remember { mutableStateOf("") }
     var password by remember { mutableStateOf("") }
 
-    val trainMotion = rememberInfiniteTransition(label = "login-train")
-    val trainProgress by trainMotion.animateFloat(
-        initialValue = -0.22f, targetValue = 1.12f,
-        animationSpec = infiniteRepeatable(
-            animation = tween(durationMillis = 7600),
-            repeatMode = RepeatMode.Restart
-        ),
-        label = "train-moving-down"
+    val trainMotion = rememberInfiniteTransition(label = "login-railway")
+    val trainDown by trainMotion.animateFloat(
+        initialValue = -0.28f, targetValue = 1.18f,
+        animationSpec = infiniteRepeatable(animation = tween(9200), repeatMode = RepeatMode.Restart),
+        label = "train-down"
+    )
+    val trainUp by trainMotion.animateFloat(
+        initialValue = 1.16f, targetValue = -0.34f,
+        animationSpec = infiniteRepeatable(animation = tween(11800), repeatMode = RepeatMode.Restart),
+        label = "train-up"
+    )
+    val trainFar by trainMotion.animateFloat(
+        initialValue = -0.36f, targetValue = 1.22f,
+        animationSpec = infiniteRepeatable(animation = tween(14300), repeatMode = RepeatMode.Restart),
+        label = "train-far"
     )
     Box(
         modifier = Modifier
             .fillMaxSize()
-            .background(Color(0xFF050505))
+            .background(Color(0xFF030405))
             .imePadding()
             .padding(horizontal = if (isTabletOrWide) 32.dp else 20.dp, vertical = 20.dp),
         contentAlignment = Alignment.Center
@@ -111,65 +118,111 @@ fun LoginComposeScreen(
         Canvas(modifier = Modifier.fillMaxSize()) {
             val w = size.width
             val h = size.height
-            // A quiet monochrome railway sits behind the login controls.
-            val trackX = w * 0.18f
-            val railTop = 0f
-            val railBottom = h
-            drawLine(Color.White.copy(alpha = 0.11f), Offset(trackX - 22f, railTop), Offset(trackX - 22f, railBottom), strokeWidth = 2f)
-            drawLine(Color.White.copy(alpha = 0.11f), Offset(trackX + 22f, railTop), Offset(trackX + 22f, railBottom), strokeWidth = 2f)
-            var sleeperY = 0f
-            while (sleeperY < h) {
-                drawLine(
-                    Color.White.copy(alpha = 0.075f),
-                    Offset(trackX - 31f, sleeperY),
-                    Offset(trackX + 31f, sleeperY),
-                    strokeWidth = 2.2f
-                )
-                sleeperY += 28f
+            val horizonY = h * 0.24f
+            val vanishingX = w * 0.5f
+
+            // Cinematic night station: perspective rails, sleepers, platform edges and soft station lights.
+            for (lane in 0..2) {
+                val laneX = w * (0.16f + lane * 0.34f)
+                val railSpread = w * (0.035f + lane * 0.003f)
+                drawLine(Color(0xFFBFC4CC).copy(alpha = 0.22f), Offset(vanishingX, horizonY), Offset(laneX - railSpread, h), strokeWidth = 2.2f)
+                drawLine(Color(0xFFBFC4CC).copy(alpha = 0.22f), Offset(vanishingX, horizonY), Offset(laneX + railSpread, h), strokeWidth = 2.2f)
+                for (i in 1..19) {
+                    val p = i / 19f
+                    val y = horizonY + (h - horizonY) * p * p
+                    val spread = railSpread * p
+                    drawLine(
+                        Color.White.copy(alpha = 0.035f + p * 0.045f),
+                        Offset(laneX - spread, y),
+                        Offset(laneX + spread, y),
+                        strokeWidth = 1f + p * 2f
+                    )
+                }
+            }
+            // Faint station lamps give depth without competing with the login card.
+            for (i in 0..5) {
+                val lampY = horizonY + i * h * 0.135f
+                val lampAlpha = 0.10f - i * 0.009f
+                drawCircle(Color.White.copy(alpha = lampAlpha), radius = 18f + i * 3f, center = Offset(w * 0.035f, lampY))
+                drawCircle(Color(0xFFE5E7EB).copy(alpha = lampAlpha + 0.06f), radius = 2.5f + i * 0.2f, center = Offset(w * 0.035f, lampY))
+                drawCircle(Color.White.copy(alpha = lampAlpha), radius = 18f + i * 3f, center = Offset(w * 0.965f, lampY))
+                drawCircle(Color(0xFFE5E7EB).copy(alpha = lampAlpha + 0.06f), radius = 2.5f + i * 0.2f, center = Offset(w * 0.965f, lampY))
             }
 
-            // Locomotive and carriages travel from the top toward the bottom.
-            val trainY = trainProgress * h
-            val trainWidth = 52f
-            val carHeight = 64f
-            for (carIndex in 3 downTo 1) {
-                val carY = trainY - carIndex * (carHeight + 7f)
+            fun drawTrain(centerX: Float, progress: Float, scale: Float, opacity: Float, facingDown: Boolean) {
+                val y = progress * h
+                val bodyWidth = w * 0.105f * scale
+                val carHeight = h * 0.105f * scale
+                val x = centerX - bodyWidth / 2f
+                // Motion streaks and carriage shadows.
+                val direction = if (facingDown) -1f else 1f
+                for (streak in 1..5) {
+                    val streakY = y + direction * streak * carHeight * 0.30f
+                    drawLine(
+                        Color(0xFFD1D5DB).copy(alpha = opacity * (0.07f / streak)),
+                        Offset(centerX - bodyWidth * 0.28f, streakY),
+                        Offset(centerX + bodyWidth * 0.28f, streakY),
+                        strokeWidth = 1.4f * scale
+                    )
+                }
+                // Three passenger carriages with metallic sides, dark windows and bogies.
+                for (car in 3 downTo 1) {
+                    val carY = y - direction * car * carHeight * 0.92f
+                    drawRoundRect(
+                        brush = androidx.compose.ui.graphics.Brush.verticalGradient(
+                            colors = listOf(Color(0xFFBFC4CB).copy(alpha = opacity * 0.36f), Color(0xFF3D434C).copy(alpha = opacity * 0.46f), Color(0xFF171A20).copy(alpha = opacity * 0.52f)),
+                            startY = carY, endY = carY + carHeight
+                        ),
+                        topLeft = Offset(x, carY),
+                        size = androidx.compose.ui.geometry.Size(bodyWidth, carHeight),
+                        cornerRadius = androidx.compose.ui.geometry.CornerRadius(8f * scale, 8f * scale)
+                    )
+                    drawRoundRect(
+                        color = Color(0xFF080A0D).copy(alpha = opacity * 0.92f),
+                        topLeft = Offset(x + bodyWidth * 0.13f, carY + carHeight * 0.19f),
+                        size = androidx.compose.ui.geometry.Size(bodyWidth * 0.74f, carHeight * 0.27f),
+                        cornerRadius = androidx.compose.ui.geometry.CornerRadius(3f * scale, 3f * scale)
+                    )
+                    for (window in 0..3) {
+                        val wx = x + bodyWidth * (0.17f + window * 0.18f)
+                        drawRoundRect(
+                            color = Color(0xFFDDE2E8).copy(alpha = opacity * (if (window % 2 == 0) 0.36f else 0.16f)),
+                            topLeft = Offset(wx, carY + carHeight * 0.23f),
+                            size = androidx.compose.ui.geometry.Size(bodyWidth * 0.11f, carHeight * 0.18f),
+                            cornerRadius = androidx.compose.ui.geometry.CornerRadius(2f * scale, 2f * scale)
+                        )
+                    }
+                    drawLine(Color.White.copy(alpha = opacity * 0.28f), Offset(x + 2f, carY + carHeight * 0.76f), Offset(x + bodyWidth - 2f, carY + carHeight * 0.76f), strokeWidth = 1.2f * scale)
+                    drawCircle(Color(0xFF050607).copy(alpha = opacity * 0.8f), radius = 3.3f * scale, center = Offset(x + bodyWidth * 0.22f, carY + carHeight * 0.94f))
+                    drawCircle(Color(0xFF050607).copy(alpha = opacity * 0.8f), radius = 3.3f * scale, center = Offset(x + bodyWidth * 0.78f, carY + carHeight * 0.94f))
+                }
+                // Locomotive nose, windscreen, metal trim and two bright headlights.
+                val engineY = y
                 drawRoundRect(
-                    color = Color(0xFFBFC3C9).copy(alpha = 0.18f),
-                    topLeft = Offset(trackX - trainWidth / 2f, carY),
-                    size = androidx.compose.ui.geometry.Size(trainWidth, carHeight),
-                    cornerRadius = androidx.compose.ui.geometry.CornerRadius(9f, 9f)
+                    brush = androidx.compose.ui.graphics.Brush.verticalGradient(
+                        colors = listOf(Color(0xFFE5E7EB).copy(alpha = opacity * 0.74f), Color(0xFF777E88).copy(alpha = opacity * 0.70f), Color(0xFF242830).copy(alpha = opacity * 0.86f)),
+                        startY = engineY, endY = engineY + carHeight * 1.08f
+                    ),
+                    topLeft = Offset(x, engineY),
+                    size = androidx.compose.ui.geometry.Size(bodyWidth, carHeight * 1.08f),
+                    cornerRadius = androidx.compose.ui.geometry.CornerRadius(11f * scale, 11f * scale)
                 )
                 drawRoundRect(
-                    color = Color.White.copy(alpha = 0.16f),
-                    topLeft = Offset(trackX - 14f, carY + 11f),
-                    size = androidx.compose.ui.geometry.Size(28f, 18f),
-                    cornerRadius = androidx.compose.ui.geometry.CornerRadius(3f, 3f)
+                    color = Color(0xFF10141A).copy(alpha = opacity * 0.96f),
+                    topLeft = Offset(x + bodyWidth * 0.19f, engineY + carHeight * 0.14f),
+                    size = androidx.compose.ui.geometry.Size(bodyWidth * 0.62f, carHeight * 0.28f),
+                    cornerRadius = androidx.compose.ui.geometry.CornerRadius(4f * scale, 4f * scale)
                 )
-                drawCircle(Color.White.copy(alpha = 0.18f), radius = 3f, center = Offset(trackX - 19f, carY + carHeight - 6f))
-                drawCircle(Color.White.copy(alpha = 0.18f), radius = 3f, center = Offset(trackX + 19f, carY + carHeight - 6f))
+                drawLine(Color.White.copy(alpha = opacity * 0.58f), Offset(x + bodyWidth * 0.13f, engineY + carHeight * 0.57f), Offset(x + bodyWidth * 0.87f, engineY + carHeight * 0.57f), strokeWidth = 2f * scale)
+                drawCircle(Color.White.copy(alpha = opacity * 0.78f), radius = 3.8f * scale, center = Offset(x + bodyWidth * 0.24f, engineY + carHeight * 0.83f))
+                drawCircle(Color.White.copy(alpha = opacity * 0.78f), radius = 3.8f * scale, center = Offset(x + bodyWidth * 0.76f, engineY + carHeight * 0.83f))
+                drawCircle(Color.White.copy(alpha = opacity * 0.09f), radius = bodyWidth * 0.70f, center = Offset(centerX, engineY + carHeight * 0.84f))
             }
-            val engineY = trainY
-            drawRoundRect(
-                color = Color(0xFFE5E7EB).copy(alpha = 0.24f),
-                topLeft = Offset(trackX - trainWidth / 2f, engineY),
-                size = androidx.compose.ui.geometry.Size(trainWidth, 76f),
-                cornerRadius = androidx.compose.ui.geometry.CornerRadius(11f, 11f)
-            )
-            drawRoundRect(
-                color = Color(0xFF111318).copy(alpha = 0.8f),
-                topLeft = Offset(trackX - 16f, engineY + 12f),
-                size = androidx.compose.ui.geometry.Size(32f, 23f),
-                cornerRadius = androidx.compose.ui.geometry.CornerRadius(5f, 5f)
-            )
-            drawLine(
-                Color.White.copy(alpha = 0.30f),
-                Offset(trackX - 16f, engineY + 46f),
-                Offset(trackX + 16f, engineY + 46f),
-                strokeWidth = 2f
-            )
-            drawCircle(Color.White.copy(alpha = 0.34f), radius = 3.5f, center = Offset(trackX - 15f, engineY + 65f))
-            drawCircle(Color.White.copy(alpha = 0.34f), radius = 3.5f, center = Offset(trackX + 15f, engineY + 65f))
+
+            // Three independent trains: two descend at different speeds, one travels upward.
+            drawTrain(w * 0.16f, trainDown, 0.90f, 0.88f, true)
+            drawTrain(w * 0.84f, trainUp, 0.84f, 0.72f, false)
+            drawTrain(w * 0.50f, trainFar, 0.64f, 0.32f, true)
         }
         Column(
             modifier = Modifier
@@ -222,12 +275,23 @@ fun LoginComposeScreen(
                     modifier = Modifier.padding(22.dp),
                     verticalArrangement = Arrangement.spacedBy(14.dp)
                 ) {
+                    val loginFieldColors = OutlinedTextFieldDefaults.colors(
+                        focusedTextColor = Color.White,
+                        unfocusedTextColor = Color.White,
+                        disabledTextColor = Color(0xFF9CA3AF),
+                        focusedLabelColor = Color.White,
+                        unfocusedLabelColor = Color(0xFFD1D5DB),
+                        focusedBorderColor = Color.White,
+                        unfocusedBorderColor = Color(0xFF9CA3AF),
+                        cursorColor = Color.White
+                    )
                     OutlinedTextField(
                         value = email,
                         onValueChange = { email = it },
                         label = { Text("Email staf") },
                         modifier = Modifier.fillMaxWidth(),
-                        singleLine = true
+                        singleLine = true,
+                        colors = loginFieldColors
                     )
                     OutlinedTextField(
                         value = password,
@@ -235,7 +299,8 @@ fun LoginComposeScreen(
                         label = { Text("Password") },
                         visualTransformation = PasswordVisualTransformation(),
                         modifier = Modifier.fillMaxWidth(),
-                        singleLine = true
+                        singleLine = true,
+                        colors = loginFieldColors
                     )
                     Button(
                         onClick = { viewModel.loginWithSupabaseAuth(email.trim(), password) },

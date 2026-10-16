@@ -55,6 +55,8 @@ Project directory: `android-kereta-malam-cafe/`
 
 - Follow-up after APK #306 testing: changed password update from PATCH to PUT for Supabase Auth `/auth/v1/user` (fixes HTTP 405); added per-thread delete button with confirmation to Android “Chat ke Kasir”, matching Cafe Flow web by deleting the thread row (message rows cascade) and refreshing the inbox. Build and live Supabase/RLS verification are required.
 
+- `fefd35d28d0ea001ced85ffd052dd3b82c3e9f11`: sidebar brand now has explicit light/dark contrast, a modest size increase and slow recurring shimmer; login screen now has a restrained animated monochrome galaxy with twinkling stars, a drifting planet and a slow comet behind a dark translucent card. APK build and visual/device verification pending.
+
 ## Safety notes
 - Native Kotlin project only; do not edit the separate `keretacafe` web repo for Android work.
 - Android and Cafe Flow share Supabase; inspect schema, RPCs, and RLS before database changes.

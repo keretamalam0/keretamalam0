@@ -180,6 +180,7 @@ fun LoginComposeScreen(
 private fun ChatKasirComposeScreen(viewModel: PosViewModel, uiState: PosUiState) {
     var selectedThreadId by remember { mutableStateOf("") }
     var draft by remember { mutableStateOf("") }
+    var threadToDelete by remember { mutableStateOf<CashierChatThread?>(null) }
     LaunchedEffect(Unit) {
         viewModel.refreshCashierChats()
         while (true) {
@@ -209,14 +210,22 @@ private fun ChatKasirComposeScreen(viewModel: PosViewModel, uiState: PosUiState)
                         items(uiState.cashierChatThreads, key = { it.id }) { thread ->
                             val activeRow = thread.id == selectedThreadId
                             Surface(
-                                modifier = Modifier.fillMaxWidth().clickable { selectedThreadId = thread.id },
+                                modifier = Modifier.fillMaxWidth(),
                                 shape = RoundedCornerShape(12.dp),
                                 color = if (activeRow) MaterialTheme.colorScheme.primaryContainer else MaterialTheme.colorScheme.surfaceVariant
                             ) {
-                                Column(Modifier.padding(10.dp), verticalArrangement = Arrangement.spacedBy(3.dp)) {
-                                    Text("${thread.tableName} · Meja ${thread.tableCode}", fontWeight = FontWeight.SemiBold)
-                                    Text(thread.customerName, style = MaterialTheme.typography.bodySmall)
-                                    Text(if (thread.status == "open") "Aktif" else "Ditutup", style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                                Row(modifier = Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
+                                    Column(
+                                        Modifier.weight(1f).clickable { selectedThreadId = thread.id }.padding(10.dp),
+                                        verticalArrangement = Arrangement.spacedBy(3.dp)
+                                    ) {
+                                        Text("${thread.tableName} · Meja ${thread.tableCode}", fontWeight = FontWeight.SemiBold)
+                                        Text(thread.customerName, style = MaterialTheme.typography.bodySmall)
+                                        Text(if (thread.status == "open") "Aktif" else "Ditutup", style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                                    }
+                                    IconButton(onClick = { threadToDelete = thread }) {
+                                        Icon(imageVector = Icons.Outlined.Delete, contentDescription = "Hapus percakapan", tint = MaterialTheme.colorScheme.error)
+                                    }
                                 }
                             }
                         }
@@ -247,6 +256,22 @@ private fun ChatKasirComposeScreen(viewModel: PosViewModel, uiState: PosUiState)
                 }
             }
         }
+    }
+    threadToDelete?.let { thread ->
+        AlertDialog(
+            onDismissRequest = { threadToDelete = null },
+            title = { Text("Hapus percakapan?") },
+            text = { Text("Percakapan ${thread.tableName} · Meja ${thread.tableCode} beserta seluruh pesannya akan dihapus permanen.") },
+            confirmButton = {
+                TextButton(onClick = {
+                    viewModel.deleteCashierChatThread(thread.id)
+                    threadToDelete = null
+                }) { Text("Hapus", color = MaterialTheme.colorScheme.error) }
+            },
+            dismissButton = {
+                TextButton(onClick = { threadToDelete = null }) { Text("Batal") }
+            }
+        )
     }
 }
 

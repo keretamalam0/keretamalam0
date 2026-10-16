@@ -113,6 +113,7 @@ class CafeFlowRepository(private val context: Context) {
         when (method.uppercase()) {
             "GET" -> reqBuilder.get()
             "POST" -> reqBuilder.post(requestBody ?: "".toRequestBody(jsonMediaType))
+            "PUT" -> reqBuilder.put(requestBody ?: "".toRequestBody(jsonMediaType))
             "PATCH" -> reqBuilder.patch(requestBody ?: "".toRequestBody(jsonMediaType))
             "DELETE" -> if (requestBody != null) reqBuilder.delete(requestBody) else reqBuilder.delete()
             else -> reqBuilder.get()
@@ -267,7 +268,7 @@ class CafeFlowRepository(private val context: Context) {
         val payload = buildJsonObject { put("password", newPassword) }
         try {
             executeJsonRequest(
-                method = "PATCH",
+                method = "PUT",
                 url = "${creds.supabaseUrl}/auth/v1/user",
                 headers = buildHeaders(creds),
                 bodyJson = json.encodeToString(JsonObject.serializer(), payload)
@@ -277,7 +278,7 @@ class CafeFlowRepository(private val context: Context) {
             if (!error.message.orEmpty().contains("HTTP 401, /auth/v1/user")) throw error
             val refreshed = refreshAuthSession(creds)
             executeJsonRequest(
-                method = "PATCH",
+                method = "PUT",
                 url = "${refreshed.supabaseUrl}/auth/v1/user",
                 headers = buildHeaders(refreshed),
                 bodyJson = json.encodeToString(JsonObject.serializer(), payload)
@@ -731,6 +732,22 @@ class CafeFlowRepository(private val context: Context) {
         return json.decodeFromString(executeJsonRequest("GET", url, buildHeaders(creds)))
     }
 
+    suspend fun deleteCashierChatThread(threadId: String) {
+        val creds = requireVerifiedCredentials()
+        require(threadId.isNotBlank()) { "Percakapan tidak valid." }
+        val encodedId = URLEncoder.encode(threadId, "UTF-8")
+        // Delete child messages first for schemas without ON DELETE CASCADE.
+        executeJsonRequest(
+            method = "DELETE",
+            url = "${creds.supabaseUrl}/rest/v1/cashier_chat_messages?thread_id=eq.$encodedId",
+            headers = buildHeaders(creds)
+        )
+        executeJsonRequest(
+            method = "DELETE",
+            url = "${creds.supabaseUrl}/rest/v1/cashier_chat_threads?id=eq.$encodedId",
+            headers = buildHeaders(creds)
+        )
+    }
     suspend fun sendCashierChatMessage(threadId: String, body: String) {
         val creds = requireVerifiedCredentials()
         val payload = buildJsonObject {

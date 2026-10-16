@@ -467,6 +467,24 @@ class PosViewModel(application: Application) : AndroidViewModel(application) {
         }
     }
 
+    fun deleteCashierChatThread(threadId: String) {
+        if (threadId.isBlank() || _uiState.value.backendStatus != BackendIntegrationStatus.ACTIVE_VERIFIED) return
+        viewModelScope.launch {
+            runCatching {
+                repository.deleteCashierChatThread(threadId)
+                repository.fetchCashierChatThreads()
+            }.onSuccess { threads ->
+                _uiState.update {
+                    it.copy(
+                        cashierChatThreads = threads,
+                        cashierChatMessages = emptyList(),
+                        successMessage = "Percakapan dan seluruh pesannya berhasil dihapus.",
+                        errorMessage = null
+                    )
+                }
+            }.onFailure { showNotice(it.message ?: "Percakapan gagal dihapus.", isError = true) }
+        }
+    }
     fun clearBannerMessages() {
         _uiState.update { it.copy(errorMessage = null, successMessage = null) }
     }

@@ -1390,7 +1390,10 @@ private fun KasirComposeScreen(
                                     AsyncImage(
                                         model = selectedPaymentOption.imageUrl,
                                         contentDescription = "QR / instruksi pembayaran",
-                                        modifier = Modifier.size(132.dp)
+                                        modifier = Modifier
+                                            .fillMaxWidth()
+                                            .heightIn(max = if (selectedPaymentOption.type.equals("qris", true) || selectedPaymentOption.code.contains("qris", true) || selectedPaymentOption.name.contains("qris", true)) 360.dp else 76.dp),
+                                        contentScale = androidx.compose.ui.layout.ContentScale.Fit
                                     )
                                 }
                             }

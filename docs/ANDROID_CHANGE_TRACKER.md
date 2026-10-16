@@ -15,6 +15,7 @@ Project directory: `android-kereta-malam-cafe/`
 - [ ] Cashier product grid, photos, and cart/table behavior
 - [ ] Order lanes and transaction history with guarded deletion
 - [x] Shift opening/closing audit: live create/close writes now target the existing `staff_shifts` schema; Android build/RLS/device verification pending
+- [ ] Shift cash calculation: per-shift cash sales now derive from cash payment timestamps after `opened_at`; expected drawer cash is opening float plus shift cash sales. UI display, cash expenses/withdrawals, build and live verification still need completion.
 - [ ] Activity log filters and CSV export
 - [ ] Product, category, add-on, and customization management
 - [x] Removed manual “Simulasi Order QR Masuk” button; end-to-end live QR verification still pending

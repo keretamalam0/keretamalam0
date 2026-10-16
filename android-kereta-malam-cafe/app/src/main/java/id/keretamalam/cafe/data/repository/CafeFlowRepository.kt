@@ -644,6 +644,33 @@ class CafeFlowRepository(private val context: Context) {
             ?: throw IllegalStateException("Transaksi tersimpan tetapi gagal memuat detail struk dari backend.")
     }
 
+    suspend fun fetchCashierChatThreads(): List<CashierChatThread> {
+        val creds = requireVerifiedCredentials()
+        val url = "${creds.supabaseUrl}/rest/v1/cashier_chat_threads?select=*&order=last_message_at.desc&limit=100"
+        return json.decodeFromString(executeJsonRequest("GET", url, buildHeaders(creds)))
+    }
+
+    suspend fun fetchCashierChatMessages(threadId: String): List<CashierChatMessage> {
+        val creds = requireVerifiedCredentials()
+        val encodedId = URLEncoder.encode(threadId, "UTF-8")
+        val url = "${creds.supabaseUrl}/rest/v1/cashier_chat_messages?select=id,thread_id,sender_role,body,created_at&thread_id=eq.$encodedId&order=created_at.asc&limit=300"
+        return json.decodeFromString(executeJsonRequest("GET", url, buildHeaders(creds)))
+    }
+
+    suspend fun sendCashierChatMessage(threadId: String, body: String) {
+        val creds = requireVerifiedCredentials()
+        val payload = buildJsonObject {
+            put("p_thread_id", threadId)
+            put("p_body", body.trim())
+        }
+        executeJsonRequest(
+            method = "POST",
+            url = "${creds.supabaseUrl}/rest/v1/rpc/send_cashier_chat",
+            headers = buildHeaders(creds),
+            bodyJson = json.encodeToString(JsonObject.serializer(), payload)
+        )
+    }
+
     suspend fun fetchOrders(fromIso: String? = null, toIso: String? = null, limitCount: Int = 500): List<OrderWithItems> {
         val creds = requireVerifiedCredentials()
         val selectCols = URLEncoder.encode("*,order_items(*),payments(method,amount,cash_received,change_amount),restaurant_tables(name)", "UTF-8")

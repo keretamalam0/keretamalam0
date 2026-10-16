@@ -120,18 +120,36 @@ class CafeFlowRepository(private val context: Context) {
         httpClient.newCall(reqBuilder.build()).execute().use { response ->
             val raw = response.body?.string().orEmpty()
             if (!response.isSuccessful) {
-                val errMsg = runCatching {
-                    val obj = json.parseToJsonElement(raw).jsonObject
-                    obj["error_description"]?.jsonPrimitive?.contentOrNull
-                        ?: obj["msg"]?.jsonPrimitive?.contentOrNull
-                        ?: obj["message"]?.jsonPrimitive?.contentOrNull
-                        ?: obj["error"]?.jsonPrimitive?.contentOrNull
-                        ?: obj["code"]?.jsonPrimitive?.contentOrNull
-                        ?: "Respons error tidak menyertakan detail."
-                }.getOrDefault("Respons error tidak dapat dibaca.")
-                    .replace("\n", " ")
-                    .replace("\r", " ")
-                    .replace("\t", " ")
+                val parsedError = runCatching {
+                    val element = json.parseToJsonElement(raw)
+                    val obj = element as? JsonObject
+                    listOf("error_description", "msg", "message", "error", "error_code", "code")
+                        .firstNotNullOfOrNull { key ->
+                            when (val value = obj?.get(key)) {
+                                is JsonPrimitive -> value.contentOrNull
+                                is JsonObject -> (value["message"] as? JsonPrimitive)?.contentOrNull
+                                else -> null
+                            }?.takeIf { it.isNotBlank() }
+                        }
+                }.getOrNull()
+                // Gateways may return plain text or HTML instead of Supabase JSON.
+                // Keep a short readable diagnostic rather than hiding it behind a parser failure.
+                val plainError = raw
+                    .replace(Regex("(?is)<script[^>]*>.*?</script>"), " ")
+                    .replace(Regex("<[^>]+>"), " ")
+                    .replace("&nbsp;", " ")
+                    .replace(Regex("\\s+"), " ")
+                    .trim()
+                    .take(160)
+                    .takeIf { it.isNotBlank() && !it.startsWith("{") && !it.startsWith("[") }
+                val errMsg = (parsedError ?: plainError ?: when (response.code) {
+                    401 -> "Sesi login tidak valid atau sudah kedaluwarsa. Login ulang lalu coba lagi."
+                    403 -> "Akun tidak diizinkan melakukan tindakan ini."
+                    else -> "Server tidak mengirim detail error."
+                })
+                    .replace("\\n", " ")
+                    .replace("\\r", " ")
+                    .replace("\\t", " ")
                     .take(160)
                 // Show only short server diagnostics; never expose request headers, keys, or password.
                 throw IllegalStateException(

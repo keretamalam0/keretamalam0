@@ -1659,7 +1659,7 @@ fun PengaturanOutletComposeScreen(viewModel: PosViewModel, uiState: PosUiState) 
                             Text(method.name.ifBlank { method.provider.ifBlank { method.type.uppercase() } }, fontWeight = FontWeight.SemiBold)
                             Text(listOf(method.type.uppercase(), method.provider, method.accountNumber).filter { it.isNotBlank() }.joinToString(" · "), style = MaterialTheme.typography.bodySmall)
                             if (!method.instructions.isNullOrBlank()) Text(method.instructions, style = MaterialTheme.typography.bodySmall)
-                            if (!method.imageUrl.isNullOrBlank()) AsyncImage(model = method.imageUrl, contentDescription = "QR pembayaran", modifier = Modifier.size(88.dp))
+                            if (!method.imageUrl.isNullOrBlank()) AsyncImage(model = method.imageUrl, contentDescription = "Foto metode pembayaran", modifier = Modifier.size(if (method.type.equals("qris", ignoreCase = true)) 112.dp else 56.dp), contentScale = androidx.compose.ui.layout.ContentScale.Fit)
                             Text(if (method.isActive) "Aktif" else "Nonaktif", style = MaterialTheme.typography.labelSmall)
                         }
                         Column(horizontalAlignment = Alignment.End) {
@@ -1702,7 +1702,6 @@ fun PengaturanOutletComposeScreen(viewModel: PosViewModel, uiState: PosUiState) 
                         listOf("cash" to "Cash / Tunai", "ewallet" to "E-Wallet", "qris" to "QRIS", "bank_transfer" to "Transfer Bank", "other" to "Lainnya").forEach { (code, label) ->
                             FilterChip(selected = paymentType == code, onClick = {
                                 paymentType = code
-                                if (code != "qris") paymentImageUrl = null
                             }, label = { Text(label) })
                         }
                     }
@@ -1711,14 +1710,23 @@ fun PengaturanOutletComposeScreen(viewModel: PosViewModel, uiState: PosUiState) 
                     OutlinedTextField(value = paymentAccountName, onValueChange = { paymentAccountName = it }, label = { Text("Nama pemilik rekening (opsional)") }, modifier = Modifier.fillMaxWidth(), singleLine = true)
                     OutlinedTextField(value = paymentAccountNumber, onValueChange = { paymentAccountNumber = it }, label = { Text("Nomor rekening / nomor e-wallet (opsional)") }, modifier = Modifier.fillMaxWidth(), singleLine = true)
                     OutlinedTextField(value = paymentInstructions, onValueChange = { paymentInstructions = it }, label = { Text("Instruksi pembayaran") }, modifier = Modifier.fillMaxWidth(), minLines = 2)
-                    if (paymentType == "qris") {
+                    {
                         Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                             OutlinedButton(onClick = { paymentImagePicker.launch("image/*") }, enabled = !paymentImageUploading) {
-                                Text(if (paymentImageUploading) "Mengunggah QRIS..." else "Unggah foto QRIS")
+                                Text(if (paymentImageUploading) "Mengunggah foto..." else "Unggah foto / logo")
                             }
-                            if (!paymentImageUrl.isNullOrBlank()) AsyncImage(model = paymentImageUrl, contentDescription = "QRIS", modifier = Modifier.size(76.dp))
+                            if (!paymentImageUrl.isNullOrBlank()) AsyncImage(
+                                model = paymentImageUrl,
+                                contentDescription = "Foto metode pembayaran",
+                                modifier = Modifier.size(if (paymentType == "qris") 112.dp else 56.dp),
+                                contentScale = androidx.compose.ui.layout.ContentScale.Fit
+                            )
                         }
-                        Text("Foto hanya digunakan untuk QRIS.", style = MaterialTheme.typography.bodySmall)
+                        Text(
+                            if (paymentType == "qris") "QRIS ditampilkan besar di checkout agar mudah dipindai atau di-screenshot."
+                            else "Gunakan logo bank atau e-wallet. Tampil lebih kecil daripada QRIS.",
+                            style = MaterialTheme.typography.bodySmall
+                        )
                     }
                     Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                         OutlinedButton(onClick = { showPaymentForm = false; editingPaymentId = null }, modifier = Modifier.weight(1f)) {

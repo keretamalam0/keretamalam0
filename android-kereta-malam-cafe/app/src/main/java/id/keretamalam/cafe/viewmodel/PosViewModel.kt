@@ -1983,28 +1983,71 @@ class PosViewModel(application: Application) : AndroidViewModel(application) {
     }
 
     fun addExpense(amount: Double, category: String, date: String, method: String, description: String) {
-        if (_uiState.value.backendStatus == BackendIntegrationStatus.ACTIVE_VERIFIED) {
-            showNotice("Pencatatan pengeluaran live belum tersambung ke Supabase. Pengeluaran tidak disimpan.", isError = true)
+        if (amount <= 0.0 || category.isBlank() || description.isBlank()) {
+            showNotice("Nominal harus lebih dari Rp0, kategori dan keterangan wajib diisi.", isError = true)
             return
         }
-        if (amount <= 0 || description.isBlank()) {
-            showNotice("Nominal harus lebih dari Rp0 dan keterangan wajib diisi.", isError = true)
+        if (_uiState.value.backendStatus == BackendIntegrationStatus.ACTIVE_VERIFIED) {
+            viewModelScope.launch {
+                val state = _uiState.value
+                val pendingId = "pending-exp-${UUID.randomUUID()}"
+                val pending = Expense(
+                    id = pendingId,
+                    ownerId = state.staffProfile.ownerId,
+                    amount = amount,
+                    category = category.trim(),
+                    expenseDate = date,
+                    paymentMethod = method.ifBlank { "cash" },
+                    description = description.trim(),
+                    createdAt = nowString()
+                )
+                _uiState.update { it.copy(isLoading = true, errorMessage = null, successMessage = null) }
+                runCatching { repository.createExpense(pending) }
+                    .onSuccess { saved ->
+                        runCatching { repository.fetchExpenses() }
+                            .onSuccess { rows ->
+                                _uiState.update {
+                                    it.copy(
+                                        isLoading = false,
+                                        expenses = rows,
+                                        successMessage = "Pengeluaran berhasil disimpan ke Supabase."
+                                    )
+                                }
+                            }
+                            .onFailure {
+                                _uiState.update { current ->
+                                    current.copy(
+                                        isLoading = false,
+                                        expenses = listOf(saved) + current.expenses.filterNot { item -> item.id == pendingId || item.id == saved.id },
+                                        successMessage = "Pengeluaran tersimpan ke Supabase. Daftar belum berhasil diperbarui."
+                                    )
+                                }
+                            }
+                    }
+                    .onFailure { err ->
+                        _uiState.update {
+                            it.copy(
+                                isLoading = false,
+                                errorMessage = err.message?.takeIf(String::isNotBlank)
+                                    ?: "Pengeluaran gagal disimpan. Periksa koneksi dan izin database."
+                            )
+                        }
+                    }
+            }
             return
         }
         val exp = Expense(
             id = "exp-${System.currentTimeMillis()}",
+            ownerId = _uiState.value.staffProfile.ownerId,
             amount = amount,
-            category = category,
+            category = category.trim(),
             expenseDate = date,
-            paymentMethod = method,
+            paymentMethod = method.ifBlank { "cash" },
             description = description.trim(),
             createdAt = nowString()
         )
         _uiState.update {
-            it.copy(
-                expenses = listOf(exp) + it.expenses,
-                successMessage = "Pengeluaran berhasil disimpan."
-            )
+            it.copy(expenses = listOf(exp) + it.expenses, successMessage = "Pengeluaran disimpan dalam mode simulasi lokal.")
         }
     }
 

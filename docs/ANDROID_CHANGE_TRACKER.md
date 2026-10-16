@@ -26,6 +26,7 @@ Project directory: `android-kereta-malam-cafe/`
 - [ ] Staff roles, permissions, invitations, and backend enforcement
 - [ ] Outlet settings, localization, taxes, service charges, rounding
 - [ ] Payment methods and QRIS/bank/e-wallet configuration (Android form now supports active/inactive action and only shows QR photo upload for QRIS; build, persistence, and QR Ordering integration verification pending)
+- [x] Order alert sound: if local cached URL is missing, the app now attempts to recover the saved URL from Supabase when a new order arrives; actual playback and live-backend persistence still require device verification.
 - [ ] Bluetooth printer discovery and receipt printing
 - [x] Removed Website Management UI, local CMS state/actions, and unused CMS models from Android. [ ] Secure Super Admin separation remains pending.
 

@@ -736,12 +736,7 @@ class CafeFlowRepository(private val context: Context) {
         val creds = requireVerifiedCredentials()
         require(threadId.isNotBlank()) { "Percakapan tidak valid." }
         val encodedId = URLEncoder.encode(threadId, "UTF-8")
-        // Delete child messages first for schemas without ON DELETE CASCADE.
-        executeJsonRequest(
-            method = "DELETE",
-            url = "${creds.supabaseUrl}/rest/v1/cashier_chat_messages?thread_id=eq.$encodedId",
-            headers = buildHeaders(creds)
-        )
+        // Match Cafe Flow web: deleting the thread cascades to its messages.
         executeJsonRequest(
             method = "DELETE",
             url = "${creds.supabaseUrl}/rest/v1/cashier_chat_threads?id=eq.$encodedId",

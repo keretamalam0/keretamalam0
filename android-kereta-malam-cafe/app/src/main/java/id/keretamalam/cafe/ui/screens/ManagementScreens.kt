@@ -1674,6 +1674,9 @@ fun PengaturanOutletComposeScreen(viewModel: PosViewModel, uiState: PosUiState) 
                                 paymentImageUrl = method.imageUrl
                                 showPaymentForm = true
                             }) { Text("Edit") }
+                            OutlinedButton(onClick = {
+                                viewModel.savePaymentMethod(method.copy(isActive = !method.isActive))
+                            }) { Text(if (method.isActive) "Nonaktifkan" else "Aktifkan") }
                             OutlinedButton(onClick = { viewModel.deletePaymentMethod(method.id) }) { Text("Hapus") }
                         }
                     }
@@ -1697,7 +1700,10 @@ fun PengaturanOutletComposeScreen(viewModel: PosViewModel, uiState: PosUiState) 
                     Text(if (editingPaymentId == null) "Tambah metode pembayaran baru" else "Edit metode pembayaran", style = MaterialTheme.typography.titleSmall, fontWeight = FontWeight.SemiBold)
                     Row(modifier = Modifier.fillMaxWidth().horizontalScroll(rememberScrollState()), horizontalArrangement = Arrangement.spacedBy(6.dp)) {
                         listOf("cash" to "Cash / Tunai", "ewallet" to "E-Wallet", "qris" to "QRIS", "bank_transfer" to "Transfer Bank", "other" to "Lainnya").forEach { (code, label) ->
-                            FilterChip(selected = paymentType == code, onClick = { paymentType = code }, label = { Text(label) })
+                            FilterChip(selected = paymentType == code, onClick = {
+                                paymentType = code
+                                if (code != "qris") paymentImageUrl = null
+                            }, label = { Text(label) })
                         }
                     }
                     OutlinedTextField(value = paymentName, onValueChange = { paymentName = it }, label = { Text("Nama metode pembayaran") }, modifier = Modifier.fillMaxWidth(), singleLine = true)
@@ -1705,11 +1711,14 @@ fun PengaturanOutletComposeScreen(viewModel: PosViewModel, uiState: PosUiState) 
                     OutlinedTextField(value = paymentAccountName, onValueChange = { paymentAccountName = it }, label = { Text("Nama pemilik rekening (opsional)") }, modifier = Modifier.fillMaxWidth(), singleLine = true)
                     OutlinedTextField(value = paymentAccountNumber, onValueChange = { paymentAccountNumber = it }, label = { Text("Nomor rekening / nomor e-wallet (opsional)") }, modifier = Modifier.fillMaxWidth(), singleLine = true)
                     OutlinedTextField(value = paymentInstructions, onValueChange = { paymentInstructions = it }, label = { Text("Instruksi pembayaran") }, modifier = Modifier.fillMaxWidth(), minLines = 2)
-                    Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                        OutlinedButton(onClick = { paymentImagePicker.launch("image/*") }, enabled = !paymentImageUploading) {
-                            Text(if (paymentImageUploading) "Mengunggah gambar..." else "Pilih foto / QRIS")
+                    if (paymentType == "qris") {
+                        Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                            OutlinedButton(onClick = { paymentImagePicker.launch("image/*") }, enabled = !paymentImageUploading) {
+                                Text(if (paymentImageUploading) "Mengunggah QRIS..." else "Unggah foto QRIS")
+                            }
+                            if (!paymentImageUrl.isNullOrBlank()) AsyncImage(model = paymentImageUrl, contentDescription = "QRIS", modifier = Modifier.size(76.dp))
                         }
-                        if (!paymentImageUrl.isNullOrBlank()) AsyncImage(model = paymentImageUrl, contentDescription = "QRIS", modifier = Modifier.size(76.dp))
+                        Text("Foto hanya digunakan untuk QRIS.", style = MaterialTheme.typography.bodySmall)
                     }
                     Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                         OutlinedButton(onClick = { showPaymentForm = false; editingPaymentId = null }, modifier = Modifier.weight(1f)) {

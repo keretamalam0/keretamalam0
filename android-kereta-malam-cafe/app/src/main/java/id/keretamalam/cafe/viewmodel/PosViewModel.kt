@@ -711,16 +711,36 @@ class PosViewModel(application: Application) : AndroidViewModel(application) {
     private fun playOrderAlertSound() {
         val now = System.currentTimeMillis()
         if (now - lastPlayedOrderAlertAt < 2_000L) return
-        val soundUrl = getApplication<Application>()
-            .getSharedPreferences("order_alert_settings", android.content.Context.MODE_PRIVATE)
-            .getString("sound_url", null)
-            ?.takeIf { it.startsWith("https://") || it.startsWith("http://") }
-            ?: return
         lastPlayedOrderAlertAt = now
+        val context = getApplication<Application>()
+        val prefs = context.getSharedPreferences("order_alert_settings", android.content.Context.MODE_PRIVATE)
+        val cachedUrl = prefs.getString("sound_url", null)
+            ?.takeIf { it.startsWith("https://") || it.startsWith("http://") }
+        if (cachedUrl != null) {
+            playOrderAlertSoundUrl(cachedUrl)
+            return
+        }
+
+        // Local preferences can be cleared when app data is reset. Recover the persistent
+        // URL from Supabase when a new order arrives instead of silently losing the sound.
+        viewModelScope.launch {
+            runCatching { repository.fetchOrderAlertSoundUrl() }
+                .getOrNull()
+                ?.takeIf { it.startsWith("https://") || it.startsWith("http://") }
+                ?.let { remoteUrl ->
+                    prefs.edit().putString("sound_url", remoteUrl).apply()
+                    playOrderAlertSoundUrl(remoteUrl)
+                }
+        }
+    }
+
+    private fun playOrderAlertSoundUrl(soundUrl: String) {
         runCatching {
             MediaPlayer().apply {
                 setDataSource(soundUrl)
-                setOnPreparedListener { player -> runCatching { player.start() }.onFailure { player.release() } }
+                setOnPreparedListener { player ->
+                    runCatching { player.start() }.onFailure { player.release() }
+                }
                 setOnCompletionListener { player -> player.release() }
                 setOnErrorListener { player, _, _ -> player.release(); true }
                 prepareAsync()

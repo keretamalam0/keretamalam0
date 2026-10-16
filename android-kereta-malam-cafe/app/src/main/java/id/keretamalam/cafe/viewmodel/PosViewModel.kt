@@ -52,6 +52,8 @@ data class PosUiState(
     val auditLogs: List<AuditLog> = SandboxSeedData.initialAuditLogs,
     val outletSettings: OutletSettings = OutletSettings(),
     val paymentMethods: List<PaymentMethod> = emptyList(),
+    val cashierChatThreads: List<CashierChatThread> = emptyList(),
+    val cashierChatMessages: List<CashierChatMessage> = emptyList(),
     val aiReplyText: String? = null,
     // Kasir & Keranjang State
     val selectedCategoryId: String = "ALL",
@@ -430,6 +432,39 @@ class PosViewModel(application: Application) : AndroidViewModel(application) {
     fun setUiScale(percent: Int) {
         val valid = percent.coerceIn(40, 120)
         _uiState.update { it.copy(uiScalePercent = valid) }
+    }
+
+    fun refreshCashierChats(selectedThreadId: String? = null) {
+        if (_uiState.value.backendStatus != BackendIntegrationStatus.ACTIVE_VERIFIED) return
+        viewModelScope.launch {
+            runCatching {
+                val threads = repository.fetchCashierChatThreads()
+                val chosenId = selectedThreadId ?: threads.firstOrNull()?.id
+                val messages = chosenId?.let { repository.fetchCashierChatMessages(it) }.orEmpty()
+                _uiState.update { it.copy(cashierChatThreads = threads, cashierChatMessages = messages) }
+            }.onFailure { showNotice(it.message ?: "Chat kasir gagal dimuat.", isError = true) }
+        }
+    }
+
+    fun loadCashierChatMessages(threadId: String) {
+        if (threadId.isBlank() || _uiState.value.backendStatus != BackendIntegrationStatus.ACTIVE_VERIFIED) return
+        viewModelScope.launch {
+            runCatching { repository.fetchCashierChatMessages(threadId) }
+                .onSuccess { messages -> _uiState.update { it.copy(cashierChatMessages = messages) } }
+                .onFailure { showNotice(it.message ?: "Pesan chat gagal dimuat.", isError = true) }
+        }
+    }
+
+    fun sendCashierChatMessage(threadId: String, body: String) {
+        if (threadId.isBlank() || body.isBlank()) return
+        viewModelScope.launch {
+            runCatching {
+                repository.sendCashierChatMessage(threadId, body)
+                val threads = repository.fetchCashierChatThreads()
+                val messages = repository.fetchCashierChatMessages(threadId)
+                _uiState.update { it.copy(cashierChatThreads = threads, cashierChatMessages = messages, successMessage = "Balasan terkirim.", errorMessage = null) }
+            }.onFailure { showNotice(it.message ?: "Balasan chat gagal dikirim.", isError = true) }
+        }
     }
 
     fun clearBannerMessages() {

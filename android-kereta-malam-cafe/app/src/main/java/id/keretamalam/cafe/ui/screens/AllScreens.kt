@@ -91,21 +91,19 @@ fun LoginComposeScreen(
     var email by remember { mutableStateOf("") }
     var password by remember { mutableStateOf("") }
 
-    val spaceMotion = rememberInfiniteTransition(label = "login-galaxy")
-    val galaxyProgress by spaceMotion.animateFloat(
-        initialValue = 0f, targetValue = 1f,
-        animationSpec = infiniteRepeatable(animation = tween(durationMillis = 18000), repeatMode = RepeatMode.Restart),
-        label = "galaxy-orbit"
-    )
-    val starTwinkle by spaceMotion.animateFloat(
-        initialValue = 0.35f, targetValue = 0.8f,
-        animationSpec = infiniteRepeatable(animation = tween(durationMillis = 2600), repeatMode = RepeatMode.Reverse),
-        label = "galaxy-stars"
+    val trainMotion = rememberInfiniteTransition(label = "login-train")
+    val trainProgress by trainMotion.animateFloat(
+        initialValue = -0.22f, targetValue = 1.12f,
+        animationSpec = infiniteRepeatable(
+            animation = tween(durationMillis = 7600),
+            repeatMode = RepeatMode.Restart
+        ),
+        label = "train-moving-down"
     )
     Box(
         modifier = Modifier
             .fillMaxSize()
-            .background(Color(0xFF05070C))
+            .background(Color(0xFF050505))
             .imePadding()
             .padding(horizontal = if (isTabletOrWide) 32.dp else 20.dp, vertical = 20.dp),
         contentAlignment = Alignment.Center
@@ -113,32 +111,65 @@ fun LoginComposeScreen(
         Canvas(modifier = Modifier.fillMaxSize()) {
             val w = size.width
             val h = size.height
-            drawCircle(color = Color(0xFF172235).copy(alpha = 0.38f), radius = size.minDimension * 0.43f, center = Offset(w * 0.12f, h * 0.18f))
-            drawCircle(color = Color(0xFF111827).copy(alpha = 0.52f), radius = size.minDimension * 0.36f, center = Offset(w * 0.88f, h * 0.82f))
-            for (i in 0 until 64) {
-                val x = ((i * 73 + 29) % 997) / 997f * w
-                val y = ((i * 137 + 41) % 991) / 991f * h
-                val radius = if (i % 9 == 0) 1.8f else if (i % 3 == 0) 1.15f else 0.65f
-                drawCircle(Color.White.copy(alpha = starTwinkle * (if (i % 4 == 0) 0.78f else 0.34f)), radius = radius, center = Offset(x, y))
+            // A quiet monochrome railway sits behind the login controls.
+            val trackX = w * 0.18f
+            val railTop = 0f
+            val railBottom = h
+            drawLine(Color.White.copy(alpha = 0.11f), Offset(trackX - 22f, railTop), Offset(trackX - 22f, railBottom), strokeWidth = 2f)
+            drawLine(Color.White.copy(alpha = 0.11f), Offset(trackX + 22f, railTop), Offset(trackX + 22f, railBottom), strokeWidth = 2f)
+            var sleeperY = 0f
+            while (sleeperY < h) {
+                drawLine(
+                    Color.White.copy(alpha = 0.075f),
+                    Offset(trackX - 31f, sleeperY),
+                    Offset(trackX + 31f, sleeperY),
+                    strokeWidth = 2.2f
+                )
+                sleeperY += 28f
             }
-            val planetX = w * (0.78f + 0.035f * kotlin.math.sin(galaxyProgress * 6.28318f))
-            val planetY = h * 0.18f
-            val planetRadius = size.minDimension * 0.075f
-            drawCircle(color = Color(0xFF9CA3AF).copy(alpha = 0.10f), radius = planetRadius * 1.8f, center = Offset(planetX, planetY))
-            drawCircle(color = Color(0xFF64748B).copy(alpha = 0.72f), radius = planetRadius, center = Offset(planetX, planetY))
-            drawCircle(color = Color(0xFFCBD5E1).copy(alpha = 0.26f), radius = planetRadius * 0.68f, center = Offset(planetX - planetRadius * 0.2f, planetY - planetRadius * 0.24f))
-            drawOval(
-                color = Color.White.copy(alpha = 0.20f),
-                topLeft = Offset(planetX - planetRadius * 1.65f, planetY - planetRadius * 0.32f),
-                size = androidx.compose.ui.geometry.Size(planetRadius * 3.3f, planetRadius * 0.72f),
-                style = Stroke(width = 1.1f)
+
+            // Locomotive and carriages travel from the top toward the bottom.
+            val trainY = trainProgress * h
+            val trainWidth = 52f
+            val carHeight = 64f
+            for (carIndex in 3 downTo 1) {
+                val carY = trainY - carIndex * (carHeight + 7f)
+                drawRoundRect(
+                    color = Color(0xFFBFC3C9).copy(alpha = 0.18f),
+                    topLeft = Offset(trackX - trainWidth / 2f, carY),
+                    size = androidx.compose.ui.geometry.Size(trainWidth, carHeight),
+                    cornerRadius = androidx.compose.ui.geometry.CornerRadius(9f, 9f)
+                )
+                drawRoundRect(
+                    color = Color.White.copy(alpha = 0.16f),
+                    topLeft = Offset(trackX - 14f, carY + 11f),
+                    size = androidx.compose.ui.geometry.Size(28f, 18f),
+                    cornerRadius = androidx.compose.ui.geometry.CornerRadius(3f, 3f)
+                )
+                drawCircle(Color.White.copy(alpha = 0.18f), radius = 3f, center = Offset(trackX - 19f, carY + carHeight - 6f))
+                drawCircle(Color.White.copy(alpha = 0.18f), radius = 3f, center = Offset(trackX + 19f, carY + carHeight - 6f))
+            }
+            val engineY = trainY
+            drawRoundRect(
+                color = Color(0xFFE5E7EB).copy(alpha = 0.24f),
+                topLeft = Offset(trackX - trainWidth / 2f, engineY),
+                size = androidx.compose.ui.geometry.Size(trainWidth, 76f),
+                cornerRadius = androidx.compose.ui.geometry.CornerRadius(11f, 11f)
             )
-            val cometX = ((galaxyProgress * 1.25f - 0.12f) * w)
-            val cometY = h * (0.33f + 0.07f * kotlin.math.sin(galaxyProgress * 6.28318f))
-            if (cometX in 0f..w) {
-                drawLine(Color.White.copy(alpha = 0.30f), Offset(cometX - 26f, cometY - 12f), Offset(cometX, cometY), strokeWidth = 1.2f)
-                drawCircle(Color.White.copy(alpha = 0.82f), radius = 1.6f, center = Offset(cometX, cometY))
-            }
+            drawRoundRect(
+                color = Color(0xFF111318).copy(alpha = 0.8f),
+                topLeft = Offset(trackX - 16f, engineY + 12f),
+                size = androidx.compose.ui.geometry.Size(32f, 23f),
+                cornerRadius = androidx.compose.ui.geometry.CornerRadius(5f, 5f)
+            )
+            drawLine(
+                Color.White.copy(alpha = 0.30f),
+                Offset(trackX - 16f, engineY + 46f),
+                Offset(trackX + 16f, engineY + 46f),
+                strokeWidth = 2f
+            )
+            drawCircle(Color.White.copy(alpha = 0.34f), radius = 3.5f, center = Offset(trackX - 15f, engineY + 65f))
+            drawCircle(Color.White.copy(alpha = 0.34f), radius = 3.5f, center = Offset(trackX + 15f, engineY + 65f))
         }
         Column(
             modifier = Modifier

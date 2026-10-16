@@ -179,12 +179,13 @@ class CafeFlowRepository(private val context: Context) {
         val authObj = json.parseToJsonElement(raw).jsonObject
         val accessToken = authObj["access_token"]?.jsonPrimitive?.contentOrNull
             ?: throw IllegalStateException("Token sesi tidak ditemukan pada respons Supabase Auth.")
+        val refreshToken = authObj["refresh_token"]?.jsonPrimitive?.contentOrNull.orEmpty()
         val userObj = authObj["user"]?.jsonObject
         val userId = userObj?.get("id")?.jsonPrimitive?.contentOrNull
             ?: throw IllegalStateException("User ID tidak ditemukan pada respons Supabase Auth.")
         val userEmail = userObj["email"]?.jsonPrimitive?.contentOrNull ?: emailInput.trim()
 
-        SupabaseConfigManager.saveAuthSession(context, accessToken, userId, userEmail)
+        SupabaseConfigManager.saveAuthSession(context, accessToken, userId, userEmail, refreshToken)
 
         val profile = try {
             fetchMyStaffProfile()
@@ -216,17 +217,72 @@ class CafeFlowRepository(private val context: Context) {
         return profile
     }
 
+    private suspend fun refreshAuthSession(creds: SupabaseRuntimeCredentials): SupabaseRuntimeCredentials {
+        if (creds.refreshToken.isBlank()) {
+            throw IllegalStateException(
+                "Sesi login sudah kedaluwarsa. Keluar lalu login kembali, kemudian coba ganti password."
+            )
+        }
+        val payload = buildJsonObject { put("refresh_token", creds.refreshToken) }
+        val raw = try {
+            executeJsonRequest(
+                method = "POST",
+                url = "${creds.supabaseUrl}/auth/v1/token?grant_type=refresh_token",
+                headers = mapOf(
+                    "apikey" to creds.publishableKey,
+                    "Content-Type" to "application/json"
+                ),
+                bodyJson = json.encodeToString(JsonObject.serializer(), payload)
+            )
+        } catch (error: Exception) {
+            val message = error.message.orEmpty()
+            if (message.contains("HTTP 400") || message.contains("HTTP 401")) {
+                throw IllegalStateException(
+                    "Sesi login sudah kedaluwarsa. Keluar lalu login kembali, kemudian coba ganti password."
+                )
+            }
+            throw error
+        }
+        val session = json.parseToJsonElement(raw).jsonObject
+        val accessToken = session["access_token"]?.jsonPrimitive?.contentOrNull
+            ?: throw IllegalStateException("Supabase tidak mengirim access token baru.")
+        val refreshToken = session["refresh_token"]?.jsonPrimitive?.contentOrNull
+            ?: creds.refreshToken
+        val user = session["user"]?.jsonObject
+        val userId = user?.get("id")?.jsonPrimitive?.contentOrNull ?: creds.authenticatedUserId
+        val email = user?.get("email")?.jsonPrimitive?.contentOrNull ?: creds.authenticatedEmail
+        SupabaseConfigManager.saveAuthSession(context, accessToken, userId, email, refreshToken)
+        return creds.copy(
+            accessToken = accessToken,
+            refreshToken = refreshToken,
+            authenticatedUserId = userId,
+            authenticatedEmail = email
+        )
+    }
+
     suspend fun changePassword(newPassword: String) {
         require(newPassword.length >= 8) { "Password baru minimal 8 karakter." }
         val creds = requireVerifiedCredentials()
         check(creds.accessToken.isNotBlank()) { "Sesi login tidak valid. Silakan login ulang." }
         val payload = buildJsonObject { put("password", newPassword) }
-        executeJsonRequest(
-            method = "PATCH",
-            url = "${creds.supabaseUrl}/auth/v1/user",
-            headers = buildHeaders(creds),
-            bodyJson = json.encodeToString(JsonObject.serializer(), payload)
-        )
+        try {
+            executeJsonRequest(
+                method = "PATCH",
+                url = "${creds.supabaseUrl}/auth/v1/user",
+                headers = buildHeaders(creds),
+                bodyJson = json.encodeToString(JsonObject.serializer(), payload)
+            )
+        } catch (error: IllegalStateException) {
+            // Supabase access tokens expire. Refresh once and retry only for an Auth 401.
+            if (!error.message.orEmpty().contains("HTTP 401, /auth/v1/user")) throw error
+            val refreshed = refreshAuthSession(creds)
+            executeJsonRequest(
+                method = "PATCH",
+                url = "${refreshed.supabaseUrl}/auth/v1/user",
+                headers = buildHeaders(refreshed),
+                bodyJson = json.encodeToString(JsonObject.serializer(), payload)
+            )
+        }
     }
 
     suspend fun signOut() {

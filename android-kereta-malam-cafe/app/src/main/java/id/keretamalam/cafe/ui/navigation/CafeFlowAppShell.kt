@@ -1,8 +1,14 @@
 package id.keretamalam.cafe.ui.navigation
 
+import androidx.compose.animation.core.RepeatMode
+import androidx.compose.animation.core.animateFloat
+import androidx.compose.animation.core.infiniteRepeatable
+import androidx.compose.animation.core.rememberInfiniteTransition
+import androidx.compose.animation.core.tween
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.ui.graphics.Brush
+import androidx.compose.ui.geometry.Offset
 import androidx.compose.foundation.border
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.rememberScrollState
@@ -133,12 +139,31 @@ fun CafeFlowAppShell(
                         horizontalArrangement = Arrangement.SpaceBetween,
                         verticalAlignment = Alignment.CenterVertically
                     ) {
-                        Column(modifier = Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                        val brandShimmer = rememberInfiniteTransition(label = "brand-shimmer")
+                        val brandShimmerProgress by brandShimmer.animateFloat(
+                            initialValue = -1f,
+                            targetValue = 2f,
+                            animationSpec = infiniteRepeatable(
+                                animation = tween(durationMillis = 1700, delayMillis = 3900),
+                                repeatMode = RepeatMode.Restart
+                            ),
+                            label = "brand-shimmer-progress"
+                        )
+                        val brandBase = if (uiState.darkTheme) androidx.compose.ui.graphics.Color(0xFFF8FAFC) else androidx.compose.ui.graphics.Color(0xFF111827)
+                        val brandHighlight = if (uiState.darkTheme) androidx.compose.ui.graphics.Color(0xFFFFFFFF) else androidx.compose.ui.graphics.Color(0xFF64748B)
+                        Column(modifier = Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(2.dp)) {
                             Text(
                                 text = "Kereta Malam Cafe",
-                                style = MaterialTheme.typography.titleLarge,
-                                fontWeight = FontWeight.Bold,
-                                maxLines = 2,
+                                style = MaterialTheme.typography.titleLarge.copy(
+                                    fontSize = 19.sp,
+                                    brush = Brush.linearGradient(
+                                        colors = listOf(brandBase, brandBase, brandHighlight, brandBase, brandBase),
+                                        start = Offset(brandShimmerProgress * 280f, 0f),
+                                        end = Offset(brandShimmerProgress * 280f + 90f, 0f)
+                                    )
+                                ),
+                                fontWeight = FontWeight.ExtraBold,
+                                maxLines = 1,
                                 overflow = TextOverflow.Ellipsis
                             )
                         }

@@ -57,6 +57,7 @@ Project directory: `android-kereta-malam-cafe/`
 
 - `fefd35d28d0ea001ced85ffd052dd3b82c3e9f11`: sidebar brand now has explicit light/dark contrast, a modest size increase and slow recurring shimmer.
 - `971d052f3b7c904cad3dc10eb417ff4fc1e9bd9c`: replaced the login galaxy background with a subtle monochrome railway and a train animation moving from top to bottom behind the existing login form. APK build and visual/device verification pending.
+- `5ffe0fcaf86dbc6a8f5b0364ecc6abd41b09d4b0`: expanded the login background into a layered monochrome station scene with three independently moving detailed trains (two downward, one upward), perspective rails, carriage windows, metallic shading and headlights. Explicit white input text/cursor and light labels/borders fix email/password contrast on the dark card. Build and visual/device verification pending.
 
 ## Safety notes
 - Native Kotlin project only; do not edit the separate `keretacafe` web repo for Android work.

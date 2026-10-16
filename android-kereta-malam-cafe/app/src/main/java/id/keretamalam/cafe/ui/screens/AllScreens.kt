@@ -7,6 +7,11 @@ import android.util.Base64
 import coil.compose.AsyncImage
 
 import androidx.activity.compose.rememberLauncherForActivityResult
+import androidx.compose.animation.core.RepeatMode
+import androidx.compose.animation.core.animateFloat
+import androidx.compose.animation.core.infiniteRepeatable
+import androidx.compose.animation.core.rememberInfiniteTransition
+import androidx.compose.animation.core.tween
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.clickable
@@ -54,6 +59,8 @@ import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.geometry.Offset
+import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontFamily
@@ -84,14 +91,55 @@ fun LoginComposeScreen(
     var email by remember { mutableStateOf("") }
     var password by remember { mutableStateOf("") }
 
+    val spaceMotion = rememberInfiniteTransition(label = "login-galaxy")
+    val galaxyProgress by spaceMotion.animateFloat(
+        initialValue = 0f, targetValue = 1f,
+        animationSpec = infiniteRepeatable(animation = tween(durationMillis = 18000), repeatMode = RepeatMode.Restart),
+        label = "galaxy-orbit"
+    )
+    val starTwinkle by spaceMotion.animateFloat(
+        initialValue = 0.35f, targetValue = 0.8f,
+        animationSpec = infiniteRepeatable(animation = tween(durationMillis = 2600), repeatMode = RepeatMode.Reverse),
+        label = "galaxy-stars"
+    )
     Box(
         modifier = Modifier
             .fillMaxSize()
-            .background(MaterialTheme.colorScheme.background)
+            .background(Color(0xFF05070C))
             .imePadding()
             .padding(horizontal = if (isTabletOrWide) 32.dp else 20.dp, vertical = 20.dp),
         contentAlignment = Alignment.Center
     ) {
+        Canvas(modifier = Modifier.fillMaxSize()) {
+            val w = size.width
+            val h = size.height
+            drawCircle(color = Color(0xFF172235).copy(alpha = 0.38f), radius = size.minDimension * 0.43f, center = Offset(w * 0.12f, h * 0.18f))
+            drawCircle(color = Color(0xFF111827).copy(alpha = 0.52f), radius = size.minDimension * 0.36f, center = Offset(w * 0.88f, h * 0.82f))
+            for (i in 0 until 64) {
+                val x = ((i * 73 + 29) % 997) / 997f * w
+                val y = ((i * 137 + 41) % 991) / 991f * h
+                val radius = if (i % 9 == 0) 1.8f else if (i % 3 == 0) 1.15f else 0.65f
+                drawCircle(Color.White.copy(alpha = starTwinkle * (if (i % 4 == 0) 0.78f else 0.34f)), radius = radius, center = Offset(x, y))
+            }
+            val planetX = w * (0.78f + 0.035f * kotlin.math.sin(galaxyProgress * 6.28318f))
+            val planetY = h * 0.18f
+            val planetRadius = size.minDimension * 0.075f
+            drawCircle(color = Color(0xFF9CA3AF).copy(alpha = 0.10f), radius = planetRadius * 1.8f, center = Offset(planetX, planetY))
+            drawCircle(color = Color(0xFF64748B).copy(alpha = 0.72f), radius = planetRadius, center = Offset(planetX, planetY))
+            drawCircle(color = Color(0xFFCBD5E1).copy(alpha = 0.26f), radius = planetRadius * 0.68f, center = Offset(planetX - planetRadius * 0.2f, planetY - planetRadius * 0.24f))
+            drawOval(
+                color = Color.White.copy(alpha = 0.20f),
+                topLeft = Offset(planetX - planetRadius * 1.65f, planetY - planetRadius * 0.32f),
+                size = androidx.compose.ui.geometry.Size(planetRadius * 3.3f, planetRadius * 0.72f),
+                style = Stroke(width = 1.1f)
+            )
+            val cometX = ((galaxyProgress * 1.25f - 0.12f) * w)
+            val cometY = h * (0.33f + 0.07f * kotlin.math.sin(galaxyProgress * 6.28318f))
+            if (cometX in 0f..w) {
+                drawLine(Color.White.copy(alpha = 0.30f), Offset(cometX - 26f, cometY - 12f), Offset(cometX, cometY), strokeWidth = 1.2f)
+                drawCircle(Color.White.copy(alpha = 0.82f), radius = 1.6f, center = Offset(cometX, cometY))
+            }
+        }
         Column(
             modifier = Modifier
                 .fillMaxWidth()
@@ -102,13 +150,13 @@ fun LoginComposeScreen(
         ) {
             Text(
                 text = "KERETA MALAM CAFE",
-                style = MaterialTheme.typography.headlineMedium,
-                fontWeight = FontWeight.Bold
+                style = MaterialTheme.typography.headlineMedium.copy(color = Color(0xFFF8FAFC)),
+                fontWeight = FontWeight.ExtraBold
             )
             Text(
                 text = "Masuk ke akun staf untuk melanjutkan",
                 style = MaterialTheme.typography.bodyMedium,
-                color = MaterialTheme.colorScheme.onSurfaceVariant
+                color = Color(0xFFCBD5E1)
             )
 
             val activeMsg = uiState.errorMessage ?: uiState.successMessage
@@ -134,7 +182,11 @@ fun LoginComposeScreen(
                 }
             }
 
-            OutlinedCard(modifier = Modifier.fillMaxWidth()) {
+            OutlinedCard(
+                modifier = Modifier.fillMaxWidth(),
+                colors = CardDefaults.outlinedCardColors(containerColor = Color(0xE60A0D14)),
+                border = androidx.compose.foundation.BorderStroke(1.dp, Color.White.copy(alpha = 0.22f))
+            ) {
                 Column(
                     modifier = Modifier.padding(22.dp),
                     verticalArrangement = Arrangement.spacedBy(14.dp)
@@ -164,7 +216,7 @@ fun LoginComposeScreen(
                     Text(
                         text = "Gunakan email dan password akun staf yang terdaftar.",
                         style = MaterialTheme.typography.bodySmall,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                        color = Color(0xFFCBD5E1)
                     )
                 }
             }

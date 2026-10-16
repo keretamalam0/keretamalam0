@@ -177,6 +177,80 @@ fun LoginComposeScreen(
 }
 
 @Composable
+private fun ChatKasirComposeScreen(viewModel: PosViewModel, uiState: PosUiState) {
+    var selectedThreadId by remember { mutableStateOf("") }
+    var draft by remember { mutableStateOf("") }
+    LaunchedEffect(Unit) {
+        viewModel.refreshCashierChats()
+        while (true) {
+            kotlinx.coroutines.delay(3500)
+            viewModel.refreshCashierChats(selectedThreadId.ifBlank { null })
+        }
+    }
+    LaunchedEffect(uiState.cashierChatThreads) {
+        if (selectedThreadId.isBlank() || uiState.cashierChatThreads.none { it.id == selectedThreadId }) {
+            selectedThreadId = uiState.cashierChatThreads.firstOrNull()?.id.orEmpty()
+        }
+    }
+    LaunchedEffect(selectedThreadId) {
+        if (selectedThreadId.isNotBlank()) viewModel.loadCashierChatMessages(selectedThreadId)
+    }
+    val active = uiState.cashierChatThreads.firstOrNull { it.id == selectedThreadId }
+    Column(Modifier.fillMaxSize(), verticalArrangement = Arrangement.spacedBy(10.dp)) {
+        Text("Chat ke Kasir", style = MaterialTheme.typography.headlineSmall, fontWeight = FontWeight.Bold)
+        Text("Pesan pelanggan dari QR Ordering. Pilih meja untuk membaca dan membalas.", style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
+        if (uiState.backendStatus != BackendIntegrationStatus.ACTIVE_VERIFIED) {
+            Card { Text("Hubungkan backend Supabase terlebih dahulu untuk menggunakan chat langsung.", Modifier.padding(16.dp)) }
+        } else {
+            Row(Modifier.fillMaxSize(), horizontalArrangement = Arrangement.spacedBy(10.dp)) {
+                Card(Modifier.weight(0.9f).fillMaxHeight()) {
+                    LazyColumn(Modifier.fillMaxSize().padding(8.dp), verticalArrangement = Arrangement.spacedBy(6.dp)) {
+                        if (uiState.cashierChatThreads.isEmpty()) item { Text("Belum ada percakapan masuk.", Modifier.padding(12.dp), color = MaterialTheme.colorScheme.onSurfaceVariant) }
+                        items(uiState.cashierChatThreads, key = { it.id }) { thread ->
+                            val activeRow = thread.id == selectedThreadId
+                            Surface(
+                                modifier = Modifier.fillMaxWidth().clickable { selectedThreadId = thread.id },
+                                shape = RoundedCornerShape(12.dp),
+                                color = if (activeRow) MaterialTheme.colorScheme.primaryContainer else MaterialTheme.colorScheme.surfaceVariant
+                            ) {
+                                Column(Modifier.padding(10.dp), verticalArrangement = Arrangement.spacedBy(3.dp)) {
+                                    Text("${thread.tableName} · Meja ${thread.tableCode}", fontWeight = FontWeight.SemiBold)
+                                    Text(thread.customerName, style = MaterialTheme.typography.bodySmall)
+                                    Text(if (thread.status == "open") "Aktif" else "Ditutup", style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                                }
+                            }
+                        }
+                    }
+                }
+                Card(Modifier.weight(1.6f).fillMaxHeight()) {
+                    Column(Modifier.fillMaxSize().padding(10.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                        Text(active?.let { "${it.tableName} · Meja ${it.tableCode}" } ?: "Pilih percakapan", fontWeight = FontWeight.Bold)
+                        HorizontalDivider()
+                        LazyColumn(Modifier.weight(1f).fillMaxWidth(), verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                            items(uiState.cashierChatMessages, key = { it.id }) { message ->
+                                val fromCashier = message.senderRole == "cashier"
+                                Row(Modifier.fillMaxWidth(), horizontalArrangement = if (fromCashier) Arrangement.End else Arrangement.Start) {
+                                    Surface(shape = RoundedCornerShape(14.dp), color = if (fromCashier) MaterialTheme.colorScheme.primaryContainer else MaterialTheme.colorScheme.surfaceVariant) {
+                                        Column(Modifier.widthIn(max = 300.dp).padding(10.dp)) {
+                                            Text(if (fromCashier) "Kasir" else "Customer", style = MaterialTheme.typography.labelSmall)
+                                            Text(message.body)
+                                        }
+                                    }
+                                }
+                            }
+                        }
+                        Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(6.dp)) {
+                            OutlinedTextField(value = draft, onValueChange = { draft = it.take(2000) }, modifier = Modifier.weight(1f), placeholder = { Text("Balas pelanggan...") }, maxLines = 3, enabled = active?.status == "open")
+                            Button(onClick = { viewModel.sendCashierChatMessage(selectedThreadId, draft); draft = "" }, enabled = active?.status == "open" && draft.isNotBlank()) { Text("Kirim") }
+                        }
+                    }
+                }
+            }
+        }
+    }
+}
+
+@Composable
 fun RenderModuleScreen(
     module: PosModuleRoute,
     isTabletOrWide: Boolean,
@@ -207,6 +281,7 @@ fun RenderModuleScreen(
                 PosModuleRoute.AI_ASSISTANT -> AiAssistantComposeScreen(viewModel, uiState)
                 PosModuleRoute.KASIR -> KasirComposeScreen(viewModel, uiState, isTabletOrWide, isLandscapePhone)
                 PosModuleRoute.PESANAN -> PesananComposeScreen(viewModel, uiState, isTabletOrWide, isLandscapePhone)
+                PosModuleRoute.CHAT_KASIR -> ChatKasirComposeScreen(viewModel, uiState)
                 PosModuleRoute.HISTORY -> HistoryComposeScreen(viewModel, uiState)
                 PosModuleRoute.SHIFT_KASIR -> ShiftKasirComposeScreen(viewModel, uiState)
                 PosModuleRoute.AUDIT_SHIFT -> AuditShiftComposeScreen(viewModel, uiState)

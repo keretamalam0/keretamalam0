@@ -1076,8 +1076,8 @@ class CafeFlowRepository(private val context: Context) {
 
     suspend fun fetchStaffShifts(): List<StaffShift> {
         val creds = requireVerifiedCredentials()
-        val owner = URLEncoder.encode(creds.authenticatedUserId, "UTF-8")
-        val url = "${creds.supabaseUrl}/rest/v1/staff_shifts?select=*&owner_id=eq.$owner&order=opened_at.desc"
+        // RLS applies my_owner_id() so staff accounts can read their outlet shifts too.
+        val url = "${creds.supabaseUrl}/rest/v1/staff_shifts?select=*&order=opened_at.desc"
         val raw = executeJsonRequest("GET", url, buildHeaders(creds))
         return json.decodeFromString(raw)
     }

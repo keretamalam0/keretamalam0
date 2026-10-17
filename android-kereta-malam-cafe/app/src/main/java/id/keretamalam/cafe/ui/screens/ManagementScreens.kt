@@ -59,6 +59,8 @@ fun ProdukStokComposeScreen(viewModel: PosViewModel, uiState: PosUiState) {
     var stockFilter by remember { mutableStateOf("ALL") }
     var searchQuery by remember { mutableStateOf("") }
     var newCategoryName by remember { mutableStateOf("") }
+    var categoryPendingDelete by remember { mutableStateOf<Category?>(null) }
+    var productSaveNotice by remember { mutableStateOf<String?>(null) }
     var editingProduct by remember { mutableStateOf<Product?>(null) }
     var deletingProduct by remember { mutableStateOf<Product?>(null) }
     var selectedProductId by remember(uiState.products) { mutableStateOf(uiState.products.firstOrNull()?.id.orEmpty()) }
@@ -166,8 +168,11 @@ fun ProdukStokComposeScreen(viewModel: PosViewModel, uiState: PosUiState) {
                 LazyColumn(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(8.dp)) {
                     items(uiState.categories, key = { it.id }) { cat ->
                         OutlinedCard { Row(Modifier.fillMaxWidth().padding(14.dp), horizontalArrangement = Arrangement.SpaceBetween, verticalAlignment = Alignment.CenterVertically) {
-                            Text(cat.name, fontWeight = FontWeight.SemiBold)
-                            Text("${uiState.products.count { it.categoryId == cat.id }} produk", style = MaterialTheme.typography.bodySmall)
+                            Column(Modifier.weight(1f)) {
+                                Text(cat.name, fontWeight = FontWeight.SemiBold)
+                                Text("${uiState.products.count { it.categoryId == cat.id }} produk", style = MaterialTheme.typography.bodySmall)
+                            }
+                            TextButton(onClick = { categoryPendingDelete = cat }) { Text("Hapus", color = MaterialTheme.colorScheme.error) }
                         } }
                     }
                 }
@@ -363,6 +368,7 @@ fun ProdukStokComposeScreen(viewModel: PosViewModel, uiState: PosUiState) {
                                 viewModel.saveProductItem(targetEdit.copy(name = name.trim(), description = desc.trim().ifBlank { null }, imageUrl = imageUrl.ifBlank { null }, categoryId = catId, price = price.toDoubleOrNull() ?: 0.0, stock = stock.toIntOrNull() ?: 0, lowStockThreshold = threshold.toIntOrNull() ?: 5, isActive = isActive, showOnMenu = showOnMenu)) { saved ->
                                     viewModel.saveProductAddon(ProductAddon(productId = saved.id, name = inlineAddonName.trim(), price = inlineAddonPrice.toDoubleOrNull() ?: 0.0, isActive = true))
                                     editingProduct = saved
+                                productSaveNotice = "Produk berhasil disimpan."
                                     inlineAddonName = ""; inlineAddonPrice = "0"
                                 }
                             } else if (inlineAddonName.isNotBlank()) {
@@ -413,7 +419,7 @@ fun ProdukStokComposeScreen(viewModel: PosViewModel, uiState: PosUiState) {
                             Text("⌄")
                         }
                         DropdownMenu(expanded = customGroupMenu, onDismissRequest = { customGroupMenu = false }) {
-                            listOf("size" to "Ukuran cup", "sugar" to "Tingkat gula", "ice" to "Es / Suhu").forEach { (key, label) ->
+                            listOf("size" to "Ukuran / porsi", "sugar" to "Tingkat gula", "ice" to "Es / suhu", "spice" to "Tingkat kepedasan", "rice" to "Pilihan nasi", "cooking" to "Tingkat kematangan", "side" to "Lauk / tambahan", "sauce" to "Saus / sambal", "topping" to "Topping makanan").forEach { (key, label) ->
                                 DropdownMenuItem(text = { Text(label) }, onClick = { inlineOptionGroup = key; customGroupMenu = false })
                             }
                         }
@@ -442,6 +448,18 @@ fun ProdukStokComposeScreen(viewModel: PosViewModel, uiState: PosUiState) {
                 }
             }
         }
+    }
+    productSaveNotice?.let { message ->
+        AlertDialog(onDismissRequest = { productSaveNotice = null }, title = { Text("Berhasil disimpan") }, text = { Text(message) }, confirmButton = { Button(onClick = { productSaveNotice = null }) { Text("OK") } })
+    }
+    categoryPendingDelete?.let { category ->
+        AlertDialog(
+            onDismissRequest = { categoryPendingDelete = null },
+            title = { Text("Hapus kategori?") },
+            text = { Text("Kategori \"${category.name}\" akan dihapus. Kategori yang masih dipakai produk tidak bisa dihapus.") },
+            confirmButton = { Button(onClick = { viewModel.deleteCategoryItem(category.id); categoryPendingDelete = null }) { Text("Hapus") } },
+            dismissButton = { TextButton(onClick = { categoryPendingDelete = null }) { Text("Batal") } }
+        )
     }
     val targetDelete = deletingProduct
     if (targetDelete != null) {

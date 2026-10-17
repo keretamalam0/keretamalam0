@@ -447,7 +447,7 @@ fun ProdukStokComposeScreen(viewModel: PosViewModel, uiState: PosUiState) {
                                 } else {
                                     // Final save: close the editor and clearly confirm success.
                                     editingProduct = null
-                                    productSaveNotice = "Produk \" + saved.name + "\" berhasil disimpan."
+                                    productSaveNotice = "Produk \"${saved.name}\" berhasil disimpan."
                                 }
                             }
                         }) { Text(if (targetEdit.id.isBlank()) "Simpan Produk & Lanjut" else "Simpan Produk") }

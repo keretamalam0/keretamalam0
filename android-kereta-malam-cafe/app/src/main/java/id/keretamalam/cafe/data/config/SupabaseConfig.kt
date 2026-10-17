@@ -78,7 +78,7 @@ object SupabaseConfigManager {
         val key = prefs.getString(KEY_ANON, BuildConfig.SUPABASE_PUBLISHABLE_KEY).orEmpty().trim()
         val webUrl = prefs.getString(KEY_WEB_BASE_URL, BuildConfig.PUBLIC_WEB_MENU_BASE_URL)
             .orEmpty()
-            .ifBlank { "https://pos.yuripratama246.workers.dev" }
+            .ifBlank { "https://keretamalamqr.netlify.app" }
         // Never infer verification from populated fields. A successful live request
         // must explicitly set KEY_VERIFIED to true.
         val verified = prefs.getBoolean(KEY_VERIFIED, false)

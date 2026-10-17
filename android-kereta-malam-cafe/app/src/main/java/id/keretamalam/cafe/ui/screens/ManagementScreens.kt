@@ -597,93 +597,239 @@ fun MejaQrComposeScreen(
 // ============================================================================
 @Composable
 fun InventoryComposeScreen(viewModel: PosViewModel, uiState: PosUiState) {
+    var searchQuery by remember { mutableStateOf("") }
+    var showAdjustment by remember { mutableStateOf(false) }
     var selectedProductId by remember(uiState.products) { mutableStateOf(uiState.products.firstOrNull()?.id.orEmpty()) }
     var movementType by remember { mutableStateOf("in") }
-    var qtyInput by remember { mutableStateOf("10") }
-    var reasonInput by remember { mutableStateOf("") }
+    var qtyInput by remember { mutableStateOf("") }
+    var reasonInput by remember { mutableStateOf("Barang datang") }
+    var productSearch by remember { mutableStateOf("") }
 
-    val totalUnits = uiState.products.sumOf { it.stock }
-    val totalValuation = uiState.products.sumOf { (it.costPrice ?: 0.0) * it.stock }
+    val products = uiState.products
+    val activeProducts = products.count { it.isActive }
+    val lowStockCount = products.count { it.isLowStock || it.isOutOfStock }
+    val totalUnits = products.sumOf { it.stock }
+    val displayed = remember(products, searchQuery) {
+        products.filter { it.name.contains(searchQuery.trim(), ignoreCase = true) || it.id.contains(searchQuery.trim(), ignoreCase = true) }
+            .sortedWith(compareBy<Product> { !it.isOutOfStock && !it.isLowStock }.thenBy { it.name.lowercase() })
+    }
+    val selectedProduct = products.firstOrNull { it.id == selectedProductId }
 
     LazyColumn(
         modifier = Modifier.fillMaxSize(),
-        verticalArrangement = Arrangement.spacedBy(10.dp)
+        verticalArrangement = Arrangement.spacedBy(12.dp),
+        contentPadding = PaddingValues(bottom = 24.dp)
     ) {
         item {
-            Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                OutlinedCard(modifier = Modifier.weight(1f)) {
-                    Column(modifier = Modifier.padding(14.dp)) {
-                        Text("Total Unit Tersedia", style = MaterialTheme.typography.bodyMedium)
-                        Text("$totalUnits Unit", style = MaterialTheme.typography.titleLarge, fontWeight = FontWeight.Bold)
-                    }
-                }
-                OutlinedCard(modifier = Modifier.weight(1f)) {
-                    Column(modifier = Modifier.padding(14.dp)) {
-                        Text("Nilai Persediaan (HPP)", style = MaterialTheme.typography.bodyMedium)
-                        Text(RupiahFormatter.format(totalValuation), style = MaterialTheme.typography.titleLarge, fontWeight = FontWeight.Bold)
-                    }
-                }
-            }
+            Text("Inventory", style = MaterialTheme.typography.headlineSmall, fontWeight = FontWeight.Bold)
+            Text("Pantau stok, lakukan stock adjustment, dan cek riwayat pergerakan.", style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
         }
-
         item {
-            OutlinedCard(modifier = Modifier.fillMaxWidth()) {
-                Column(modifier = Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                    Text("Catat Mutasi Stok / Penyesuaian Opname", style = MaterialTheme.typography.titleMedium)
-                    Row(
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .horizontalScroll(rememberScrollState()),
-                        horizontalArrangement = Arrangement.spacedBy(6.dp)
-                    ) {
-                        uiState.products.forEach { prod ->
-                            FilterChip(
-                                selected = selectedProductId == prod.id,
-                                onClick = { selectedProductId = prod.id },
-                                label = { Text("${prod.name} (${prod.stock})") }
-                            )
-                        }
+            androidx.compose.foundation.lazy.grid.GridRow
+        }
+        item {
+            Row(horizontalArrangement = Arrangement.spacedBy(8.dp), modifier = Modifier.fillMaxWidth()) {
+                OutlinedCard(modifier = Modifier.weight(1f)) {
+                    Column(Modifier.padding(12.dp), verticalArrangement = Arrangement.spacedBy(4.dp)) {
+                        Text("SKU Aktif", style = MaterialTheme.typography.labelMedium)
+                        Text("$activeProducts", style = MaterialTheme.typography.headlineSmall, fontWeight = FontWeight.Bold)
+                        Text("Produk aktif", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
                     }
-                    Row(horizontalArrangement = Arrangement.spacedBy(6.dp)) {
-                        listOf("in" to "Stok Masuk", "out" to "Stok Keluar", "adjustment" to "Opname").forEach { (code, label) ->
-                            FilterChip(selected = movementType == code, onClick = { movementType = code }, label = { Text(label) })
-                        }
+                }
+                OutlinedCard(modifier = Modifier.weight(1f)) {
+                    Column(Modifier.padding(12.dp), verticalArrangement = Arrangement.spacedBy(4.dp)) {
+                        Text("Stok Menipis", style = MaterialTheme.typography.labelMedium)
+                        Text("$lowStockCount", style = MaterialTheme.typography.headlineSmall, fontWeight = FontWeight.Bold, color = if (lowStockCount > 0) MaterialTheme.colorScheme.error else MaterialTheme.colorScheme.onSurface)
+                        Text("Termasuk stok habis", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
                     }
-                    Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                        OutlinedTextField(value = qtyInput, onValueChange = { qtyInput = it }, label = { Text("Jumlah Unit") }, modifier = Modifier.weight(0.4f), singleLine = true)
-                        OutlinedTextField(value = reasonInput, onValueChange = { reasonInput = it }, label = { Text("Alasan Mutasi") }, modifier = Modifier.weight(1f), singleLine = true)
-                    }
-                    Button(onClick = {
-                        viewModel.recordInventoryMovement(selectedProductId, movementType, qtyInput.toIntOrNull() ?: 0, reasonInput)
-                        reasonInput = ""
-                    }) { Text("Simpan Mutasi Stok") }
                 }
             }
         }
-
+        item {
+            Row(horizontalArrangement = Arrangement.spacedBy(8.dp), modifier = Modifier.fillMaxWidth()) {
+                OutlinedCard(modifier = Modifier.weight(1f)) {
+                    Column(Modifier.padding(12.dp), verticalArrangement = Arrangement.spacedBy(4.dp)) {
+                        Text("Stok Saat Ini", style = MaterialTheme.typography.labelMedium)
+                        Text("$totalUnits unit", style = MaterialTheme.typography.headlineSmall, fontWeight = FontWeight.Bold)
+                        Text("Total semua produk", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                    }
+                }
+                OutlinedCard(modifier = Modifier.weight(1f)) {
+                    Column(Modifier.padding(12.dp), verticalArrangement = Arrangement.spacedBy(4.dp)) {
+                        Text("Pergerakan", style = MaterialTheme.typography.labelMedium)
+                        Text("${uiState.inventoryMovements.size}", style = MaterialTheme.typography.headlineSmall, fontWeight = FontWeight.Bold)
+                        Text("Catatan mutasi", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                    }
+                }
+            }
+        }
+        item {
+            Button(onClick = {
+                selectedProductId = products.firstOrNull()?.id.orEmpty()
+                productSearch = ""
+                qtyInput = ""
+                reasonInput = "Barang datang"
+                movementType = "in"
+                showAdjustment = true
+            }, modifier = Modifier.fillMaxWidth(), enabled = products.isNotEmpty()) {
+                Text("＋  Stock Adjustment")
+            }
+        }
+        item {
+            OutlinedTextField(
+                value = searchQuery,
+                onValueChange = { searchQuery = it },
+                modifier = Modifier.fillMaxWidth(),
+                singleLine = true,
+                label = { Text("Cari stok saat ini") },
+                placeholder = { Text("Cari nama produk atau SKU") },
+                leadingIcon = { Icon(Icons.Default.Search, contentDescription = null) }
+            )
+        }
+        item {
+            Text("Stok Saat Ini", style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold)
+        }
+        if (displayed.isEmpty()) {
+            item { Text("Produk tidak ditemukan.", color = MaterialTheme.colorScheme.onSurfaceVariant) }
+        }
+        items(displayed, key = { it.id }) { prod ->
+            OutlinedCard(modifier = Modifier.fillMaxWidth(), onClick = {
+                selectedProductId = prod.id
+                productSearch = prod.name
+                qtyInput = ""
+                reasonInput = "Opname stok"
+                movementType = "adjustment"
+                showAdjustment = true
+            }) {
+                Row(
+                    Modifier.fillMaxWidth().padding(14.dp),
+                    horizontalArrangement = Arrangement.spacedBy(10.dp),
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(3.dp)) {
+                        Text(prod.name, fontWeight = FontWeight.SemiBold)
+                        Text("SKU: ${prod.id.takeLast(8).uppercase()} · ${if (prod.isActive) "Aktif" else "Nonaktif"}", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                        Text("Batas stok rendah: ${prod.lowStockThreshold}", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                    }
+                    Column(horizontalAlignment = Alignment.End, verticalArrangement = Arrangement.spacedBy(4.dp)) {
+                        Text("${prod.stock} unit", style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold)
+                        if (prod.isOutOfStock) {
+                            Text("Habis", color = MaterialTheme.colorScheme.error, style = MaterialTheme.typography.labelSmall)
+                        } else if (prod.isLowStock) {
+                            Text("Menipis", color = MaterialTheme.colorScheme.error, style = MaterialTheme.typography.labelSmall)
+                        } else {
+                            Text("Aman", color = MaterialTheme.colorScheme.primary, style = MaterialTheme.typography.labelSmall)
+                        }
+                    }
+                }
+            }
+        }
+        item {
+            Text("Pergerakan Stok Terbaru", style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold)
+        }
+        if (uiState.inventoryMovements.isEmpty()) {
+            item { Text("Belum ada catatan pergerakan stok.", color = MaterialTheme.colorScheme.onSurfaceVariant) }
+        }
         items(uiState.inventoryMovements, key = { it.id }) { mov ->
             OutlinedCard(modifier = Modifier.fillMaxWidth()) {
-                Row(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .padding(14.dp),
-                    horizontalArrangement = Arrangement.SpaceBetween
-                ) {
-                    Column(modifier = Modifier.weight(1f)) {
-                        Text("${mov.productName} · ${mov.type.uppercase()}", fontWeight = FontWeight.Bold)
-                        Text("${mov.reason} · Oleh ${mov.actorName} (${mov.createdAt})")
+                Row(Modifier.fillMaxWidth().padding(14.dp), horizontalArrangement = Arrangement.spacedBy(10.dp), verticalAlignment = Alignment.CenterVertically) {
+                    Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(4.dp)) {
+                        Text(mov.productName, fontWeight = FontWeight.SemiBold)
+                        Text("${mov.type.uppercase()} · ${mov.reason}", style = MaterialTheme.typography.bodySmall)
+                        Text("${mov.createdAt} · Oleh ${mov.actorName}", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
                     }
-                    Text(
-                        text = if (mov.quantity > 0) "+${mov.quantity} unit" else "${mov.quantity} unit",
-                        fontWeight = FontWeight.Bold
-                    )
+                    Text(if (mov.quantity > 0) "+${mov.quantity}" else "${mov.quantity}", fontWeight = FontWeight.Bold, color = if (mov.quantity < 0) MaterialTheme.colorScheme.error else MaterialTheme.colorScheme.primary)
                 }
             }
         }
     }
+
+    if (showAdjustment) {
+        AlertDialog(
+            onDismissRequest = { showAdjustment = false },
+            title = { Text("Stock Adjustment") },
+            text = {
+                Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
+                    OutlinedTextField(
+                        value = productSearch,
+                        onValueChange = { productSearch = it },
+                        modifier = Modifier.fillMaxWidth(),
+                        singleLine = true,
+                        label = { Text("Cari produk") },
+                        placeholder = { Text("Contoh: Alpukat Kocok") }
+                    )
+                    val matchingProducts = products.filter { it.name.contains(productSearch.trim(), ignoreCase = true) }
+                    if (matchingProducts.isNotEmpty()) {
+                        Column(Modifier.heightIn(max = 120.dp).verticalScroll(rememberScrollState()), verticalArrangement = Arrangement.spacedBy(4.dp)) {
+                            matchingProducts.take(6).forEach { prod ->
+                                FilterChip(
+                                    selected = selectedProductId == prod.id,
+                                    onClick = { selectedProductId = prod.id },
+                                    label = { Text("${prod.name} · stok ${prod.stock}") }
+                                )
+                            }
+                        }
+                    }
+                    selectedProduct?.let { prod ->
+                        Text("Stok sekarang: ${prod.stock} unit", style = MaterialTheme.typography.bodyMedium, fontWeight = FontWeight.SemiBold)
+                    }
+                    Text("Jenis penyesuaian", style = MaterialTheme.typography.labelMedium)
+                    Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
+                        listOf("in" to "Barang datang / tambah stok", "out" to "Barang keluar / kurangi stok", "adjustment" to "Opname (stok fisik aktual)").forEach { (code, label) ->
+                            Row(verticalAlignment = Alignment.CenterVertically) {
+                                RadioButton(selected = movementType == code, onClick = {
+                                    movementType = code
+                                    reasonInput = when (code) { "in" -> "Barang datang"; "out" -> "Barang keluar"; else -> "Opname stok" }
+                                })
+                                Text(label, modifier = Modifier.clickable {
+                                    movementType = code
+                                    reasonInput = when (code) { "in" -> "Barang datang"; "out" -> "Barang keluar"; else -> "Opname stok" }
+                                })
+                            }
+                        }
+                    }
+                    OutlinedTextField(
+                        value = qtyInput,
+                        onValueChange = { qtyInput = it.filter(Char::isDigit) },
+                        modifier = Modifier.fillMaxWidth(),
+                        singleLine = true,
+                        label = { Text(if (movementType == "adjustment") "Jumlah stok fisik aktual" else "Jumlah unit yang ditambah/dikurangi") },
+                        placeholder = { Text(if (movementType == "adjustment") "Misal: 209" else "Misal: 200") }
+                    )
+                    OutlinedTextField(
+                        value = reasonInput,
+                        onValueChange = { reasonInput = it },
+                        modifier = Modifier.fillMaxWidth(),
+                        singleLine = true,
+                        label = { Text("Catatan / alasan") },
+                        placeholder = { Text("Opname, barang datang, rusak, retur…") }
+                    )
+                    if (selectedProduct != null && qtyInput.toIntOrNull() != null) {
+                        val amount = qtyInput.toIntOrNull() ?: 0
+                        val projected = when (movementType) {
+                            "in" -> selectedProduct.stock + amount
+                            "out" -> selectedProduct.stock - amount
+                            else -> amount
+                        }
+                        Text("Stok setelah disimpan: ${projected.coerceAtLeast(0)} unit", fontWeight = FontWeight.SemiBold)
+                    }
+                }
+            },
+            confirmButton = {
+                Button(
+                    enabled = selectedProduct != null && (qtyInput.toIntOrNull() ?: 0) > 0 && reasonInput.isNotBlank() &&
+                        (movementType != "out" || (qtyInput.toIntOrNull() ?: 0) <= (selectedProduct?.stock ?: 0)),
+                    onClick = {
+                        viewModel.recordInventoryMovement(selectedProductId, movementType, qtyInput.toIntOrNull() ?: 0, reasonInput)
+                        showAdjustment = false
+                    }
+                ) { Text("Simpan Adjustment") }
+            },
+            dismissButton = { TextButton(onClick = { showAdjustment = false }) { Text("Batal") } }
+        )
+    }
 }
 
-// ============================================================================
 // 12. PROMOSI & DISKON SCREEN
 // ============================================================================
 @Composable

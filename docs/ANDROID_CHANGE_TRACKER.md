@@ -65,3 +65,6 @@ Project directory: `android-kereta-malam-cafe/`
 - Do not claim a feature is complete until code and build/runtime behavior have been checked.
 
 - Pending verification: shift open/close now writes to `staff_shifts` using owner/staff IDs from the authenticated outlet profile; model maps the database `note` column. Confirm Android build and live RLS behavior before considering fully verified.
+
+
+- 2026-10-17: added shared outlet info fields (`opening_hours`, `instagram`, `receipt_note`, `receipt_footer`) to `OutletSettings`, Android outlet settings form, and Supabase payload. Related commits: `7a845ca2638cb93ae60c27953c14266910ee9fb0`, `54493aec277ee1f86f484784a8306c677b850bec`, `71d5d940cb0fdb9a434a0ea2264acb64578e17bb`, `413692d6b120f6174b63133a8b4311d0efe34a0c`. Shared schema migration must be applied to Supabase before the new fields can save; Android build/runtime verification is pending. Web repo `yuripratama246-lang/cafe-flow` now exposes the fields in outlet settings, reads them in QR Ordering Info, and prints outlet name/address/phone plus configured receipt note/footer. Web build succeeded for commit `09f5fd7a6d2c51f9d05de081b752dfbd209fcda6`; QR Worker deployment and live DB migration are not yet verified.

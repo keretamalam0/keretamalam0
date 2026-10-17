@@ -1264,7 +1264,8 @@ class PosViewModel(application: Application) : AndroidViewModel(application) {
                 runCatching { repository.deleteOrders(ids) }
                     .onSuccess { showNotice("${ids.size} transaksi berhasil dihapus.") }
                     .onFailure { error ->
-                        _uiState.update { state -> state.copy(orders = previousOrders) }
+                        val serverOrders = runCatching { repository.fetchOrders() }.getOrNull()
+                        _uiState.update { state -> state.copy(orders = serverOrders ?: previousOrders) }
                         showNotice(error.message ?: "Gagal menghapus transaksi.", isError = true)
                     }
                 return@launch
@@ -1284,7 +1285,10 @@ class PosViewModel(application: Application) : AndroidViewModel(application) {
                 runCatching { repository.deleteAllOrders() }
                     .onSuccess { showNotice("Semua transaksi berhasil dihapus.") }
                     .onFailure { error ->
-                        _uiState.update { state -> state.copy(orders = previousOrders) }
+                        // A multi-batch delete can partially succeed; reconcile with the server
+                        // before falling back to the previous visible snapshot.
+                        val serverOrders = runCatching { repository.fetchOrders() }.getOrNull()
+                        _uiState.update { state -> state.copy(orders = serverOrders ?: previousOrders) }
                         showNotice(error.message ?: "Gagal menghapus semua transaksi.", isError = true)
                     }
                 return@launch

@@ -89,3 +89,6 @@ Project directory: `android-kereta-malam-cafe/`
 - Supabase schema was inspected directly: `printer_settings` and `printer_print_jobs` exist, RLS policies scope rows by `owner_id = auth.uid()`; at audit time settings had 0 rows and all 24 existing print jobs were failed because no kitchen printer was configured on the device.
 - Build/runtime validation is pending GitHub Actions. Physical printer compatibility, paper output, and encoding still require a real ESC/POS Bluetooth printer.
 
+
+
+- 2026-10-17: Native Android Meja & QR now generates customer menu QR links using `https://keretamalamqr.netlify.app` instead of inheriting the configured/legacy Cloudflare base URL. Updated the missing-setting fallback and repository URL builder too. GitHub Actions build and device scan verification are required before considering complete.

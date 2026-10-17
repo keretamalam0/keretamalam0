@@ -815,20 +815,56 @@ class CafeFlowRepository(private val context: Context) {
         return json.decodeFromString(raw)
     }
 
+    /**
+     * Deletes in bounded batches instead of making three HTTP requests per order.
+     * Child rows are removed first to remain compatible with schemas without ON DELETE CASCADE.
+     */
     suspend fun deleteOrders(orderIds: List<String>) {
         val creds = requireVerifiedCredentials()
-        orderIds.distinct().forEach { orderId ->
-            val encodedId = URLEncoder.encode(orderId, "UTF-8")
-            // Remove child records first so deletion also works if foreign keys are not configured with CASCADE.
-            executeJsonRequest("DELETE", "${creds.supabaseUrl}/rest/v1/order_items?order_id=eq.$encodedId", buildHeaders(creds))
-            executeJsonRequest("DELETE", "${creds.supabaseUrl}/rest/v1/payments?order_id=eq.$encodedId", buildHeaders(creds))
-            executeJsonRequest("DELETE", "${creds.supabaseUrl}/rest/v1/orders?id=eq.$encodedId", buildHeaders(creds))
+        val ids = orderIds.asSequence().filter { it.isNotBlank() }.distinct().toList()
+        ids.chunked(50).forEach { batch ->
+            val inFilter = URLEncoder.encode("(${batch.joinToString(",")})", "UTF-8")
+            executeJsonRequest(
+                "DELETE",
+                "${creds.supabaseUrl}/rest/v1/order_items?order_id=in.$inFilter",
+                buildHeaders(creds)
+            )
+            executeJsonRequest(
+                "DELETE",
+                "${creds.supabaseUrl}/rest/v1/payments?order_id=in.$inFilter",
+                buildHeaders(creds)
+            )
+            executeJsonRequest(
+                "DELETE",
+                "${creds.supabaseUrl}/rest/v1/orders?id=in.$inFilter",
+                buildHeaders(creds)
+            )
         }
     }
 
+    /**
+     * Fetches only order IDs page-by-page, then deletes them in batches. Avoids loading up
+     * all nested order items/payments and avoids the previous 3N-request deletion loop.
+     */
     suspend fun deleteAllOrders() {
-        val orders = fetchOrders(limitCount = 10000)
-        deleteOrders(orders.map { it.id })
+        val creds = requireVerifiedCredentials()
+        val ids = mutableListOf<String>()
+        var offset = 0
+        val pageSize = 1000
+        while (true) {
+            val raw = executeJsonRequest(
+                "GET",
+                "${creds.supabaseUrl}/rest/v1/orders?select=id&order=created_at.desc&limit=$pageSize&offset=$offset",
+                buildHeaders(creds)
+            )
+            val page = json.parseToJsonElement(raw).jsonArray.mapNotNull { row ->
+                row.jsonObject["id"]?.jsonPrimitive?.contentOrNull
+            }
+            ids += page
+            if (page.size < pageSize) break
+            offset += pageSize
+        }
+        deleteOrders(ids)
     }
 
     suspend fun fetchOrderById(orderId: String): OrderWithItems? {

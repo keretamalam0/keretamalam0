@@ -625,9 +625,6 @@ fun InventoryComposeScreen(viewModel: PosViewModel, uiState: PosUiState) {
             Text("Pantau stok, lakukan stock adjustment, dan cek riwayat pergerakan.", style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
         }
         item {
-            androidx.compose.foundation.lazy.grid.GridRow
-        }
-        item {
             Row(horizontalArrangement = Arrangement.spacedBy(8.dp), modifier = Modifier.fillMaxWidth()) {
                 OutlinedCard(modifier = Modifier.weight(1f)) {
                     Column(Modifier.padding(12.dp), verticalArrangement = Arrangement.spacedBy(4.dp)) {

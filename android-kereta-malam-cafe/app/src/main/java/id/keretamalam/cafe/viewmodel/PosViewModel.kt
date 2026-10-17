@@ -1997,7 +1997,17 @@ class PosViewModel(application: Application) : AndroidViewModel(application) {
             showNotice("Jumlah dan alasan mutasi stok wajib diisi.", isError = true)
             return
         }
-        val signedDelta = if (type == "out") -kotlin.math.abs(qty) else qty
+        // For stock opname, qty is the physical count, not a quantity to add.
+        // Example: current stock 9, physical count 200 -> adjustment delta +191.
+        val signedDelta = when (type) {
+            "out" -> -kotlin.math.abs(qty)
+            "adjustment" -> qty - prod.stock
+            else -> kotlin.math.abs(qty)
+        }
+        if (type == "out" && kotlin.math.abs(qty) > prod.stock) {
+            showNotice("Stok keluar melebihi stok tersedia.", isError = true)
+            return
+        }
         val movement = InventoryMovement(
             id = "inv-${System.currentTimeMillis()}",
             productId = prod.id,

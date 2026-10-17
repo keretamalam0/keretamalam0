@@ -2249,6 +2249,28 @@ class PosViewModel(application: Application) : AndroidViewModel(application) {
         }
     }
 
+    fun loadPrinterSettingsFromSupabase() {
+        viewModelScope.launch {
+            runCatching { repository.fetchPrinterSettings() }
+                .onSuccess { settings ->
+                    settings.forEach { setting ->
+                        val role = PrinterRole.entries.firstOrNull { it.key == setting.printerRole } ?: return@forEach
+                        if (setting.isEnabled) {
+                            printerManager.savePrinter(role, setting.printerName, setting.bluetoothAddress, false)
+                        } else {
+                            printerManager.clearPrinter(role)
+                        }
+                    }
+                    if (settings.isNotEmpty()) {
+                        showNotice("Konfigurasi printer dimuat dari Supabase.")
+                    }
+                }
+                .onFailure { error ->
+                    showNotice("Konfigurasi printer lokal tetap digunakan. Supabase: ${error.message ?: "gagal dimuat"}", isError = true)
+                }
+        }
+    }
+
     fun scanBluetoothPrinters() {
         val result = printerManager.listPairedPrinters()
         result.onSuccess { devices ->
@@ -2269,7 +2291,25 @@ class PosViewModel(application: Application) : AndroidViewModel(application) {
 
     fun bindPrinterDevice(role: PrinterRole, name: String, address: String, autoPrint: Boolean) {
         printerManager.savePrinter(role, name, address, autoPrint)
-        showNotice("${role.labelId} dihubungkan ke $name ($address).")
+        showNotice("${role.labelId} disimpan di perangkat. Menyinkronkan ke Supabase…")
+        viewModelScope.launch {
+            runCatching { repository.savePrinterSetting(role.key, name, address) }
+                .onSuccess { showNotice("${role.labelId} berhasil disimpan ke Supabase.") }
+                .onFailure { error ->
+                    showNotice("Printer tersimpan di perangkat, tetapi gagal disinkronkan ke Supabase: ${error.message ?: "error"}", isError = true)
+                }
+        }
+    }
+
+    fun testPrintToThermal(role: PrinterRole) {
+        viewModelScope.launch {
+            val result = printerManager.testPrint(role)
+            result.onSuccess {
+                showNotice("Dokumen TEST berhasil dikirim ke ${role.labelId}. Pastikan kertas keluar dari printer.")
+            }.onFailure { error ->
+                showNotice("Tes cetak gagal pada ${role.labelId}: ${error.message ?: "periksa printer dan Bluetooth"}.", isError = true)
+            }
+        }
     }
 
     fun printOrderToThermal(order: OrderWithItems, role: PrinterRole, forceReprint: Boolean = false) {

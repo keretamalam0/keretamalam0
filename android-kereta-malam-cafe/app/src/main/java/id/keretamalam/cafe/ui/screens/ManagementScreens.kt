@@ -89,58 +89,61 @@ fun ProdukStokComposeScreen(viewModel: PosViewModel, uiState: PosUiState) {
 
         when (section) {
             "PRODUK" -> {
-                Row(Modifier.fillMaxWidth().horizontalScroll(rememberScrollState()), horizontalArrangement = Arrangement.spacedBy(5.dp), verticalAlignment = Alignment.CenterVertically) {
-                    FilterChip(selected = stockFilter == "ALL", onClick = { stockFilter = "ALL" }, label = { Text("Semua ${uiState.products.size}", style = MaterialTheme.typography.labelSmall) }, modifier = Modifier.height(32.dp))
-                    FilterChip(selected = stockFilter == "LOW", onClick = { stockFilter = "LOW" }, label = { Text("Menipis ${uiState.products.count { it.isLowStock }}", style = MaterialTheme.typography.labelSmall) }, modifier = Modifier.height(32.dp))
-                    FilterChip(selected = stockFilter == "OUT", onClick = { stockFilter = "OUT" }, label = { Text("Habis ${uiState.products.count { it.isOutOfStock }}", style = MaterialTheme.typography.labelSmall) }, modifier = Modifier.height(32.dp))
-                    OutlinedButton(onClick = { editingProduct = Product(id = "", name = "", price = 0.0, costPrice = 0.0, categoryId = uiState.categories.firstOrNull()?.id, stock = 0, lowStockThreshold = 5) }, modifier = Modifier.height(34.dp), contentPadding = PaddingValues(horizontal = 9.dp, vertical = 0.dp)) { Text("+ Produk", style = MaterialTheme.typography.labelSmall) }
+                Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp), verticalAlignment = Alignment.CenterVertically) {
+                    Surface(shape = RoundedCornerShape(10.dp), color = MaterialTheme.colorScheme.primaryContainer) {
+                        Text("Semua Produk · ${uiState.products.size}", modifier = Modifier.padding(horizontal = 12.dp, vertical = 10.dp), style = MaterialTheme.typography.labelLarge, color = MaterialTheme.colorScheme.onPrimaryContainer)
+                    }
+                    Spacer(Modifier.weight(1f))
+                    Button(onClick = { editingProduct = Product(id = "", name = "", price = 0.0, costPrice = 0.0, categoryId = uiState.categories.firstOrNull()?.id, stock = 0, lowStockThreshold = 5) }, contentPadding = PaddingValues(horizontal = 14.dp, vertical = 10.dp)) {
+                        Text("+ Tambah Produk")
+                    }
                 }
                 OutlinedTextField(value = searchQuery, onValueChange = { searchQuery = it }, label = { Text("Cari produk") }, leadingIcon = { Icon(Icons.Outlined.Search, contentDescription = null, modifier = Modifier.size(18.dp)) }, modifier = Modifier.fillMaxWidth().heightIn(max = 56.dp), singleLine = true, textStyle = MaterialTheme.typography.bodySmall)
                 LazyColumn(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(8.dp)) {
                     items(displayed, key = { it.id }) { p ->
                         val category = uiState.categories.firstOrNull { it.id == p.categoryId }?.name ?: "Tanpa kategori"
-                        OutlinedCard(Modifier.fillMaxWidth()) {
-                            Row(Modifier.fillMaxWidth().padding(12.dp), horizontalArrangement = Arrangement.spacedBy(10.dp), verticalAlignment = Alignment.CenterVertically) {
-                                Box(Modifier.size(72.dp), contentAlignment = Alignment.Center) {
-                                    Surface(Modifier.fillMaxSize(), shape = RoundedCornerShape(8.dp), color = MaterialTheme.colorScheme.surfaceVariant) {
+                        OutlinedCard(
+                            onClick = { editingProduct = p },
+                            modifier = Modifier.fillMaxWidth(),
+                            shape = RoundedCornerShape(14.dp)
+                        ) {
+                            Row(Modifier.fillMaxWidth().padding(12.dp), horizontalArrangement = Arrangement.spacedBy(12.dp), verticalAlignment = Alignment.CenterVertically) {
+                                Box(Modifier.size(76.dp), contentAlignment = Alignment.Center) {
+                                    Surface(Modifier.fillMaxSize(), shape = RoundedCornerShape(10.dp), color = MaterialTheme.colorScheme.surfaceVariant) {
                                         Box(contentAlignment = Alignment.Center) { Text("FOTO", style = MaterialTheme.typography.labelSmall) }
                                     }
                                     if (!p.imageUrl.isNullOrBlank()) AsyncImage(model = p.imageUrl, contentDescription = "Foto ${p.name}", modifier = Modifier.fillMaxSize(), contentScale = androidx.compose.ui.layout.ContentScale.Crop)
                                 }
-                                Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(2.dp)) {
-                                    Text(p.name, fontWeight = FontWeight.Bold)
+                                Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(4.dp)) {
+                                    Text(p.name, fontWeight = FontWeight.Bold, style = MaterialTheme.typography.titleSmall)
                                     Text(category, style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
                                     Text(RupiahFormatter.format(p.price), fontWeight = FontWeight.SemiBold)
-                                    Text("Stok ${p.stock} · Ambang ${p.lowStockThreshold}", style = MaterialTheme.typography.bodySmall)
-                                    Row(
-                                        modifier = Modifier.fillMaxWidth(),
-                                        horizontalArrangement = Arrangement.spacedBy(6.dp),
-                                        verticalAlignment = Alignment.CenterVertically
-                                    ) {
-                                        FilterChip(
-                                            selected = p.isActive,
-                                            onClick = { viewModel.toggleProductActive(p.id, !p.isActive) },
-                                            label = { Text(if (p.isActive) "Aktif" else "Nonaktif", style = MaterialTheme.typography.labelSmall) },
-                                            modifier = Modifier.height(32.dp)
-                                        )
-                                        FilterChip(
-                                            selected = p.showOnMenu,
-                                            onClick = { viewModel.toggleProductQrMenu(p.id, !p.showOnMenu) },
-                                            label = { Text(if (p.showOnMenu) "QR tampil" else "QR disembunyikan", style = MaterialTheme.typography.labelSmall) },
-                                            modifier = Modifier.height(32.dp)
-                                        )
+                                    Text("Stok ${p.stock}  ·  Ambang ${p.lowStockThreshold}", style = MaterialTheme.typography.bodySmall, color = if (p.isLowStock) MaterialTheme.colorScheme.error else MaterialTheme.colorScheme.onSurfaceVariant)
+                                    Row(horizontalArrangement = Arrangement.spacedBy(6.dp), verticalAlignment = Alignment.CenterVertically) {
+                                        Surface(shape = RoundedCornerShape(7.dp), color = if (p.isActive) Color(0xFFE0F2EA) else MaterialTheme.colorScheme.surfaceVariant) {
+                                            Text(if (p.isActive) "Aktif" else "Nonaktif", modifier = Modifier.padding(horizontal = 8.dp, vertical = 5.dp), style = MaterialTheme.typography.labelSmall, color = if (p.isActive) Color(0xFF17664B) else MaterialTheme.colorScheme.onSurfaceVariant)
+                                        }
+                                        Surface(shape = RoundedCornerShape(7.dp), color = if (p.showOnMenu) MaterialTheme.colorScheme.primaryContainer else MaterialTheme.colorScheme.surfaceVariant) {
+                                            Text(if (p.showOnMenu) "QR tampil" else "QR disembunyikan", modifier = Modifier.padding(horizontal = 8.dp, vertical = 5.dp), style = MaterialTheme.typography.labelSmall, color = if (p.showOnMenu) MaterialTheme.colorScheme.onPrimaryContainer else MaterialTheme.colorScheme.onSurfaceVariant)
+                                        }
                                     }
                                 }
-                                Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
-                                    OutlinedButton(onClick = { editingProduct = p }, modifier = Modifier.height(34.dp), contentPadding = PaddingValues(horizontal = 8.dp, vertical = 0.dp)) { Text("Edit", style = MaterialTheme.typography.labelMedium) }
-                                    OutlinedButton(onClick = { selectedProductId = p.id; section = "TOPPING" }, modifier = Modifier.height(34.dp), contentPadding = PaddingValues(horizontal = 8.dp, vertical = 0.dp)) { Text("Topping", style = MaterialTheme.typography.labelMedium) }
-                                    OutlinedButton(onClick = { selectedProductId = p.id; section = "CUSTOM" }, modifier = Modifier.height(34.dp), contentPadding = PaddingValues(horizontal = 8.dp, vertical = 0.dp)) { Text("Kustomisasi", style = MaterialTheme.typography.labelMedium) }
-                                    OutlinedButton(onClick = { deletingProduct = p }, modifier = Modifier.height(34.dp), contentPadding = PaddingValues(horizontal = 8.dp, vertical = 0.dp), colors = ButtonDefaults.outlinedButtonColors(contentColor = MaterialTheme.colorScheme.error)) { Text("Hapus", style = MaterialTheme.typography.labelMedium) }
+                                Column(horizontalAlignment = Alignment.End, verticalArrangement = Arrangement.spacedBy(4.dp)) {
+                                    TextButton(onClick = { editingProduct = p }) { Text("Kelola") }
+                                    Switch(checked = p.isActive, onCheckedChange = { viewModel.toggleProductActive(p.id, it) })
                                 }
                             }
                         }
                     }
-                    if (displayed.isEmpty()) item { Text("Belum ada produk. Tekan + Tambah Produk untuk mulai.", modifier = Modifier.padding(16.dp)) }
+                    if (displayed.isEmpty()) item {
+                        OutlinedCard(Modifier.fillMaxWidth()) {
+                            Column(Modifier.fillMaxWidth().padding(28.dp), horizontalAlignment = Alignment.CenterHorizontally, verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                                Text("Belum ada produk", style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold)
+                                Text("Tambah menu pertama untuk mulai mengatur harga, stok, foto, topping, dan kustomisasi.", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                                Button(onClick = { editingProduct = Product(id = "", name = "", price = 0.0, costPrice = 0.0, categoryId = uiState.categories.firstOrNull()?.id, stock = 0, lowStockThreshold = 5) }) { Text("+ Tambah Produk") }
+                            }
+                        }
+                    }
                 }
             }
             "KATEGORI" -> {

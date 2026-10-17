@@ -1453,15 +1453,43 @@ fun PengaturanOutletComposeScreen(viewModel: PosViewModel, uiState: PosUiState) 
             .verticalScroll(rememberScrollState()),
         verticalArrangement = Arrangement.spacedBy(12.dp)
     ) {
-        // Identitas Outlet
+        // Info Cafe yang ditampilkan pada halaman Info Cafe QR Ordering pelanggan.
         OutlinedCard(modifier = Modifier.fillMaxWidth()) {
             Column(modifier = Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                Text("1. Identitas & Profil Outlet Kereta Malam Cafe", style = MaterialTheme.typography.titleMedium)
-                OutlinedTextField(value = outletName, onValueChange = { outletName = it }, label = { Text("Nama Outlet") }, modifier = Modifier.fillMaxWidth(), singleLine = true)
-                OutlinedTextField(value = outletAddress, onValueChange = { outletAddress = it }, label = { Text("Alamat Lengkap Struk") }, modifier = Modifier.fillMaxWidth(), singleLine = true)
-                OutlinedTextField(value = outletPhone, onValueChange = { outletPhone = it }, label = { Text("Nomor Telepon / WhatsApp") }, modifier = Modifier.fillMaxWidth(), singleLine = true)
-                OutlinedTextField(value = openingHours, onValueChange = { openingHours = it }, label = { Text("Jam operasional QR Ordering") }, placeholder = { Text("Setiap hari, 17.00–24.00") }, modifier = Modifier.fillMaxWidth(), singleLine = true)
-                OutlinedTextField(value = instagram, onValueChange = { instagram = it }, label = { Text("Instagram") }, placeholder = { Text("@akun_cafe") }, modifier = Modifier.fillMaxWidth(), singleLine = true)
+                Text("1. Info Cafe di QR Ordering", style = MaterialTheme.typography.titleMedium)
+                Text(
+                    "Informasi ini tampil ke pelanggan pada halaman Info Cafe saat mereka membuka QR meja. Perubahan disimpan ke outlet yang sama dengan web app.",
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                )
+                OutlinedTextField(value = outletName, onValueChange = { outletName = it }, label = { Text("Nama Cafe") }, modifier = Modifier.fillMaxWidth(), singleLine = true)
+                OutlinedTextField(value = outletAddress, onValueChange = { outletAddress = it }, label = { Text("Alamat Cafe") }, placeholder = { Text("Alamat lengkap cafe") }, modifier = Modifier.fillMaxWidth())
+                OutlinedTextField(value = outletPhone, onValueChange = { outletPhone = it }, label = { Text("Kontak / Telepon / WhatsApp") }, placeholder = { Text("08xxxxxxxxxx") }, modifier = Modifier.fillMaxWidth(), singleLine = true)
+                OutlinedTextField(value = openingHours, onValueChange = { openingHours = it }, label = { Text("Jam Operasional") }, placeholder = { Text("Setiap hari, 17.00–24.00") }, modifier = Modifier.fillMaxWidth(), singleLine = true)
+                OutlinedTextField(value = instagram, onValueChange = { instagram = it }, label = { Text("Instagram Cafe") }, placeholder = { Text("@akun_cafe") }, modifier = Modifier.fillMaxWidth(), singleLine = true)
+                Button(onClick = {
+                    viewModel.updateOutletSettings(
+                        uiState.outletSettings.copy(
+                            name = outletName.trim(),
+                            address = outletAddress.trim(),
+                            phone = outletPhone.trim(),
+                            openingHours = openingHours.trim(),
+                            instagram = instagram.trim(),
+                            receiptNote = receiptNote.trim(),
+                            receiptFooter = receiptFooter.trim(),
+                            publicWebBaseUrl = webBaseUrl.trim()
+                        )
+                    )
+                }) {
+                    Text("Simpan Info Cafe QR Ordering")
+                }
+            }
+        }
+
+        // Informasi khusus struk kasir/pelanggan, dipisahkan dari Info Cafe QR.
+        OutlinedCard(modifier = Modifier.fillMaxWidth()) {
+            Column(modifier = Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                Text("2. Pengaturan Catatan Struk", style = MaterialTheme.typography.titleMedium)
                 OutlinedTextField(value = receiptNote, onValueChange = { receiptNote = it }, label = { Text("Catatan struk (opsional)") }, modifier = Modifier.fillMaxWidth())
                 OutlinedTextField(value = receiptFooter, onValueChange = { receiptFooter = it }, label = { Text("Footer struk") }, modifier = Modifier.fillMaxWidth(), singleLine = true)
                 Button(onClick = {
@@ -1478,7 +1506,7 @@ fun PengaturanOutletComposeScreen(viewModel: PosViewModel, uiState: PosUiState) 
                         )
                     )
                 }) {
-                    Text("Simpan Identitas Outlet")
+                    Text("Simpan Pengaturan Struk")
                 }
             }
         }

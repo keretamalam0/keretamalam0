@@ -1987,49 +1987,48 @@ class PosViewModel(application: Application) : AndroidViewModel(application) {
         }
     }
 
-    fun recordInventoryMovement(productId: String, type: String, qty: Int, reason: String) {
-        if (_uiState.value.backendStatus == BackendIntegrationStatus.ACTIVE_VERIFIED) {
-            showNotice("Mutasi stok live belum tersambung ke Supabase. Stok tidak diubah.", isError = true)
-            return
-        }
-        val prod = _uiState.value.products.find { it.id == productId } ?: return
-        if (qty == 0 || reason.isBlank()) {
-            showNotice("Jumlah dan alasan mutasi stok wajib diisi.", isError = true)
-            return
-        }
-        // For stock opname, qty is the physical count, not a quantity to add.
-        // Example: current stock 9, physical count 200 -> adjustment delta +191.
+    fun recordInventoryMovement(productId: String, type: String, qty: Int, reason: String, onSuccess: (() -> Unit)? = null) {
+        val prod = _uiState.value.products.find { it.id == productId }
+        if (prod == null) { showNotice("Produk tidak ditemukan.", isError = true); return }
+        if (qty <= 0 || reason.isBlank()) { showNotice("Jumlah dan alasan mutasi stok wajib diisi.", isError = true); return }
         val signedDelta = when (type) {
             "out" -> -kotlin.math.abs(qty)
             "adjustment" -> qty - prod.stock
             else -> kotlin.math.abs(qty)
         }
         if (type == "out" && kotlin.math.abs(qty) > prod.stock) {
-            showNotice("Stok keluar melebihi stok tersedia.", isError = true)
-            return
+            showNotice("Stok keluar melebihi stok tersedia.", isError = true); return
         }
-        val movement = InventoryMovement(
-            id = "inv-${System.currentTimeMillis()}",
-            productId = prod.id,
-            productName = prod.name,
-            type = type,
-            quantity = signedDelta,
-            reason = reason.trim(),
-            actorName = _uiState.value.staffProfile.fullName,
-            createdAt = nowString()
-        )
-        _uiState.update { state ->
-            state.copy(
-                products = state.products.map {
-                    if (it.id == prod.id) it.copy(stock = (it.stock + signedDelta).coerceAtLeast(0)) else it
-                },
-                inventoryMovements = listOf(movement) + state.inventoryMovements,
-                successMessage = "Mutasi stok ${prod.name} dicatat."
+        if (signedDelta == 0) { showNotice("Stok fisik sama dengan stok saat ini."); onSuccess?.invoke(); return }
+        viewModelScope.launch {
+            val live = _uiState.value.backendStatus == BackendIntegrationStatus.ACTIVE_VERIFIED
+            val beforeProducts = _uiState.value.products
+            val beforeMovements = _uiState.value.inventoryMovements
+            val actor = _uiState.value.staffProfile.fullName
+            val movement = InventoryMovement(
+                id = "inv-${System.currentTimeMillis()}", productId = prod.id, productName = prod.name,
+                type = type, quantity = signedDelta, reason = reason.trim(), actorName = actor, createdAt = nowString()
             )
+            _uiState.update { state ->
+                state.copy(
+                    products = state.products.map { if (it.id == prod.id) it.copy(stock = it.stock + signedDelta) else it },
+                    inventoryMovements = listOf(movement) + state.inventoryMovements,
+                    successMessage = if (live) null else "Mutasi stok ${prod.name} dicatat (mode simulasi)."
+                )
+            }
+            if (live) {
+                runCatching { repository.recordInventoryMovement(prod, type, signedDelta, reason.trim(), actor) }
+                    .onSuccess { showNotice("Stok ${prod.name} berhasil diperbarui."); onSuccess?.invoke() }
+                    .onFailure { error ->
+                        _uiState.update { state -> state.copy(products = beforeProducts, inventoryMovements = beforeMovements) }
+                        showNotice(error.message ?: "Gagal menyimpan mutasi stok. Perubahan dibatalkan.", isError = true)
+                    }
+                return@launch
+            }
+            appendAuditLog("inventory.movement", "inventory_movements", movement.id, "{\\"product\\":\\"${prod.name}\\",\\"delta\\":$signedDelta}")
+            onSuccess?.invoke()
         }
-        appendAuditLog("inventory.movement", "inventory_movements", movement.id, "{\"product\":\"${prod.name}\",\"delta\":$signedDelta}")
     }
-
     fun addPromotion(
         name: String,
         type: String,

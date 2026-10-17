@@ -1993,6 +1993,16 @@ fun PrinterComposeScreen(
     uiState: PosUiState,
     isTabletOrWide: Boolean
 ) {
+    val bluetoothPermissionLauncher = rememberLauncherForActivityResult(
+        contract = ActivityResultContracts.RequestMultiplePermissions()
+    ) { grants ->
+        if (grants.values.all { it }) {
+            viewModel.scanBluetoothPrinters()
+        } else {
+            viewModel.showNotice("Izin Bluetooth diperlukan untuk mencari dan menghubungkan printer.", isError = true)
+        }
+    }
+    LaunchedEffect(Unit) { viewModel.loadPrinterSettingsFromSupabase() }
     Column(
         modifier = Modifier
             .fillMaxSize()
@@ -2007,7 +2017,13 @@ fun PrinterComposeScreen(
                     verticalAlignment = Alignment.CenterVertically
                 ) {
                     Text("Konfigurasi Dual Printer Bluetooth Thermal ESC/POS", style = MaterialTheme.typography.titleMedium)
-                    OutlinedButton(onClick = { viewModel.scanBluetoothPrinters() }) {
+                    OutlinedButton(onClick = {
+                        if (viewModel.printerManager.hasBluetoothPermissions()) {
+                            viewModel.scanBluetoothPrinters()
+                        } else {
+                            bluetoothPermissionLauncher.launch(viewModel.printerManager.requiredRuntimePermissions())
+                        }
+                    }) {
                         Text("Pindai Bluetooth")
                     }
                 }
@@ -2035,8 +2051,11 @@ fun PrinterComposeScreen(
                                     Text(saved?.let { "${it.name} (${it.address})" } ?: "Siap dipasangkan dari daftar perangkat Bluetooth")
                                 }
                                 Button(onClick = {
-                                    val sample = uiState.orders.firstOrNull() ?: SandboxSeedData.initialOrders.first()
-                                    viewModel.printOrderToThermal(sample, role, true)
+                                    if (viewModel.printerManager.hasBluetoothPermissions()) {
+                                        viewModel.testPrintToThermal(role)
+                                    } else {
+                                        bluetoothPermissionLauncher.launch(viewModel.printerManager.requiredRuntimePermissions())
+                                    }
                                 }) {
                                     Text("Tes Cetak")
                                 }

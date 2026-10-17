@@ -591,13 +591,25 @@ private fun DashboardComposeScreen(
         .map { e -> Triple(e.key, e.value.sumOf { it.quantity }, e.value.sumOf { it.lineTotal }) }
         .sortedByDescending { it.second }.take(5)
     val maxQty = (best.maxOfOrNull { it.second } ?: 1).coerceAtLeast(1)
-    val payments = listOf("cash" to "Cash / Tunai", "bca" to "BCA", "qris" to "QRIS", "transfer" to "Transfer", "ewallet" to "E-Wallet", "debit" to "Kartu Debit")
-        .map { pair ->
-            val matched = paid.filter { (it.paymentMethod ?: "cash").lowercase().let { m ->
-                if (pair.first == "bca") m.contains("bca") else if (pair.first == "transfer") m == "transfer" || m == "bank_transfer" else if (pair.first == "ewallet") m == "ewallet" || m == "e_wallet" else if (pair.first == "debit") m == "debit" || m == "card" else m == pair.first || (pair.first == "cash" && m == "tunai")
-            } }
-            Triple(pair.second, matched.sumOf { it.total }, matched.size)
-        }.filter { it.second > 0.0 }
+    val paymentGroups = listOf("cash" to "Tunai", "qris" to "QRIS", "transfer" to "Transfer Bank", "ewallet" to "E-Wallet", "debit" to "Kartu Debit")
+    fun paymentGroup(order: OrderWithItems): String {
+        val raw = (order.paymentMethod?.takeIf { it.isNotBlank() }
+            ?: order.customerPaymentMethod?.takeIf { it.isNotBlank() }
+            ?: order.payments.firstOrNull()?.method?.takeIf { it.isNotBlank() }
+            ?: "cash").lowercase().replace("-", "_").trim()
+        return when {
+            raw == "cash" || raw == "tunai" || raw.contains("cash") -> "cash"
+            raw.contains("ewallet") || raw.contains("e_wallet") || raw.contains("e wallet") || raw.contains("gopay") || raw.contains("go pay") || raw.contains("ovo") || raw.contains("dana") || raw.contains("shopeepay") || raw.contains("linkaja") -> "ewallet"
+            raw.contains("qris") -> "qris"
+            raw.contains("transfer") || raw.contains("bank_transfer") || raw.contains("bank transfer") || raw.contains("bca") || raw.contains("bni") || raw.contains("bri") || raw.contains("mandiri") || raw.contains("permata") -> "transfer"
+            raw.contains("debit") || raw.contains("card") || raw.contains("kartu") -> "debit"
+            else -> "other"
+        }
+    }
+    val payments = paymentGroups.map { pair ->
+        val matched = paid.filter { paymentGroup(it) == pair.first }
+        Triple(pair.second, matched.sumOf { it.total }, matched.size)
+    }.filter { it.second > 0.0 }
     val trend = (0..6).map { i ->
         val d = today.minusDays((6 - i).toLong())
         paid.filter { dateOf(it.createdAt)?.toLocalDate() == d }.sumOf { it.total }.toFloat()

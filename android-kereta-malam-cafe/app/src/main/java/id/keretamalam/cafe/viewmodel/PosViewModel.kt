@@ -1253,38 +1253,43 @@ class PosViewModel(application: Application) : AndroidViewModel(application) {
     // PESANAN & QR ORDERING
     // ========================================================================
     fun deleteOrders(orderIds: List<String>) {
-        if (orderIds.isEmpty()) return
+        val ids = orderIds.distinct()
+        if (ids.isEmpty()) return
         viewModelScope.launch {
-            if (_uiState.value.backendStatus == BackendIntegrationStatus.ACTIVE_VERIFIED) {
-                runCatching { repository.deleteOrders(orderIds) }
-                    .onSuccess {
-                        syncAllDataFromBackend()
-                        showNotice("${orderIds.size} transaksi berhasil dihapus.")
+            val previousOrders = _uiState.value.orders
+            val liveBackend = _uiState.value.backendStatus == BackendIntegrationStatus.ACTIVE_VERIFIED
+            // Remove from the visible lane immediately; restore the prior state if the server fails.
+            _uiState.update { state -> state.copy(orders = state.orders.filterNot { it.id in ids }) }
+            if (liveBackend) {
+                runCatching { repository.deleteOrders(ids) }
+                    .onSuccess { showNotice("${ids.size} transaksi berhasil dihapus.") }
+                    .onFailure { error ->
+                        _uiState.update { state -> state.copy(orders = previousOrders) }
+                        showNotice(error.message ?: "Gagal menghapus transaksi.", isError = true)
                     }
-                    .onFailure { showNotice(it.message ?: "Gagal menghapus transaksi.", isError = true) }
                 return@launch
             }
-            _uiState.update { state ->
-                state.copy(orders = state.orders.filterNot { it.id in orderIds })
-            }
-            appendAuditLog("order.delete", "orders", "bulk", "{\"count\":${orderIds.size}}")
-            showNotice("${orderIds.size} transaksi dihapus dari data lokal.")
+            appendAuditLog("order.delete", "orders", "bulk", "{\"count\":${ids.size}}")
+            showNotice("${ids.size} transaksi dihapus dari data lokal.")
         }
     }
 
     fun deleteAllOrders() {
         viewModelScope.launch {
-            if (_uiState.value.backendStatus == BackendIntegrationStatus.ACTIVE_VERIFIED) {
+            val previousOrders = _uiState.value.orders
+            val liveBackend = _uiState.value.backendStatus == BackendIntegrationStatus.ACTIVE_VERIFIED
+            // Clear the visible history now rather than waiting for network round-trips.
+            _uiState.update { it.copy(orders = emptyList()) }
+            if (liveBackend) {
                 runCatching { repository.deleteAllOrders() }
-                    .onSuccess {
-                        syncAllDataFromBackend()
-                        showNotice("Semua transaksi berhasil dihapus.")
+                    .onSuccess { showNotice("Semua transaksi berhasil dihapus.") }
+                    .onFailure { error ->
+                        _uiState.update { state -> state.copy(orders = previousOrders) }
+                        showNotice(error.message ?: "Gagal menghapus semua transaksi.", isError = true)
                     }
-                    .onFailure { showNotice(it.message ?: "Gagal menghapus semua transaksi.", isError = true) }
                 return@launch
             }
-            val count = _uiState.value.orders.size
-            _uiState.update { it.copy(orders = emptyList()) }
+            val count = previousOrders.size
             appendAuditLog("order.delete_all", "orders", "all", "{\"count\":$count}")
             showNotice("Semua transaksi lokal dihapus.")
         }

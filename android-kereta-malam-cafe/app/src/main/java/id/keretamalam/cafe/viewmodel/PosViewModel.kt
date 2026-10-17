@@ -2025,7 +2025,7 @@ class PosViewModel(application: Application) : AndroidViewModel(application) {
                     }
                 return@launch
             }
-            appendAuditLog("inventory.movement", "inventory_movements", movement.id, "{\\"product\\":\\"${prod.name}\\",\\"delta\\":$signedDelta}")
+            appendAuditLog("inventory.movement", "inventory_movements", movement.id, "Stok ${prod.name}; delta $signedDelta")
             onSuccess?.invoke()
         }
     }

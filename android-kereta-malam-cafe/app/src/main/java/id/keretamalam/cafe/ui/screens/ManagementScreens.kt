@@ -7,6 +7,7 @@ import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
 import coil.compose.AsyncImage
 import androidx.compose.foundation.Image
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.gestures.detectHorizontalDragGestures
@@ -680,7 +681,7 @@ fun InventoryComposeScreen(viewModel: PosViewModel, uiState: PosUiState) {
                 singleLine = true,
                 label = { Text("Cari stok saat ini") },
                 placeholder = { Text("Cari nama produk atau SKU") },
-                leadingIcon = { Icon(Icons.Default.Search, contentDescription = null) }
+                leadingIcon = { Icon(Icons.Outlined.Search, contentDescription = null) }
             )
         }
         item {

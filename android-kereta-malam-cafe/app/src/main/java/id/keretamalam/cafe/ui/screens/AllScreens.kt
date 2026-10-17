@@ -58,6 +58,7 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
+import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.drawscope.Stroke
@@ -835,7 +836,23 @@ private fun DashboardBarChart(values: List<Float>, modifier: Modifier = Modifier
             repeat(3) { i -> val y=size.height*(i+1)/4f; drawLine(grid,androidx.compose.ui.geometry.Offset(0f,y),androidx.compose.ui.geometry.Offset(size.width,y),strokeWidth=1.dp.toPx()) }
             values.forEachIndexed { i,v ->
                 val h=(v/max).coerceIn(0f,1f)*(size.height-8.dp.toPx()); val w=step*.58f; val x=i*step+(step-w)/2f
-                drawRoundRect(if(selected==i) Color(0xFF1558C0) else if(v>0f) blue else blue.copy(alpha=.12f),androidx.compose.ui.geometry.Offset(x,size.height-h),androidx.compose.ui.geometry.Size(w,h.coerceAtLeast(2.dp.toPx())),androidx.compose.ui.geometry.CornerRadius(w/2f,w/2f))
+                val barTop = size.height-h
+                val barHeight = h.coerceAtLeast(2.dp.toPx())
+                if (v > 0f) {
+                    drawRoundRect(blue.copy(alpha = .13f), androidx.compose.ui.geometry.Offset(x-2.dp.toPx(), barTop-1.dp.toPx()), androidx.compose.ui.geometry.Size(w+4.dp.toPx(), barHeight+3.dp.toPx()), androidx.compose.ui.geometry.CornerRadius(w/2f,w/2f))
+                    drawRoundRect(
+                        brush = Brush.verticalGradient(
+                            colors = if (selected == i) listOf(Color(0xFF1558C0), Color(0xFF8FB7FF), Color(0x002878F0)) else listOf(Color(0xFF2878F0), Color(0xFF6599F5), Color(0x00A8C5FA)),
+                            startY = barTop,
+                            endY = size.height
+                        ),
+                        topLeft = androidx.compose.ui.geometry.Offset(x, barTop),
+                        size = androidx.compose.ui.geometry.Size(w, barHeight),
+                        cornerRadius = androidx.compose.ui.geometry.CornerRadius(w/2f,w/2f)
+                    )
+                } else {
+                    drawRoundRect(blue.copy(alpha=.10f), androidx.compose.ui.geometry.Offset(x, size.height-2.dp.toPx()), androidx.compose.ui.geometry.Size(w, 2.dp.toPx()), androidx.compose.ui.geometry.CornerRadius(w/2f,w/2f))
+                }
             }
         }
         if(selected in values.indices) Surface(Modifier.align(Alignment.TopEnd).padding(4.dp),color=MaterialTheme.colorScheme.surface,shape=RoundedCornerShape(8.dp),shadowElevation=4.dp) {

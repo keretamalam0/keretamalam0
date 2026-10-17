@@ -471,6 +471,44 @@ class CafeFlowRepository(private val context: Context) {
         return json.decodeFromString<List<Product>>(raw).first()
     }
 
+    suspend fun recordInventoryMovement(product: Product, type: String, delta: Int, reason: String, actorName: String) {
+        require(delta != 0) { "Jumlah mutasi stok tidak boleh nol." }
+        require(reason.isNotBlank()) { "Catatan mutasi stok wajib diisi." }
+        val creds = requireVerifiedCredentials()
+        val encodedId = URLEncoder.encode(product.id, "UTF-8")
+        val newStock = product.stock + delta
+        require(newStock >= 0) { "Stok tidak boleh kurang dari nol." }
+        val stockPayload = buildJsonObject { put("stock", newStock) }
+        val updated = executeJsonRequest(
+            "PATCH",
+            "${creds.supabaseUrl}/rest/v1/products?id=eq.$encodedId",
+            buildHeaders(creds, "return=representation"),
+            json.encodeToString(JsonObject.serializer(), stockPayload)
+        )
+        require(json.parseToJsonElement(updated).jsonArray.isNotEmpty()) { "Stok tidak berubah. Periksa izin inventory dan akses produk." }
+        try {
+            val movementPayload = buildJsonObject {
+                put("product_id", product.id)
+                put("product_name", product.name)
+                put("type", type)
+                put("quantity", delta)
+                put("reason", reason.trim())
+                put("actor_name", actorName)
+            }
+            executeJsonRequest(
+                "POST",
+                "${creds.supabaseUrl}/rest/v1/inventory_movements",
+                buildHeaders(creds, "return=minimal"),
+                json.encodeToString(JsonObject.serializer(), movementPayload)
+            )
+        } catch (error: Throwable) {
+            runCatching {
+                val rollback = buildJsonObject { put("stock", product.stock) }
+                executeJsonRequest("PATCH", "${creds.supabaseUrl}/rest/v1/products?id=eq.$encodedId", buildHeaders(creds, "return=minimal"), json.encodeToString(JsonObject.serializer(), rollback))
+            }
+            throw error
+        }
+    }
     suspend fun deleteProduct(productId: String) {
         val creds = requireVerifiedCredentials()
         val encodedId = URLEncoder.encode(productId, "UTF-8")

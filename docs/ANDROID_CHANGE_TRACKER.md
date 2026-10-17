@@ -80,3 +80,12 @@ Project directory: `android-kereta-malam-cafe/`
 - 2026-10-17: Implemented Inventory live stock adjustment writes: stock-in/out and physical stock opname now update `products.stock` in Supabase and insert `inventory_movements`; failed movement insertion attempts to roll back the stock update. Inventory screen now has explicit Adjust and Hapus menu actions, with delete confirmation. Adjustment dialog stays open on save failure. Build and device verification pending.
 
 - 2026-10-17: Fixed dashboard payment donut aggregation to use the saved order payment method, with fallbacks to customer payment method/payment records. Normalizes bank-transfer variants and bank names into Transfer Bank, and recognizes E-Wallet aliases/providers (GoPay, OVO, DANA, ShopeePay, LinkAja). Build/runtime verification pending.
+
+## Printer Bluetooth + Supabase configuration audit (2026-10-17)
+
+- Added runtime permission request flow for Bluetooth scanning and test printing; requests the permission set appropriate to the Android API level.
+- Printer settings now load from Supabase `printer_settings` when the Printer screen opens and save via PostgREST upsert on `owner_id,printer_role`; local SharedPreferences remains the device-level fallback because a Bluetooth MAC is specific to each device.
+- The "Tes Cetak" action now calls the dedicated ESC/POS test-document method rather than printing a real order as a test.
+- Supabase schema was inspected directly: `printer_settings` and `printer_print_jobs` exist, RLS policies scope rows by `owner_id = auth.uid()`; at audit time settings had 0 rows and all 24 existing print jobs were failed because no kitchen printer was configured on the device.
+- Build/runtime validation is pending GitHub Actions. Physical printer compatibility, paper output, and encoding still require a real ESC/POS Bluetooth printer.
+

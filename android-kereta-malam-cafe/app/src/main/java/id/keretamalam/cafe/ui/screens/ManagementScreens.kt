@@ -1370,6 +1370,10 @@ fun PengaturanOutletComposeScreen(viewModel: PosViewModel, uiState: PosUiState) 
     var outletName by remember(uiState.outletSettings.name) { mutableStateOf(uiState.outletSettings.name) }
     var outletAddress by remember(uiState.outletSettings.address) { mutableStateOf(uiState.outletSettings.address) }
     var outletPhone by remember(uiState.outletSettings.phone) { mutableStateOf(uiState.outletSettings.phone) }
+    var openingHours by remember(uiState.outletSettings.openingHours) { mutableStateOf(uiState.outletSettings.openingHours) }
+    var instagram by remember(uiState.outletSettings.instagram) { mutableStateOf(uiState.outletSettings.instagram) }
+    var receiptNote by remember(uiState.outletSettings.receiptNote) { mutableStateOf(uiState.outletSettings.receiptNote) }
+    var receiptFooter by remember(uiState.outletSettings.receiptFooter) { mutableStateOf(uiState.outletSettings.receiptFooter) }
     var taxRateInput by remember(uiState.outletSettings.taxRate) { mutableStateOf(uiState.outletSettings.taxRate.toString()) }
     var serviceRateInput by remember(uiState.outletSettings.serviceRate) { mutableStateOf(uiState.outletSettings.serviceRate.toString()) }
     var serviceFixedInput by remember(uiState.outletSettings.serviceFixedAmount) { mutableStateOf(uiState.outletSettings.serviceFixedAmount.toLong().toString()) }
@@ -1456,12 +1460,20 @@ fun PengaturanOutletComposeScreen(viewModel: PosViewModel, uiState: PosUiState) 
                 OutlinedTextField(value = outletName, onValueChange = { outletName = it }, label = { Text("Nama Outlet") }, modifier = Modifier.fillMaxWidth(), singleLine = true)
                 OutlinedTextField(value = outletAddress, onValueChange = { outletAddress = it }, label = { Text("Alamat Lengkap Struk") }, modifier = Modifier.fillMaxWidth(), singleLine = true)
                 OutlinedTextField(value = outletPhone, onValueChange = { outletPhone = it }, label = { Text("Nomor Telepon / WhatsApp") }, modifier = Modifier.fillMaxWidth(), singleLine = true)
+                OutlinedTextField(value = openingHours, onValueChange = { openingHours = it }, label = { Text("Jam operasional QR Ordering") }, placeholder = { Text("Setiap hari, 17.00–24.00") }, modifier = Modifier.fillMaxWidth(), singleLine = true)
+                OutlinedTextField(value = instagram, onValueChange = { instagram = it }, label = { Text("Instagram") }, placeholder = { Text("@akun_cafe") }, modifier = Modifier.fillMaxWidth(), singleLine = true)
+                OutlinedTextField(value = receiptNote, onValueChange = { receiptNote = it }, label = { Text("Catatan struk (opsional)") }, modifier = Modifier.fillMaxWidth())
+                OutlinedTextField(value = receiptFooter, onValueChange = { receiptFooter = it }, label = { Text("Footer struk") }, modifier = Modifier.fillMaxWidth(), singleLine = true)
                 Button(onClick = {
                     viewModel.updateOutletSettings(
                         uiState.outletSettings.copy(
                             name = outletName.trim(),
                             address = outletAddress.trim(),
                             phone = outletPhone.trim(),
+                            openingHours = openingHours.trim(),
+                            instagram = instagram.trim(),
+                            receiptNote = receiptNote.trim(),
+                            receiptFooter = receiptFooter.trim(),
                             publicWebBaseUrl = webBaseUrl.trim()
                         )
                     )

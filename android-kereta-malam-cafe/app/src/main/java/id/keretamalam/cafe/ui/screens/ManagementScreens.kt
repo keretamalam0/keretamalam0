@@ -605,6 +605,7 @@ fun InventoryComposeScreen(viewModel: PosViewModel, uiState: PosUiState) {
     var qtyInput by remember { mutableStateOf("") }
     var reasonInput by remember { mutableStateOf("Barang datang") }
     var productSearch by remember { mutableStateOf("") }
+    var productPendingDelete by remember { mutableStateOf<Product?>(null) }
 
     val products = uiState.products
     val activeProducts = products.count { it.isActive }
@@ -691,14 +692,7 @@ fun InventoryComposeScreen(viewModel: PosViewModel, uiState: PosUiState) {
             item { Text("Produk tidak ditemukan.", color = MaterialTheme.colorScheme.onSurfaceVariant) }
         }
         items(displayed, key = { it.id }) { prod ->
-            OutlinedCard(modifier = Modifier.fillMaxWidth(), onClick = {
-                selectedProductId = prod.id
-                productSearch = prod.name
-                qtyInput = ""
-                reasonInput = "Opname stok"
-                movementType = "adjustment"
-                showAdjustment = true
-            }) {
+            OutlinedCard(modifier = Modifier.fillMaxWidth()) {
                 Row(
                     Modifier.fillMaxWidth().padding(14.dp),
                     horizontalArrangement = Arrangement.spacedBy(10.dp),
@@ -717,6 +711,17 @@ fun InventoryComposeScreen(viewModel: PosViewModel, uiState: PosUiState) {
                             Text("Menipis", color = MaterialTheme.colorScheme.error, style = MaterialTheme.typography.labelSmall)
                         } else {
                             Text("Aman", color = MaterialTheme.colorScheme.primary, style = MaterialTheme.typography.labelSmall)
+                        }
+                        TextButton(onClick = {
+                            selectedProductId = prod.id
+                            productSearch = prod.name
+                            qtyInput = ""
+                            reasonInput = "Penyesuaian stok"
+                            movementType = "in"
+                            showAdjustment = true
+                        }) { Text("Adjust") }
+                        TextButton(onClick = { productPendingDelete = prod }) {
+                            Text("Hapus menu", color = MaterialTheme.colorScheme.error)
                         }
                     }
                 }
@@ -740,6 +745,24 @@ fun InventoryComposeScreen(viewModel: PosViewModel, uiState: PosUiState) {
                 }
             }
         }
+    }
+
+    productPendingDelete?.let { target ->
+        AlertDialog(
+            onDismissRequest = { productPendingDelete = null },
+            title = { Text("Hapus menu?") },
+            text = { Text("Menu ini akan dihapus dari katalog produk. Jika masih terikat transaksi atau data lain, Supabase dapat menolak penghapusan untuk menjaga riwayat.") },
+            confirmButton = {
+                Button(
+                    onClick = {
+                        productPendingDelete = null
+                        viewModel.deleteProductItem(target.id)
+                    },
+                    colors = ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.error)
+                ) { Text("Ya, hapus") }
+            },
+            dismissButton = { TextButton(onClick = { productPendingDelete = null }) { Text("Batal") } }
+        )
     }
 
     if (showAdjustment) {
@@ -818,8 +841,9 @@ fun InventoryComposeScreen(viewModel: PosViewModel, uiState: PosUiState) {
                     enabled = selectedProduct != null && (qtyInput.toIntOrNull() ?: 0) > 0 && reasonInput.isNotBlank() &&
                         (movementType != "out" || (qtyInput.toIntOrNull() ?: 0) <= (selectedProduct?.stock ?: 0)),
                     onClick = {
-                        viewModel.recordInventoryMovement(selectedProductId, movementType, qtyInput.toIntOrNull() ?: 0, reasonInput)
-                        showAdjustment = false
+                        viewModel.recordInventoryMovement(selectedProductId, movementType, qtyInput.toIntOrNull() ?: 0, reasonInput) {
+                            showAdjustment = false
+                        }
                     }
                 ) { Text("Simpan Adjustment") }
             },

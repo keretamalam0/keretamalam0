@@ -32,6 +32,14 @@ class BackendNotVerifiedException(
  *   `reject_qr_order`, `get_active_public_promotions`, `get_public_outlet_settings`.
  * - Edge Function: `ai-assistant`.
  */
+data class PrinterSettingRecord(
+    val printerRole: String,
+    val printerName: String,
+    val bluetoothAddress: String,
+    val isEnabled: Boolean,
+    val paperWidth: Int
+)
+
 class CafeFlowRepository(private val context: Context) {
 
     private val httpClient = OkHttpClient.Builder()
@@ -958,6 +966,73 @@ class CafeFlowRepository(private val context: Context) {
         executeJsonRequest(
             method = "DELETE",
             url = "${creds.supabaseUrl}/rest/v1/promotions?id=eq.$encodedId&owner_id=eq.$encodedOwner",
+            headers = buildHeaders(creds, "return=minimal")
+        )
+    }
+
+
+    suspend fun fetchPrinterSettings(): List<PrinterSettingRecord> {
+        val creds = requireVerifiedCredentials()
+        require(creds.authenticatedUserId.isNotBlank()) { "Silakan masuk terlebih dahulu." }
+        val owner = URLEncoder.encode(creds.authenticatedUserId, "UTF-8")
+        val url = "${creds.supabaseUrl}/rest/v1/printer_settings?select=printer_role,printer_name,bluetooth_address,is_enabled,paper_width&owner_id=eq.$owner"
+        val raw = executeJsonRequest("GET", url, buildHeaders(creds))
+        return json.parseToJsonElement(raw).jsonArray.mapNotNull { item ->
+            val obj = item.jsonObject
+            val role = obj["printer_role"]?.jsonPrimitive?.contentOrNull ?: return@mapNotNull null
+            val name = obj["printer_name"]?.jsonPrimitive?.contentOrNull ?: return@mapNotNull null
+            val address = obj["bluetooth_address"]?.jsonPrimitive?.contentOrNull ?: return@mapNotNull null
+            PrinterSettingRecord(
+                printerRole = role,
+                printerName = name,
+                bluetoothAddress = address,
+                isEnabled = obj["is_enabled"]?.jsonPrimitive?.booleanOrNull ?: true,
+                paperWidth = obj["paper_width"]?.jsonPrimitive?.intOrNull ?: 58
+            )
+        }
+    }
+
+    suspend fun savePrinterSetting(
+        role: String,
+        printerName: String,
+        bluetoothAddress: String,
+        enabled: Boolean = true,
+        paperWidth: Int = 58
+    ) {
+        require(role in setOf("cashier", "kitchen")) { "Jenis printer tidak valid." }
+        require(printerName.isNotBlank() && bluetoothAddress.isNotBlank()) { "Pilih perangkat printer terlebih dahulu." }
+        require(paperWidth in setOf(58, 80)) { "Lebar kertas harus 58 mm atau 80 mm." }
+        val creds = requireVerifiedCredentials()
+        require(creds.authenticatedUserId.isNotBlank()) { "Silakan masuk terlebih dahulu." }
+        val payload = buildJsonObject {
+            put("owner_id", creds.authenticatedUserId)
+            put("printer_role", role)
+            put("printer_name", printerName)
+            put("bluetooth_address", bluetoothAddress)
+            put("is_enabled", enabled)
+            put("paper_width", paperWidth)
+            put("updated_at", java.time.Instant.now().toString())
+        }
+        val url = "${creds.supabaseUrl}/rest/v1/printer_settings?on_conflict=owner_id,printer_role"
+        val raw = executeJsonRequest(
+            method = "POST",
+            url = url,
+            headers = buildHeaders(creds, "resolution=merge-duplicates,return=representation"),
+            bodyJson = json.encodeToString(JsonObject.serializer(), payload)
+        )
+        require(json.parseToJsonElement(raw).jsonArray.isNotEmpty()) {
+            "Konfigurasi printer tidak tersimpan di Supabase."
+        }
+    }
+
+    suspend fun deletePrinterSetting(role: String) {
+        require(role in setOf("cashier", "kitchen")) { "Jenis printer tidak valid." }
+        val creds = requireVerifiedCredentials()
+        val owner = URLEncoder.encode(creds.authenticatedUserId, "UTF-8")
+        val encodedRole = URLEncoder.encode(role, "UTF-8")
+        executeJsonRequest(
+            method = "DELETE",
+            url = "${creds.supabaseUrl}/rest/v1/printer_settings?owner_id=eq.$owner&printer_role=eq.$encodedRole",
             headers = buildHeaders(creds, "return=minimal")
         )
     }

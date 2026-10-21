@@ -10,6 +10,15 @@ Project directory: `android-kereta-malam-cafe/`
 - [ ] Android Gradle build verified by GitHub Actions (workflow added in `857052dd6ef318cb8b69bde173ff2cfe3c8da41b`; run result must be checked after GitHub executes it).
 - [ ] Device-level verification recorded.
 
+## 2026-10-21 — UI and reporting changes committed
+- [x] AI chat history upgraded from a small alert to a near-full-screen conversation list; pin/unpin, open, delete one, and delete all are available. History remains device-local.
+- [x] Dashboard KPI cards have zero default and pressed elevation while preserving their tinted backgrounds.
+- [x] Dashboard supports a custom date range (YYYY-MM-DD) and CSV export of paid, non-cancelled orders in the selected period.
+- [x] Shift audit keeps custom start/end date filters and can export the currently filtered shifts to CSV.
+- [x] Activity log supports custom start/end date filters and CSV export of filtered log entries.
+- [ ] Android Gradle build and runtime/device checks are still required; these commits are not yet build-verified.
+- [ ] Continue auditing the remaining data/report screens (expenses, payments, inventory, customer data, and other exports) for consistent custom date ranges and CSV export.
+
 ## Requested feature batches
 - [ ] Dashboard analytics and charts (partially implemented; date-range filter for paid revenue/payment breakdown/top products added in `bf5bd216430248d62bfb910c57cb5e845c1dab7d`; full KPI/chart review and build verification remain pending)
 - [ ] Cashier product grid, photos, and cart/table behavior

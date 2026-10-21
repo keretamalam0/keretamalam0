@@ -1451,6 +1451,8 @@ fun PegawaiComposeScreen(viewModel: PosViewModel, uiState: PosUiState) {
     var newEmail by remember { mutableStateOf("") }
     var newRole by remember { mutableStateOf(StaffRole.CASHIER) }
     var pendingDelete by remember { mutableStateOf<StaffProfile?>(null) }
+    var expandedAccessStaff by remember { mutableStateOf<String?>(null) }
+    var selectedAccessGroup by remember { mutableStateOf("MENU") }
     val isOwner = uiState.staffProfile.role == StaffRole.OWNER && uiState.staffProfile.isActive
     val modules = listOf("dashboard" to "Dashboard", "ai_assistant" to "AI Assistant & Riwayat Chat", "orders" to "Kasir & Pesanan", "payments" to "Pembayaran", "shift_management" to "Buka / Tutup Shift", "shift_audit" to "Audit Shift, filter tanggal & ekspor", "activity_log" to "Log Aktivitas & Audit Perubahan", "products" to "Produk & Stok", "inventory" to "Inventory", "tables" to "Meja & QR Menu", "reports" to "Laporan Penjualan", "expenses" to "Pengeluaran & Laba Rugi", "customers" to "Pelanggan & Loyalitas", "promotions" to "Promosi & Diskon", "printer_management" to "Printer", "settings" to "Pengaturan Outlet", "staff_management" to "Manajemen Pegawai", "export_data" to "Ekspor / Download Data (CSV)")
     val metrics = listOf("dashboard.total_sales" to "Total penjualan", "dashboard.paid_orders" to "Jumlah transaksi lunas", "dashboard.average_transaction" to "Rata-rata transaksi", "dashboard.peak_hour" to "Jam tersibuk", "dashboard.trend_chart" to "Grafik tren omzet", "dashboard.hourly_activity" to "Aktivitas per jam", "dashboard.best_sellers" to "Menu terlaris", "dashboard.quick_actions" to "Akses cepat")
@@ -1478,7 +1480,7 @@ fun PegawaiComposeScreen(viewModel: PosViewModel, uiState: PosUiState) {
         "printer.manage" to "Kelola printer",
         "promotions.manage" to "Kelola promosi"
     )
-    pendingDelete?.let { target -> AlertDialog(onDismissRequest = { pendingDelete = null }, title = { Text("Hapus profil staf?") }, text = { Text("Profil ${target.fullName} dihapus dari daftar POS. User Supabase Auth tidak ikut terhapus; penghapusan permanen perlu fungsi admin server.") }, confirmButton = { Button(onClick = { viewModel.deleteStaffProfile(target.userId); pendingDelete = null }, enabled = isOwner && !uiState.isLoading) { Text("Hapus profil") } }, dismissButton = { OutlinedButton(onClick = { pendingDelete = null }) { Text("Batal") } }) }
+    pendingDelete?.let { target -> AlertDialog(onDismissRequest = { pendingDelete = null }, title = { Text("Hapus profil staf?") }, text = { Text("Profil ${target.fullName} akan dihapus dari daftar pegawai aplikasi. Lanjutkan?") }, confirmButton = { Button(onClick = { viewModel.deleteStaffProfile(target.userId); pendingDelete = null }, enabled = isOwner && !uiState.isLoading) { Text("Hapus profil") } }, dismissButton = { OutlinedButton(onClick = { pendingDelete = null }) { Text("Batal") } }) }
     LazyColumn(Modifier.fillMaxSize(), verticalArrangement = Arrangement.spacedBy(10.dp)) {
         item {
             OutlinedCard(Modifier.fillMaxWidth()) { Column(Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
@@ -1512,18 +1514,33 @@ fun PegawaiComposeScreen(viewModel: PosViewModel, uiState: PosUiState) {
                     OutlinedButton(onClick = { viewModel.setStaffActive(st.userId, !st.isActive) }, modifier = Modifier.weight(1f), enabled = !uiState.isLoading) { Text(if (st.isActive) "Nonaktifkan" else "Aktifkan") }
                     OutlinedButton(onClick = { pendingDelete = st }, modifier = Modifier.weight(1f), enabled = !uiState.isLoading) { Text("Delete") }
                 }
-                Text("Hak akses menu", style = MaterialTheme.typography.titleSmall, fontWeight = FontWeight.Bold)
-                Text("Periksa kembali akses Dashboard, AI Assistant, Produk & Stok, Audit Shift, Log Aktivitas, Laporan, dan Ekspor Data sesuai tugas pegawai.", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
-                modules.forEach { (key, label) -> PermissionToggleRow(label, st.permissions[key] == true, isOwner && !isCurrent && st.role != StaffRole.OWNER && !uiState.isLoading) { viewModel.toggleStaffPermission(st.userId, key) } }
-                HorizontalDivider()
-                Text("Detail Dashboard", style = MaterialTheme.typography.titleSmall, fontWeight = FontWeight.Bold)
-                metrics.forEach { (key, label) -> val allowed = if (st.permissions.containsKey(key)) st.permissions[key] == true else st.permissions["dashboard"] == true; PermissionToggleRow(label, allowed, isOwner && !isCurrent && st.role != StaffRole.OWNER && !uiState.isLoading) { viewModel.toggleStaffPermission(st.userId, key) } }
-                HorizontalDivider()
-                Text("Hak akses tindakan", style = MaterialTheme.typography.titleSmall, fontWeight = FontWeight.Bold)
-                Text("Izin ini dipakai oleh aturan akses backend untuk tindakan sensitif. Berikan hanya sesuai tugas pegawai.", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
-                actionPermissions.forEach { (key, label) ->
-                    PermissionToggleRow(label, st.permissions[key] == true, isOwner && !isCurrent && st.role != StaffRole.OWNER && !uiState.isLoading) {
-                        viewModel.toggleStaffPermission(st.userId, key)
+                OutlinedButton(
+                    onClick = { expandedAccessStaff = if (expandedAccessStaff == st.userId) null else st.userId },
+                    modifier = Modifier.fillMaxWidth(),
+                    enabled = isOwner && !isCurrent && st.role != StaffRole.OWNER
+                ) {
+                    Text(if (expandedAccessStaff == st.userId) "Tutup pengaturan hak akses" else "Atur hak akses")
+                    Spacer(Modifier.weight(1f))
+                    Text(if (expandedAccessStaff == st.userId) "▲" else "▼")
+                }
+                if (expandedAccessStaff == st.userId) {
+                    Text("Pilih kategori, lalu aktifkan hanya akses yang dibutuhkan pegawai.", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                    Row(Modifier.fillMaxWidth().horizontalScroll(rememberScrollState()), horizontalArrangement = Arrangement.spacedBy(6.dp)) {
+                        listOf("MENU" to "Menu", "DASHBOARD" to "Dashboard", "TINDAKAN" to "Tindakan").forEach { (key, label) ->
+                            FilterChip(selected = selectedAccessGroup == key, onClick = { selectedAccessGroup = key }, label = { Text(label) })
+                        }
+                    }
+                    when (selectedAccessGroup) {
+                        "MENU" -> modules.forEach { (key, label) ->
+                            PermissionToggleRow(label, st.permissions[key] == true, isOwner && !isCurrent && st.role != StaffRole.OWNER && !uiState.isLoading) { viewModel.toggleStaffPermission(st.userId, key) }
+                        }
+                        "DASHBOARD" -> metrics.forEach { (key, label) ->
+                            val allowed = if (st.permissions.containsKey(key)) st.permissions[key] == true else st.permissions["dashboard"] == true
+                            PermissionToggleRow(label, allowed, isOwner && !isCurrent && st.role != StaffRole.OWNER && !uiState.isLoading) { viewModel.toggleStaffPermission(st.userId, key) }
+                        }
+                        else -> actionPermissions.forEach { (key, label) ->
+                            PermissionToggleRow(label, st.permissions[key] == true, isOwner && !isCurrent && st.role != StaffRole.OWNER && !uiState.isLoading) { viewModel.toggleStaffPermission(st.userId, key) }
+                        }
                     }
                 }
             } }

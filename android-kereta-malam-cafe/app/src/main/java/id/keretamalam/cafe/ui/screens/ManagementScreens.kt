@@ -2106,10 +2106,22 @@ fun PrinterComposeScreen(
                                 horizontalArrangement = Arrangement.spacedBy(6.dp)
                             ) {
                                 uiState.pairedBluetoothDevices.forEach { (devName, mac) ->
-                                    AssistChip(
-                                        onClick = { viewModel.bindPrinterDevice(role, devName, mac, false) },
-                                        label = { Text("Pasangkan: $devName ($mac)") }
-                                    )
+                                    Row(
+                                        verticalAlignment = Alignment.CenterVertically,
+                                        horizontalArrangement = Arrangement.spacedBy(4.dp)
+                                    ) {
+                                        AssistChip(
+                                            onClick = { viewModel.bindPrinterDevice(role, devName, mac, false) },
+                                            label = { Text("Pasangkan: $devName ($mac)") }
+                                        )
+                                        OutlinedButton(
+                                            onClick = { viewModel.forgetPairedPrinter(mac) },
+                                            contentPadding = PaddingValues(horizontal = 10.dp, vertical = 4.dp)
+                                        ) {
+                                            Icon(Icons.Outlined.Delete, contentDescription = null)
+                                            Text("Lupakan")
+                                        }
+                                    }
                                 }
                             }
                         }

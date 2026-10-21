@@ -1879,6 +1879,9 @@ class PosViewModel(application: Application) : AndroidViewModel(application) {
         }
     }
 
+    /** Refresh add-ons/customizations when entering the cashier so saved backend changes are not stale. */
+    fun refreshProductOptions() = syncProductOptions()
+
     private fun syncProductOptions() {
         viewModelScope.launch {
             runCatching {

@@ -395,7 +395,7 @@ fun ProdukStokComposeScreen(viewModel: PosViewModel, uiState: PosUiState) {
                     Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
                         Column(Modifier.weight(1f)) {
                             Text("OPSI KUSTOMISASI", style = MaterialTheme.typography.titleSmall, fontWeight = FontWeight.Bold)
-                            Text("Ukuran cup, es/suhu, dan tingkat gula", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                            Text("Ukuran/porsi, gula, es/suhu, pedas, nasi, kematangan, lauk, tambahan, saus, sambal, dan topping", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
                         }
                         Text((if (targetEdit.id.isBlank()) 0 else uiState.customizationOptions.count { it.productId == targetEdit.id }).toString() + " opsi", color = MaterialTheme.colorScheme.primary, style = MaterialTheme.typography.labelMedium)
                     }
@@ -417,11 +417,11 @@ fun ProdukStokComposeScreen(viewModel: PosViewModel, uiState: PosUiState) {
                     var customGroupMenu by remember { mutableStateOf(false) }
                     Box {
                         OutlinedButton(onClick = { customGroupMenu = true }, modifier = Modifier.fillMaxWidth()) {
-                            Text(when (inlineOptionGroup) { "sugar" -> "Grup: Tingkat gula"; "ice" -> "Grup: Es / Suhu"; else -> "Grup: Ukuran cup" }, modifier = Modifier.weight(1f))
+                            Text("Grup: " + (listOf("size" to "Ukuran", "portion" to "Porsi", "sugar" to "Tingkat gula", "ice" to "Es / suhu", "spice" to "Tingkat kepedasan", "rice" to "Pilihan nasi", "cooking" to "Tingkat kematangan", "side" to "Lauk", "extra" to "Tambahan", "sauce" to "Saus", "sambal" to "Sambal", "topping" to "Topping makanan").firstOrNull { it.first == inlineOptionGroup }?.second ?: inlineOptionGroup), modifier = Modifier.weight(1f))
                             Text("⌄")
                         }
                         DropdownMenu(expanded = customGroupMenu, onDismissRequest = { customGroupMenu = false }) {
-                            listOf("size" to "Ukuran / porsi", "sugar" to "Tingkat gula", "ice" to "Es / suhu", "spice" to "Tingkat kepedasan", "rice" to "Pilihan nasi", "cooking" to "Tingkat kematangan", "side" to "Lauk / tambahan", "sauce" to "Saus / sambal", "topping" to "Topping makanan").forEach { (key, label) ->
+                            listOf("size" to "Ukuran", "portion" to "Porsi", "sugar" to "Tingkat gula", "ice" to "Es / suhu", "spice" to "Tingkat kepedasan", "rice" to "Pilihan nasi", "cooking" to "Tingkat kematangan", "side" to "Lauk", "extra" to "Tambahan", "sauce" to "Saus", "sambal" to "Sambal", "topping" to "Topping makanan").forEach { (key, label) ->
                                 DropdownMenuItem(text = { Text(label) }, onClick = { inlineOptionGroup = key; customGroupMenu = false })
                             }
                         }
@@ -433,7 +433,7 @@ fun ProdukStokComposeScreen(viewModel: PosViewModel, uiState: PosUiState) {
                     if (targetEdit.id.isNotBlank()) {
                         uiState.customizationOptions.filter { it.productId == targetEdit.id }.forEach { option ->
                             Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
-                                Column(Modifier.weight(1f)) { Text(option.name); Text("${when(option.groupKey) { "sugar" -> "Gula"; "ice" -> "Es / suhu"; else -> "Ukuran cup" }} · ${RupiahFormatter.format(option.priceDelta)}", style = MaterialTheme.typography.bodySmall) }
+                                Column(Modifier.weight(1f)) { Text(option.name); Text("${(listOf("size" to "Ukuran", "portion" to "Porsi", "sugar" to "Tingkat gula", "ice" to "Es / suhu", "spice" to "Tingkat kepedasan", "rice" to "Pilihan nasi", "cooking" to "Tingkat kematangan", "side" to "Lauk", "extra" to "Tambahan", "sauce" to "Saus", "sambal" to "Sambal", "topping" to "Topping makanan").firstOrNull { it.first == option.groupKey }?.second ?: option.groupKey)} · ${RupiahFormatter.format(option.priceDelta)}", style = MaterialTheme.typography.bodySmall) }
                                 TextButton(onClick = { viewModel.deleteCustomizationOption(option.id) }) { Text("Hapus", color = MaterialTheme.colorScheme.error) }
                             }
                         }

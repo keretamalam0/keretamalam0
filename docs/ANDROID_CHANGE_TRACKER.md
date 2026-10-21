@@ -127,3 +127,6 @@ Project directory: `android-kereta-malam-cafe/`
 - Thermal receipt previews, cashier receipts, and kitchen tickets format ISO timestamps as Asia/Jakarta (WIB) instead of showing UTC raw timestamps.
 - Commits: `8014300` (light login/password visibility), `f1a7f1f` (generic login errors/WIB preview/printer removal action), `4b397fb` (printer delete UI), `6d56cfa` (compact employee access groups), `e7f5925` (WIB formatting on actual printer payloads).
 - Build and physical-device verification are pending; confirm Kotlin compilation and test login errors, printer removal persistence, and printed receipt times on a real device.
+
+
+- 2026-10-21: Cashier now refreshes product toppings and customization options from Supabase whenever the native cashier screen is entered, preventing stale in-memory options from hiding newly saved add-ons/options. Runtime and APK build verification required.

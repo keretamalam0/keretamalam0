@@ -1995,6 +1995,7 @@ fun PrinterComposeScreen(
     uiState: PosUiState,
     isTabletOrWide: Boolean
 ) {
+    var pendingPrinterRemoval by remember { mutableStateOf<PrinterRole?>(null) }
     val bluetoothPermissionLauncher = rememberLauncherForActivityResult(
         contract = ActivityResultContracts.RequestMultiplePermissions()
     ) { grants ->
@@ -2005,6 +2006,17 @@ fun PrinterComposeScreen(
         }
     }
     LaunchedEffect(Unit) { viewModel.loadPrinterSettingsFromSupabase() }
+    pendingPrinterRemoval?.let { role ->
+        AlertDialog(
+            onDismissRequest = { pendingPrinterRemoval = null },
+            title = { Text("Hapus perangkat printer?") },
+            text = { Text("Konfigurasi ${role.labelId} akan dihapus dari aplikasi. Anda bisa memasangkannya kembali kapan saja.") },
+            confirmButton = {
+                Button(onClick = { viewModel.removePrinterDevice(role); pendingPrinterRemoval = null }) { Text("Hapus perangkat") }
+            },
+            dismissButton = { OutlinedButton(onClick = { pendingPrinterRemoval = null }) { Text("Batal") } }
+        )
+    }
     Column(
         modifier = Modifier
             .fillMaxSize()
@@ -2052,14 +2064,22 @@ fun PrinterComposeScreen(
                                     Text(role.labelId, fontWeight = FontWeight.Bold)
                                     Text(saved?.let { "${it.name} (${it.address})" } ?: "Siap dipasangkan dari daftar perangkat Bluetooth")
                                 }
-                                Button(onClick = {
-                                    if (viewModel.printerManager.hasBluetoothPermissions()) {
-                                        viewModel.testPrintToThermal(role)
-                                    } else {
-                                        bluetoothPermissionLauncher.launch(viewModel.printerManager.requiredRuntimePermissions())
+                                Row(horizontalArrangement = Arrangement.spacedBy(6.dp)) {
+                                    Button(onClick = {
+                                        if (viewModel.printerManager.hasBluetoothPermissions()) {
+                                            viewModel.testPrintToThermal(role)
+                                        } else {
+                                            bluetoothPermissionLauncher.launch(viewModel.printerManager.requiredRuntimePermissions())
+                                        }
+                                    }) {
+                                        Text("Tes Cetak")
                                     }
-                                }) {
-                                    Text("Tes Cetak")
+                                    if (saved != null) {
+                                        OutlinedButton(onClick = { pendingPrinterRemoval = role }) {
+                                            Icon(Icons.Outlined.Delete, contentDescription = null)
+                                            Text("Hapus")
+                                        }
+                                    }
                                 }
                             }
                             Row(

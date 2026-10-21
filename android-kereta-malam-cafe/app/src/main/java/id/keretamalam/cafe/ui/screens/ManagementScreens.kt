@@ -75,26 +75,27 @@ fun ProdukStokComposeScreen(viewModel: PosViewModel, uiState: PosUiState) {
     var optionPrice by remember { mutableStateOf("0") }
     var optionActive by remember { mutableStateOf(true) }
 
-    val displayed = remember(uiState.products, stockFilter, searchQuery) {
+    val displayed = remember(uiState.products, stockFilter, searchQuery, section) {
         uiState.products.filter { p ->
             val stockMatch = when (stockFilter) { "LOW" -> p.isLowStock; "OUT" -> p.isOutOfStock; else -> true }
-            stockMatch && (searchQuery.isBlank() || p.name.contains(searchQuery, ignoreCase = true))
+            val activeMatch = section != "NONAKTIF" || !p.isActive
+            activeMatch && stockMatch && (searchQuery.isBlank() || p.name.contains(searchQuery, ignoreCase = true))
         }
     }
     val selectedProduct = uiState.products.firstOrNull { it.id == selectedProductId }
 
     Column(Modifier.fillMaxSize(), verticalArrangement = Arrangement.spacedBy(5.dp)) {
         Row(Modifier.fillMaxWidth().horizontalScroll(rememberScrollState()), horizontalArrangement = Arrangement.spacedBy(6.dp)) {
-            listOf("PRODUK" to "Produk", "KATEGORI" to "Kelola Kategori").forEach { (key, label) ->
+            listOf("PRODUK" to "Produk", "NONAKTIF" to "Menu Nonaktif", "KATEGORI" to "Kelola Kategori").forEach { (key, label) ->
                 FilterChip(selected = section == key, onClick = { section = key }, label = { Text(label, style = MaterialTheme.typography.labelSmall) }, modifier = Modifier.height(34.dp))
             }
         }
 
         when (section) {
-            "PRODUK" -> {
+            "PRODUK", "NONAKTIF" -> {
                 Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp), verticalAlignment = Alignment.CenterVertically) {
                     Surface(shape = RoundedCornerShape(10.dp), color = MaterialTheme.colorScheme.primaryContainer) {
-                        Text("Semua Produk · ${uiState.products.size}", modifier = Modifier.padding(horizontal = 12.dp, vertical = 10.dp), style = MaterialTheme.typography.labelLarge, color = MaterialTheme.colorScheme.onPrimaryContainer)
+                        Text(if (section == "NONAKTIF") "Menu Nonaktif · ${uiState.products.count { !it.isActive }}" else "Semua Produk · ${uiState.products.size}", modifier = Modifier.padding(horizontal = 12.dp, vertical = 10.dp), style = MaterialTheme.typography.labelLarge, color = MaterialTheme.colorScheme.onPrimaryContainer)
                     }
                     Spacer(Modifier.weight(1f))
                     Button(onClick = { editingProduct = Product(id = "", name = "", price = 0.0, costPrice = 0.0, categoryId = uiState.categories.firstOrNull()?.id, stock = 0, lowStockThreshold = 5) }, contentPadding = PaddingValues(horizontal = 14.dp, vertical = 10.dp)) {
@@ -141,9 +142,9 @@ fun ProdukStokComposeScreen(viewModel: PosViewModel, uiState: PosUiState) {
                     if (displayed.isEmpty()) item {
                         OutlinedCard(Modifier.fillMaxWidth()) {
                             Column(Modifier.fillMaxWidth().padding(28.dp), horizontalAlignment = Alignment.CenterHorizontally, verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                                Text("Belum ada produk", style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold)
-                                Text("Tambah menu pertama untuk mulai mengatur harga, stok, foto, topping, dan kustomisasi.", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
-                                Button(onClick = { editingProduct = Product(id = "", name = "", price = 0.0, costPrice = 0.0, categoryId = uiState.categories.firstOrNull()?.id, stock = 0, lowStockThreshold = 5) }) { Text("+ Tambah Produk") }
+                                Text(if (section == "NONAKTIF") "Tidak ada menu nonaktif" else "Belum ada produk", style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold)
+                                Text(if (section == "NONAKTIF") "Menu yang dinonaktifkan akan tampil di sini. Pilih menu untuk mengelola atau mengaktifkannya kembali." else "Tambah menu pertama untuk mulai mengatur harga, stok, foto, topping, dan kustomisasi.", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                                if (section != "NONAKTIF") Button(onClick = { editingProduct = Product(id = "", name = "", price = 0.0, costPrice = 0.0, categoryId = uiState.categories.firstOrNull()?.id, stock = 0, lowStockThreshold = 5) }) { Text("+ Tambah Produk") }
                             }
                         }
                     }

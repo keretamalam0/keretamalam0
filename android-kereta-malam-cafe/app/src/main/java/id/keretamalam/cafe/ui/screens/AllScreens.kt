@@ -782,7 +782,7 @@ private fun DashboardKpiCard(modifier: Modifier = Modifier, title: String, value
         colors = CardDefaults.cardColors(
             containerColor = tint.copy(alpha = if (dark) 0.15f else 0.075f)
         ),
-        elevation = CardDefaults.cardElevation(defaultElevation = 2.dp, pressedElevation = 5.dp)
+        elevation = CardDefaults.cardElevation(defaultElevation = 0.dp, pressedElevation = 0.dp)
     ) {
         Column(Modifier.fillMaxWidth().padding(12.dp), verticalArrangement = Arrangement.spacedBy(5.dp)) {
             Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(7.dp)) {
@@ -808,7 +808,8 @@ private fun DashboardKpiCard(modifier: Modifier = Modifier, title: String, value
 // ============================================================================
 private data class AiChatHistoryEntry(
     val title: String,
-    val messages: List<Pair<String, Boolean>>
+    val messages: List<Pair<String, Boolean>>,
+    val pinned: Boolean = false
 )
 
 private const val AI_WELCOME_MESSAGE =
@@ -828,7 +829,7 @@ private fun loadAiChatHistory(context: android.content.Context): List<AiChatHist
             }
         }
         if (messages.isEmpty()) null else AiChatHistoryEntry(
-            item.optString("title", "Percakapan sebelumnya"), messages
+            item.optString("title", "Percakapan sebelumnya"), messages, item.optBoolean("pinned", false)
         )
     }
 }.getOrDefault(emptyList())
@@ -836,7 +837,7 @@ private fun loadAiChatHistory(context: android.content.Context): List<AiChatHist
 private fun saveAiChatHistory(context: android.content.Context, entries: List<AiChatHistoryEntry>) {
     val array = JSONArray()
     entries.forEach { entry ->
-        val item = JSONObject().put("title", entry.title)
+        val item = JSONObject().put("title", entry.title).put("pinned", entry.pinned)
         val messages = JSONArray()
         entry.messages.forEach { (text, fromUser) ->
             messages.put(JSONObject().put("text", text).put("fromUser", fromUser))
@@ -1063,47 +1064,55 @@ private fun AiAssistantComposeScreen(viewModel: PosViewModel, uiState: PosUiStat
     }
 
     if (showHistoryDialog) {
-        AlertDialog(
+        androidx.compose.ui.window.Dialog(
             onDismissRequest = { showHistoryDialog = false },
-            title = { Text("Riwayat percakapan") },
-            text = {
-                Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+            properties = androidx.compose.ui.window.DialogProperties(usePlatformDefaultWidth = false)
+        ) {
+            Surface(
+                modifier = Modifier.fillMaxWidth().fillMaxHeight(0.94f).padding(horizontal = 8.dp),
+                shape = RoundedCornerShape(22.dp),
+                color = MaterialTheme.colorScheme.surface
+            ) {
+                Column(Modifier.fillMaxSize().padding(16.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
+                    Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
+                        Column(Modifier.weight(1f)) {
+                            Text("Riwayat percakapan", style = MaterialTheme.typography.headlineSmall, fontWeight = FontWeight.Bold)
+                            Text("Semua chat tersimpan di perangkat ini", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                        }
+                        TextButton(onClick = { showHistoryDialog = false }) { Text("Tutup") }
+                    }
+                    Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                        Text("Semua: ${historyEntries.size}", style = MaterialTheme.typography.labelLarge, modifier = Modifier.align(Alignment.CenterVertically))
+                        Text("📌 Disematkan: ${historyEntries.count { it.pinned }}", style = MaterialTheme.typography.labelLarge, modifier = Modifier.weight(1f).align(Alignment.CenterVertically))
+                        if (historyEntries.isNotEmpty()) TextButton(onClick = { historyEntries.clear(); saveAiChatHistory(context, historyEntries) }) { Text("Hapus semua") }
+                    }
                     if (historyEntries.isEmpty()) {
-                        Text("Belum ada riwayat. Percakapan akan tersimpan saat kamu menekan ＋ Baru.")
+                        Box(Modifier.weight(1f).fillMaxWidth(), contentAlignment = Alignment.Center) {
+                            Text("Belum ada riwayat. Mulai chat baru lalu tekan ＋ Baru untuk menyimpannya.", color = MaterialTheme.colorScheme.onSurfaceVariant)
+                        }
                     } else {
-                        Column(modifier = Modifier.heightIn(max = 360.dp).verticalScroll(rememberScrollState()),
-                            verticalArrangement = Arrangement.spacedBy(6.dp)) {
-                            historyEntries.forEachIndexed { index, entry ->
-                                Row(verticalAlignment = Alignment.CenterVertically,
-                                    horizontalArrangement = Arrangement.spacedBy(6.dp)) {
-                                    TextButton(onClick = {
-                                        chatMessages.clear()
-                                        chatMessages.addAll(entry.messages)
-                                        prefs.edit().remove("current").apply()
-                                        showHistoryDialog = false
-                                    }, modifier = Modifier.weight(1f)) { Text(entry.title, maxLines = 2) }
-                                    TextButton(onClick = {
-                                        historyEntries.removeAt(index)
-                                        saveAiChatHistory(context, historyEntries)
-                                    }) { Text("Hapus") }
+                        LazyColumn(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                            itemsIndexed(historyEntries.sortedWith(compareByDescending<AiChatHistoryEntry> { it.pinned }.thenBy { historyEntries.indexOf(it) }), key = { _, entry -> entry.title + entry.messages.size.toString() }) { _, entry ->
+                                OutlinedCard(Modifier.fillMaxWidth(), onClick = {
+                                    chatMessages.clear(); chatMessages.addAll(entry.messages); prefs.edit().remove("current").apply(); showHistoryDialog = false
+                                }) {
+                                    Row(Modifier.fillMaxWidth().padding(12.dp), verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                                        Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(4.dp)) {
+                                            Text(entry.title, fontWeight = FontWeight.SemiBold, maxLines = 2)
+                                            Text("${entry.messages.count { it.second }} pesan dari kamu", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                                        }
+                                        TextButton(onClick = { val index = historyEntries.indexOfFirst { it === entry }; if (index >= 0) { historyEntries[index] = historyEntries[index].copy(pinned = !historyEntries[index].pinned); saveAiChatHistory(context, historyEntries) } }) { Text(if (entry.pinned) "📌 Lepas" else "📌 Pin") }
+                                        TextButton(onClick = { historyEntries.remove(entry); saveAiChatHistory(context, historyEntries) }) { Text("Hapus") }
+                                    }
                                 }
                             }
                         }
                     }
+                    OutlinedButton(onClick = { showHistoryDialog = false }, modifier = Modifier.fillMaxWidth()) { Text("Kembali ke chat") }
                 }
-            },
-            confirmButton = { TextButton(onClick = { showHistoryDialog = false }) { Text("Tutup") } },
-            dismissButton = {
-                if (historyEntries.isNotEmpty()) TextButton(onClick = {
-                    historyEntries.clear()
-                    saveAiChatHistory(context, historyEntries)
-                }) { Text("Hapus semua") }
             }
-        )
-    }
-}
-
-// Render common Markdown bold markers in assistant chat without showing raw ** symbols.
+        }
+    }rs in assistant chat without showing raw ** symbols.
 private fun formatAssistantMarkdown(source: String): androidx.compose.ui.text.AnnotatedString {
     val boldPattern = Regex("""\*\*(.+?)\*\*""")
     return androidx.compose.ui.text.buildAnnotatedString {

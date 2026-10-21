@@ -2304,6 +2304,32 @@ class PosViewModel(application: Application) : AndroidViewModel(application) {
         }
     }
 
+    fun forgetPairedPrinter(address: String) {
+        viewModelScope.launch {
+            val result = printerManager.forgetPairedDevice(address)
+            result.onSuccess {
+                val rolesUsingDevice = PrinterRole.entries.filter {
+                    printerManager.getSavedPrinter(it)?.address.equals(address, ignoreCase = true)
+                }
+                rolesUsingDevice.forEach { role ->
+                    printerManager.clearPrinter(role)
+                    runCatching { repository.deletePrinterSetting(role.key) }
+                }
+                _uiState.update { state ->
+                    state.copy(pairedBluetoothDevices = state.pairedBluetoothDevices.filterNot {
+                        it.second.equals(address, ignoreCase = true)
+                    })
+                }
+                showNotice("Perangkat diminta untuk dilupakan. Jika masih muncul di Bluetooth Android, hapus juga dari Pengaturan Bluetooth.")
+            }.onFailure { error ->
+                showNotice(
+                    "Perangkat belum berhasil dilupakan: ${error.message ?: "Android menolak penghapusan"}. Buka Pengaturan Bluetooth Android lalu pilih Lupakan perangkat.",
+                    isError = true
+                )
+            }
+        }
+    }
+
     fun bindPrinterDevice(role: PrinterRole, name: String, address: String, autoPrint: Boolean) {
         printerManager.savePrinter(role, name, address, autoPrint)
         showNotice("${role.labelId} berhasil disimpan.")

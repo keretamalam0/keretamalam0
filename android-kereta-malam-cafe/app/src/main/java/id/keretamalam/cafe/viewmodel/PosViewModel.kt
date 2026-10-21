@@ -1851,7 +1851,7 @@ class PosViewModel(application: Application) : AndroidViewModel(application) {
     }
 
     fun saveCustomizationOption(option: ProductCustomizationOption) {
-        if (option.name.isBlank() || option.productId.isBlank() || option.priceDelta < 0 || option.groupKey !in listOf("sugar", "ice", "size")) {
+        if (option.name.isBlank() || option.productId.isBlank() || option.priceDelta < 0 || option.groupKey !in listOf("size", "portion", "sugar", "ice", "spice", "rice", "cooking", "side", "extra", "sauce", "sambal", "topping")) {
             showNotice("Lengkapi produk, nama opsi, grup, dan harga yang valid.", isError = true)
             return
         }

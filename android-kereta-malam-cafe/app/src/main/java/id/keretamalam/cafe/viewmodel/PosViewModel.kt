@@ -361,7 +361,14 @@ class PosViewModel(application: Application) : AndroidViewModel(application) {
                 appendLine(divider)
                 order.orderItems.forEach { item ->
                     appendLine("${item.quantity}x ${item.productName}")
-                    if (!item.note.isNullOrBlank()) appendLine("   Catatan: ${item.note}")
+                    item.note.orEmpty().takeIf { it.startsWith("KMOPT|") }
+                        ?.removePrefix("KMOPT|")?.split(";")?.mapNotNull { raw ->
+                            val parts = raw.split("|", limit = 3)
+                            if (parts.size != 3) null else Triple(parts[0], parts[1], parts[2].toDoubleOrNull() ?: 0.0)
+                        }?.filter { it.third > 0 }?.forEach { (group, name, delta) ->
+                            val label = when (group) { "size" -> "Cup"; "extra" -> "Tambahan"; "sugar" -> "Gula"; "ice" -> "Es/suhu"; "portion" -> "Porsi"; "spice" -> "Pedas"; "rice" -> "Nasi"; "cooking" -> "Kematangan"; "side" -> "Lauk"; "sauce" -> "Saus"; "sambal" -> "Sambal"; "topping" -> "Topping"; else -> group }
+                            appendLine("   $label $name +${RupiahFormatter.format(delta)}")
+                        }
                 }
                 if (!order.notes.isNullOrBlank()) appendLine("CATATAN ORDER: ${order.notes}")
                 appendLine(divider)

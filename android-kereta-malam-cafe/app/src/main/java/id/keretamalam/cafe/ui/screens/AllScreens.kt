@@ -1112,7 +1112,10 @@ private fun AiAssistantComposeScreen(viewModel: PosViewModel, uiState: PosUiStat
                 }
             }
         }
-    }rs in assistant chat without showing raw ** symbols.
+    }
+}
+
+// Render common Markdown bold markers
 private fun formatAssistantMarkdown(source: String): androidx.compose.ui.text.AnnotatedString {
     val boldPattern = Regex("""\*\*(.+?)\*\*""")
     return androidx.compose.ui.text.buildAnnotatedString {
@@ -2447,18 +2450,7 @@ private fun AuditShiftComposeScreen(viewModel: PosViewModel, uiState: PosUiState
     var toDate by remember { mutableStateOf("") }
     var selectedShift by remember { mutableStateOf<StaffShift?>(null) }
     val context = LocalContext.current
-    val exportAuditLauncher = rememberLauncherForActivityResult(ActivityResultContracts.CreateDocument("text/csv")) { uri ->
-        if (uri != null) runCatching {
-            context.contentResolver.openOutputStream(uri)?.bufferedWriter()?.use { writer ->
-                fun csv(value: String): String = "\"" + value.replace("\"", "\"\"") + "\""
-                writer.appendLine(listOf("shift_id","kasir","status","dibuka","ditutup","modal_awal","ekspektasi_kas","kas_akhir","selisih","terverifikasi","catatan").joinToString(","))
-                filtered.forEach { item ->
-                    val variance = (item.closingCash ?: 0.0) - (item.expectedCash ?: 0.0)
-                    writer.appendLine(listOf(item.id,item.staffName,item.status,item.openedAt,item.closedAt.orEmpty(),item.openingCash.toString(),(item.expectedCash ?: 0.0).toString(),item.closingCash?.toString().orEmpty(),variance.toString(),item.auditVerified.toString(),item.notes.orEmpty()).joinToString(",") { csv(it) })
-                }
-            }
-        }.onFailure { android.widget.Toast.makeText(context, "Export gagal: ${it.message ?: "kesalahan file"}", android.widget.Toast.LENGTH_LONG).show() }
-    }
+
     val activeCount = uiState.shifts.count { it.status.equals("open", true) }
     val needsReview = uiState.shifts.count { !it.auditVerified && it.status.equals("closed", true) }
     val filtered = uiState.shifts.filter { shift ->
@@ -2472,6 +2464,19 @@ private fun AuditShiftComposeScreen(viewModel: PosViewModel, uiState: PosUiState
         }
         queryMatch && filterMatch && dateMatch
     }
+    val exportAuditLauncher = rememberLauncherForActivityResult(ActivityResultContracts.CreateDocument("text/csv")) { uri ->
+        if (uri != null) runCatching {
+            context.contentResolver.openOutputStream(uri)?.bufferedWriter()?.use { writer ->
+                fun csv(value: String): String = "\"" + value.replace("\"", "\"\"") + "\""
+                writer.appendLine(listOf("shift_id","kasir","status","dibuka","ditutup","modal_awal","ekspektasi_kas","kas_akhir","selisih","terverifikasi","catatan").joinToString(","))
+                filtered.forEach { item ->
+                    val variance = (item.closingCash ?: 0.0) - (item.expectedCash ?: 0.0)
+                    writer.appendLine(listOf(item.id,item.staffName,item.status,item.openedAt,item.closedAt.orEmpty(),item.openingCash.toString(),(item.expectedCash ?: 0.0).toString(),item.closingCash?.toString().orEmpty(),variance.toString(),item.auditVerified.toString(),item.notes.orEmpty()).joinToString(",") { csv(it) })
+                }
+            }
+        }.onFailure { android.widget.Toast.makeText(context, "Export gagal: ${it.message ?: "kesalahan file"}", android.widget.Toast.LENGTH_LONG).show() }
+    }
+
     selectedShift?.let { shift ->
         val variance = (shift.closingCash ?: 0.0) - (shift.expectedCash ?: 0.0)
         val suspicious = shift.status.equals("closed", true) && kotlin.math.abs(variance) >= 1.0

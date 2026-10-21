@@ -1872,6 +1872,59 @@ class PosViewModel(application: Application) : AndroidViewModel(application) {
         }
     }
 
+    fun saveProductAndOption(product: Product, optionName: String, optionGroup: String, optionPrice: Double, onSaved: (Product, Boolean) -> Unit) {
+        if (product.name.isBlank() || product.price <= 0) {
+            showNotice("Nama produk dan harga jual wajib valid.", isError = true)
+            return
+        }
+        if (optionName.isNotBlank() && optionPrice < 0) {
+            showNotice("Harga tambahan opsi tidak boleh negatif.", isError = true)
+            return
+        }
+        viewModelScope.launch {
+            val before = _uiState.value.products
+            try {
+                val savedProduct = if (_uiState.value.backendStatus == BackendIntegrationStatus.ACTIVE_VERIFIED) {
+                    repository.saveProduct(product)
+                } else {
+                    product.copy(id = product.id.ifBlank { "prod-${System.currentTimeMillis()}" })
+                }
+                _uiState.update { state ->
+                    state.copy(products = (state.products.filterNot { it.id == product.id || it.id.startsWith("pending-") && product.id.isBlank() } + savedProduct).distinctBy { it.id })
+                }
+                var optionSaved = optionName.isBlank()
+                if (optionName.isNotBlank()) {
+                    try {
+                        val option = ProductCustomizationOption(
+                            productId = savedProduct.id,
+                            groupKey = optionGroup,
+                            name = optionName.trim(),
+                            priceDelta = optionPrice,
+                            isActive = true,
+                            sortOrder = _uiState.value.customizationOptions.count { it.productId == savedProduct.id && it.groupKey == optionGroup }
+                        )
+                        if (_uiState.value.backendStatus == BackendIntegrationStatus.ACTIVE_VERIFIED) {
+                            repository.saveCustomizationOption(option)
+                            syncProductOptions()
+                        } else {
+                            _uiState.update { state -> state.copy(customizationOptions = state.customizationOptions + option.copy(id = "custom-${System.currentTimeMillis()}")) }
+                        }
+                        optionSaved = true
+                    } catch (error: Throwable) {
+                        showNotice("Produk tersimpan, tetapi opsi gagal disimpan: ${error.message ?: "periksa koneksi dan izin database"}.", isError = true)
+                    }
+                }
+                if (optionSaved) {
+                    showNotice(if (optionName.isBlank()) "Produk \"${savedProduct.name}\" berhasil disimpan." else "Produk dan opsi kustomisasi \"${savedProduct.name}\" berhasil disimpan.")
+                }
+                onSaved(savedProduct, optionSaved)
+            } catch (error: Throwable) {
+                _uiState.update { state -> state.copy(products = before) }
+                showNotice(error.message ?: "Produk gagal disimpan. Perubahan belum berhasil disimpan.", isError = true)
+            }
+        }
+    }
+
     fun deleteCustomizationOption(id: String) {
         viewModelScope.launch {
             if (_uiState.value.backendStatus == BackendIntegrationStatus.ACTIVE_VERIFIED) {

@@ -1162,6 +1162,10 @@ private fun KasirComposeScreen(
     isTabletOrWide: Boolean,
     isLandscapePhone: Boolean
 ) {
+    LaunchedEffect(Unit) {
+        viewModel.refreshProductOptions()
+    }
+
     var showConfirmCheckoutDialog by remember { mutableStateOf(false) }
     var customizingProduct by remember { mutableStateOf<Product?>(null) }
     var customSugar by remember { mutableStateOf("Normal Sugar") }

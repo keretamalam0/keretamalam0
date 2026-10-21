@@ -47,6 +47,7 @@ import androidx.compose.material.icons.outlined.Refresh
 import androidx.compose.material.icons.outlined.Search
 import androidx.compose.material.icons.outlined.WarningAmber
 import androidx.compose.material.icons.outlined.VisibilityOff
+import androidx.compose.material.icons.outlined.Visibility
 import androidx.compose.material.icons.outlined.Delete
 import androidx.compose.material.icons.outlined.DeleteSweep
 import androidx.compose.material.icons.outlined.FileDownload
@@ -87,11 +88,12 @@ fun LoginComposeScreen(
 ) {
     var email by remember { mutableStateOf("") }
     var password by remember { mutableStateOf("") }
+    var passwordVisible by remember { mutableStateOf(false) }
 
     Box(
         modifier = Modifier
             .fillMaxSize()
-            .background(Color(0xFF030405))
+            .background(Color(0xFFF3F5FA))
             .imePadding()
             .padding(horizontal = if (isTabletOrWide) 32.dp else 20.dp, vertical = 20.dp),
         contentAlignment = Alignment.Center
@@ -106,13 +108,13 @@ fun LoginComposeScreen(
         ) {
             Text(
                 text = "KERETA MALAM CAFE",
-                style = MaterialTheme.typography.headlineMedium.copy(color = Color(0xFFF8FAFC)),
+                style = MaterialTheme.typography.headlineMedium.copy(color = Color(0xFF172033)),
                 fontWeight = FontWeight.ExtraBold
             )
             Text(
                 text = "Masuk ke akun staf untuk melanjutkan",
                 style = MaterialTheme.typography.bodyMedium,
-                color = Color(0xFFCBD5E1)
+                color = Color(0xFF667085)
             )
 
             val activeMsg = uiState.errorMessage ?: uiState.successMessage
@@ -140,22 +142,24 @@ fun LoginComposeScreen(
 
             OutlinedCard(
                 modifier = Modifier.fillMaxWidth(),
-                colors = CardDefaults.outlinedCardColors(containerColor = Color(0xE60A0D14)),
-                border = androidx.compose.foundation.BorderStroke(1.dp, Color.White.copy(alpha = 0.22f))
+                colors = CardDefaults.outlinedCardColors(containerColor = Color.White),
+                border = androidx.compose.foundation.BorderStroke(1.dp, Color(0xFFE2E7F0))
             ) {
                 Column(
                     modifier = Modifier.padding(22.dp),
                     verticalArrangement = Arrangement.spacedBy(14.dp)
                 ) {
                     val loginFieldColors = OutlinedTextFieldDefaults.colors(
-                        focusedTextColor = Color.White,
-                        unfocusedTextColor = Color.White,
-                        disabledTextColor = Color(0xFF9CA3AF),
-                        focusedLabelColor = Color.White,
-                        unfocusedLabelColor = Color(0xFFD1D5DB),
-                        focusedBorderColor = Color.White,
-                        unfocusedBorderColor = Color(0xFF9CA3AF),
-                        cursorColor = Color.White
+                        focusedTextColor = Color(0xFF172033),
+                        unfocusedTextColor = Color(0xFF172033),
+                        disabledTextColor = Color(0xFF98A2B3),
+                        focusedLabelColor = Color(0xFF4F46E5),
+                        unfocusedLabelColor = Color(0xFF667085),
+                        focusedBorderColor = Color(0xFF4F46E5),
+                        unfocusedBorderColor = Color(0xFFD0D5DD),
+                        cursorColor = Color(0xFF4F46E5),
+                        focusedContainerColor = Color.White,
+                        unfocusedContainerColor = Color.White
                     )
                     OutlinedTextField(
                         value = email,
@@ -169,9 +173,14 @@ fun LoginComposeScreen(
                         value = password,
                         onValueChange = { password = it },
                         label = { Text("Password") },
-                        visualTransformation = PasswordVisualTransformation(),
+                        visualTransformation = if (passwordVisible) androidx.compose.ui.text.input.VisualTransformation.None else PasswordVisualTransformation(),
                         modifier = Modifier.fillMaxWidth(),
                         singleLine = true,
+                        trailingIcon = {
+                            IconButton(onClick = { passwordVisible = !passwordVisible }) {
+                                Icon(if (passwordVisible) Icons.Outlined.VisibilityOff else Icons.Outlined.Visibility, contentDescription = if (passwordVisible) "Sembunyikan password" else "Lihat password")
+                            }
+                        },
                         colors = loginFieldColors
                     )
                     Button(
@@ -182,16 +191,14 @@ fun LoginComposeScreen(
                         Text(if (uiState.isLoading) "Memproses..." else "Masuk")
                     }
                     Text(
-                        text = "Gunakan email dan password akun staf yang terdaftar.",
+                        text = "Masuk menggunakan email dan password akun staf Anda.",
                         style = MaterialTheme.typography.bodySmall,
-                        color = Color(0xFFCBD5E1)
+                        color = Color(0xFF667085)
                     )
                 }
             }
 
-            OutlinedButton(onClick = { viewModel.setThemeMode(!uiState.darkTheme) }) {
-                Text(if (uiState.darkTheme) "Gunakan Mode Terang" else "Gunakan Mode Gelap")
-            }
+            Text("Kereta Malam Cafe", style = MaterialTheme.typography.labelSmall, color = Color(0xFF98A2B3))
         }
     }
 }

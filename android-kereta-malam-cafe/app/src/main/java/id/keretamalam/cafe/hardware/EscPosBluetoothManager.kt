@@ -120,6 +120,17 @@ class EscPosBluetoothManager(private val context: Context) {
         return SavedBluetoothPrinter(role = role, name = name, address = address, autoPrint = auto)
     }
 
+    private fun formatWibTimestamp(raw: String?): String {
+        if (raw.isNullOrBlank()) return "—"
+        val zone = java.time.ZoneId.of("Asia/Jakarta")
+        val formatter = java.time.format.DateTimeFormatter.ofPattern("dd/MM/yyyy HH:mm", Locale("id", "ID"))
+        val instant = runCatching { java.time.Instant.parse(raw) }.getOrNull()
+            ?: runCatching { java.time.OffsetDateTime.parse(raw).toInstant() }.getOrNull()
+        if (instant != null) return formatter.withZone(zone).format(instant)
+        val local = runCatching { java.time.LocalDateTime.parse(raw.replace(' ', 'T')) }.getOrNull()
+        return local?.format(formatter) ?: raw
+    }
+
     suspend fun testPrint(role: PrinterRole): Result<Unit> = withContext(Dispatchers.IO) {
         val printer = getSavedPrinter(role)
             ?: return@withContext Result.failure(IllegalStateException("${role.labelId} belum dipilih."))
@@ -156,7 +167,7 @@ class EscPosBluetoothManager(private val context: Context) {
                 appendLine("STRUK PEMBAYARAN")
                 appendLine("--------------------------------")
                 appendLine("Order #${order.orderNo}")
-                appendLine("Waktu: ${order.createdAt}")
+                appendLine("Waktu: ${formatWibTimestamp(order.createdAt)} WIB")
                 order.restaurantTable?.name?.let { appendLine("Meja : $it") }
                 order.customerName?.let { appendLine("Plgn : $it") }
                 appendLine("--------------------------------")

@@ -1813,17 +1813,10 @@ private fun KasirComposeScreen(
                                 activeOptions.firstOrNull { it.groupKey == "sugar" && it.name == customSugar },
                                 activeOptions.firstOrNull { it.groupKey == "ice" && it.name == customIce }
                             ) + activeOptions.filter { it.groupKey !in setOf("size", "sugar", "ice") && it.id in customAddonIds }
-                            val addons = buildList {
-                                uiState.productAddons.filter { it.productId == targetCustom.id && it.isActive && it.id in customAddonIds }.forEach { add(it) }
-                                if (activeOptions.none { it.groupKey == "size" } && customCup == "Large") {
-                                    add(ProductAddon(id = "ad-lg", productId = targetCustom.id, name = "Large Cup", price = 5000.0))
-                                }
-                                if (uiState.productAddons.none { it.productId == targetCustom.id && it.isActive } && customExtraShot) {
-                                    add(ProductAddon(id = "ad-es", productId = targetCustom.id, name = "Extra Espresso Shot", price = 6000.0))
-                                }
-                                if (uiState.productAddons.none { it.productId == targetCustom.id && it.isActive } && customOatMilk) {
-                                    add(ProductAddon(id = "ad-om", productId = targetCustom.id, name = "Oat Milk", price = 8000.0))
-                                }
+                            // Only use options and prices configured for this exact product.
+                            // Never inject hard-coded cup/add-on prices into a real cashier transaction.
+                            val addons = uiState.productAddons.filter {
+                                it.productId == targetCustom.id && it.isActive && it.id in customAddonIds
                             }
                             viewModel.addToCart(
                                 product = targetCustom,

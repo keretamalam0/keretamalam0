@@ -2591,14 +2591,31 @@ private fun AuditShiftComposeScreen(viewModel: PosViewModel, uiState: PosUiState
 // ============================================================================
 @Composable
 private fun ActivityLogComposeScreen(uiState: PosUiState) {
+    val context = LocalContext.current
     var search by remember { mutableStateOf("") }
-    val filteredLogs = remember(uiState.auditLogs, search) {
-        uiState.auditLogs.filter {
-            search.isBlank() ||
-                it.action.contains(search, true) ||
-                it.actorName.contains(search, true) ||
-                it.entityType.contains(search, true)
+    var fromDate by remember { mutableStateOf("") }
+    var toDate by remember { mutableStateOf("") }
+    val filteredLogs = remember(uiState.auditLogs, search, fromDate, toDate) {
+        uiState.auditLogs.filter { log ->
+            val date = log.createdAt.take(10)
+            val dateMatch = (fromDate.isBlank() || date >= fromDate) && (toDate.isBlank() || date <= toDate)
+            dateMatch && (search.isBlank() ||
+                log.action.contains(search, true) ||
+                log.actorName.contains(search, true) ||
+                log.entityType.contains(search, true) ||
+                log.detailsText.contains(search, true))
         }
+    }
+    val exportLogsLauncher = rememberLauncherForActivityResult(ActivityResultContracts.CreateDocument("text/csv")) { uri ->
+        if (uri != null) runCatching {
+            context.contentResolver.openOutputStream(uri)?.bufferedWriter()?.use { writer ->
+                fun csv(value: String) = "\"" + value.replace("\"", "\"\"") + "\""
+                writer.appendLine("id,waktu,aksi,aktor,tipe_entitas,id_entitas,detail")
+                filteredLogs.forEach { log ->
+                    writer.appendLine(listOf(log.id,log.createdAt,log.action,log.actorName,log.entityType,log.entityId.orEmpty(),log.detailsText).joinToString(",") { csv(it) })
+                }
+            }
+        }.onFailure { android.widget.Toast.makeText(context, "Export log gagal: ${it.message ?: "kesalahan file"}", android.widget.Toast.LENGTH_LONG).show() }
     }
 
     Column(modifier = Modifier.fillMaxSize(), verticalArrangement = Arrangement.spacedBy(10.dp)) {
@@ -2609,10 +2626,16 @@ private fun ActivityLogComposeScreen(uiState: PosUiState) {
             modifier = Modifier.fillMaxWidth(),
             singleLine = true
         )
-        LazyColumn(
-            modifier = Modifier.weight(1f),
-            verticalArrangement = Arrangement.spacedBy(8.dp)
-        ) {
+        Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp), verticalAlignment = Alignment.CenterVertically) {
+            OutlinedTextField(value = fromDate, onValueChange = { fromDate = it.take(10) }, label = { Text("Dari") }, placeholder = { Text("YYYY-MM-DD") }, modifier = Modifier.weight(1f), singleLine = true)
+            OutlinedTextField(value = toDate, onValueChange = { toDate = it.take(10) }, label = { Text("Sampai") }, placeholder = { Text("YYYY-MM-DD") }, modifier = Modifier.weight(1f), singleLine = true)
+        }
+        Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
+            Text("Hasil: ${filteredLogs.size} log", modifier = Modifier.weight(1f), style = MaterialTheme.typography.bodySmall)
+            TextButton(onClick = { fromDate = ""; toDate = ""; search = "" }) { Text("Reset") }
+            OutlinedButton(onClick = { exportLogsLauncher.launch("log-aktivitas-${java.time.LocalDate.now()}.csv") }, enabled = filteredLogs.isNotEmpty()) { Text("Export CSV") }
+        }
+        LazyColumn(modifier = Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(8.dp)) {
             items(filteredLogs, key = { it.id }) { log ->
                 OutlinedCard(modifier = Modifier.fillMaxWidth()) {
                     Column(modifier = Modifier.padding(14.dp), verticalArrangement = Arrangement.spacedBy(4.dp)) {
@@ -2621,9 +2644,7 @@ private fun ActivityLogComposeScreen(uiState: PosUiState) {
                             Text(log.createdAt, style = MaterialTheme.typography.labelMedium)
                         }
                         Text("Aktor: ${log.actorName} · Entitas: ${log.entityType} (${log.entityId ?: "-"})")
-                        if (log.detailsText.isNotBlank()) {
-                            Text(log.detailsText, fontFamily = FontFamily.Monospace, style = MaterialTheme.typography.labelMedium)
-                        }
+                        if (log.detailsText.isNotBlank()) Text(log.detailsText, fontFamily = FontFamily.Monospace, style = MaterialTheme.typography.labelMedium)
                     }
                 }
             }

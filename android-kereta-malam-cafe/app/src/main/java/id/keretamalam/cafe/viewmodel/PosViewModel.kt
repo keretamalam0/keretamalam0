@@ -337,6 +337,17 @@ class PosViewModel(application: Application) : AndroidViewModel(application) {
         return SimpleDateFormat("yyyy-MM-dd HH:mm", Locale("id", "ID")).format(Date())
     }
 
+    private fun formatTimestampWib(raw: String?): String {
+        if (raw.isNullOrBlank()) return "—"
+        val zone = java.time.ZoneId.of("Asia/Jakarta")
+        val formatter = java.time.format.DateTimeFormatter.ofPattern("dd/MM/yyyy HH:mm", Locale("id", "ID"))
+        val instant = runCatching { java.time.Instant.parse(raw) }.getOrNull()
+            ?: runCatching { java.time.OffsetDateTime.parse(raw).toInstant() }.getOrNull()
+        if (instant != null) return formatter.withZone(zone).format(instant)
+        val local = runCatching { java.time.LocalDateTime.parse(raw.replace(' ', 'T')) }.getOrNull()
+        return local?.format(formatter) ?: raw
+    }
+
     fun formatOrderForThermalPreview(order: OrderWithItems, isKitchen: Boolean): String {
         val divider = "--------------------------------"
         if (isKitchen) {
@@ -346,7 +357,7 @@ class PosViewModel(application: Application) : AndroidViewModel(application) {
                 appendLine(divider)
                 appendLine("ORDER #${order.orderNo} (${order.source.uppercase()})")
                 appendLine("MEJA  : ${order.restaurantTable?.name ?: "Takeaway"}")
-                appendLine("WAKTU : ${order.createdAt}")
+                appendLine("WAKTU : ${formatTimestampWib(order.createdAt)} WIB")
                 appendLine(divider)
                 order.orderItems.forEach { item ->
                     appendLine("${item.quantity}x ${item.productName}")
@@ -363,7 +374,7 @@ class PosViewModel(application: Application) : AndroidViewModel(application) {
             appendLine("STRUK PEMBAYARAN RESMI")
             appendLine(divider)
             appendLine("Order #${order.orderNo} · ${order.source.uppercase()}")
-            appendLine("Waktu     : ${order.createdAt}")
+            appendLine("Waktu     : ${formatTimestampWib(order.createdAt)} WIB")
             appendLine("Meja      : ${order.restaurantTable?.name ?: "Takeaway"}")
             if (!order.customerName.isNullOrBlank()) appendLine("Pelanggan : ${order.customerName}")
             appendLine(divider)
@@ -853,23 +864,18 @@ class PosViewModel(application: Application) : AndroidViewModel(application) {
                         isLoading = false,
                         isLoggedIn = true,
                         staffProfile = profile,
-                        successMessage = "Login Supabase berhasil sebagai ${profile.fullName}"
+                        successMessage = "Selamat datang, ${profile.fullName}"
                     )
                 }
                 syncAllDataFromBackend()
             }.onFailure { error ->
-                val safeDiagnostic = error.message
-                    ?.takeIf {
-                        it.startsWith("Permintaan Supabase gagal (HTTP ") ||
-                            it.startsWith("Akun berhasil login, tetapi belum terdaftar") ||
-                            it.startsWith("Akun staff ini sedang nonaktif")
-                    }
+                val message = when {
+                    error.message.orEmpty().contains("nonaktif", ignoreCase = true) ->
+                        "Akun sedang nonaktif. Hubungi pemilik usaha."
+                    else -> "Email atau password salah. Periksa kembali lalu coba lagi."
+                }
                 _uiState.update {
-                    it.copy(
-                        isLoading = false,
-                        errorMessage = safeDiagnostic
-                            ?: "Login gagal. Periksa email/password dan koneksi internet, lalu coba lagi."
-                    )
+                    it.copy(isLoading = false, errorMessage = message)
                 }
             }
         }
@@ -2300,12 +2306,22 @@ class PosViewModel(application: Application) : AndroidViewModel(application) {
 
     fun bindPrinterDevice(role: PrinterRole, name: String, address: String, autoPrint: Boolean) {
         printerManager.savePrinter(role, name, address, autoPrint)
-        showNotice("${role.labelId} disimpan di perangkat. Menyinkronkan ke Supabase…")
+        showNotice("${role.labelId} berhasil disimpan.")
         viewModelScope.launch {
             runCatching { repository.savePrinterSetting(role.key, name, address) }
-                .onSuccess { showNotice("${role.labelId} berhasil disimpan ke Supabase.") }
-                .onFailure { error ->
-                    showNotice("Printer tersimpan di perangkat, tetapi gagal disinkronkan ke Supabase: ${error.message ?: "error"}", isError = true)
+                .onFailure {
+                    showNotice("Printer tersimpan di perangkat, tetapi sinkronisasi gagal. Periksa koneksi lalu coba lagi.", isError = true)
+                }
+        }
+    }
+
+    fun removePrinterDevice(role: PrinterRole) {
+        printerManager.clearPrinter(role)
+        showNotice("${role.labelId} berhasil dihapus dari aplikasi.")
+        viewModelScope.launch {
+            runCatching { repository.deletePrinterSetting(role.key) }
+                .onFailure {
+                    showNotice("Printer dihapus dari perangkat, tetapi sinkronisasi belum berhasil.", isError = true)
                 }
         }
     }

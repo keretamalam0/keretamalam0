@@ -1212,7 +1212,13 @@ private fun KasirComposeScreen(
                 value = uiState.searchQuery,
                 onValueChange = { viewModel.setKasirFilter(uiState.selectedCategoryId, it) },
                 label = { Text("Cari menu kopi, makanan, snack...", style = MaterialTheme.typography.labelSmall) },
-                modifier = Modifier.fillMaxWidth().height(if (isLandscapePhone) 44.dp else 48.dp),
+                modifier = Modifier.fillMaxWidth().heightIn(min = 56.dp),
+                textStyle = androidx.compose.ui.text.TextStyle(color = MaterialTheme.colorScheme.onSurface),
+                colors = OutlinedTextFieldDefaults.colors(
+                    focusedTextColor = MaterialTheme.colorScheme.onSurface,
+                    unfocusedTextColor = MaterialTheme.colorScheme.onSurface,
+                    cursorColor = MaterialTheme.colorScheme.primary
+                ),
                 singleLine = true
             )
             Row(
@@ -1411,6 +1417,12 @@ private fun KasirComposeScreen(
                         value = uiState.customerName,
                         onValueChange = { viewModel.setKasirOrderMeta(customer = it) },
                         label = { Text("Nama Pelanggan (Walk-in)") },
+                        textStyle = androidx.compose.ui.text.TextStyle(color = MaterialTheme.colorScheme.onSurface),
+                        colors = OutlinedTextFieldDefaults.colors(
+                            focusedTextColor = MaterialTheme.colorScheme.onSurface,
+                            unfocusedTextColor = MaterialTheme.colorScheme.onSurface,
+                            cursorColor = MaterialTheme.colorScheme.primary
+                        ),
                         modifier = Modifier.fillMaxWidth(),
                         singleLine = true
                     )
@@ -1419,6 +1431,12 @@ private fun KasirComposeScreen(
                         value = uiState.orderNotes,
                         onValueChange = { viewModel.setKasirOrderMeta(notes = it) },
                         label = { Text("Catatan Pesanan / Dapur") },
+                        textStyle = androidx.compose.ui.text.TextStyle(color = MaterialTheme.colorScheme.onSurface),
+                        colors = OutlinedTextFieldDefaults.colors(
+                            focusedTextColor = MaterialTheme.colorScheme.onSurface,
+                            unfocusedTextColor = MaterialTheme.colorScheme.onSurface,
+                            cursorColor = MaterialTheme.colorScheme.primary
+                        ),
                         modifier = Modifier.fillMaxWidth(),
                         singleLine = true
                     )
@@ -1590,6 +1608,12 @@ private fun KasirComposeScreen(
                             value = uiState.cashReceivedInput,
                             onValueChange = { viewModel.setKasirOrderMeta(cashInput = it) },
                             label = { Text("Uang Tunai Diterima (Rp)") },
+                        textStyle = androidx.compose.ui.text.TextStyle(color = MaterialTheme.colorScheme.onSurface),
+                        colors = OutlinedTextFieldDefaults.colors(
+                            focusedTextColor = MaterialTheme.colorScheme.onSurface,
+                            unfocusedTextColor = MaterialTheme.colorScheme.onSurface,
+                            cursorColor = MaterialTheme.colorScheme.primary
+                        ),
                             modifier = Modifier.fillMaxWidth(),
                             singleLine = true
                         )

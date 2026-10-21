@@ -246,12 +246,6 @@ export default function App() {
   }, [paymentMethods, selectedPaymentMethodId]);
 
   // Item Customization Modal State
-  const [customizingProduct, setCustomizingProduct] = useState<Product | null>(null);
-  const [customSugar, setCustomSugar] = useState('Normal Sugar');
-  const [customIce, setCustomIce] = useState('Normal Ice');
-  const [customCup, setCustomCup] = useState('Regular');
-  const [customNote, setCustomNote] = useState('');
-  const [customAddons, setCustomAddons] = useState<Array<{ name: string; price: number }>>([]);
 
   // Pesanan & History Filters
   const [orderStatusFilter, setOrderStatusFilter] = useState<'ALL' | OrderStatus>('ALL');
@@ -693,42 +687,6 @@ export default function App() {
     });
   };
 
-  const handleConfirmCustomProduct = () => {
-    if (!customizingProduct) return;
-    const totalProductInCart = cart
-      .filter((item) => item.product.id === customizingProduct.id)
-      .reduce((s, i) => s + i.quantity, 0);
-    if (totalProductInCart + 1 > customizingProduct.stock) {
-      showNotice('error', `Stok ${customizingProduct.name} hanya tersisa ${customizingProduct.stock}.`);
-      return;
-    }
-    const combinedNote = [
-      customSugar,
-      customIce,
-      customCup !== 'Regular' ? `Cup ${customCup}` : '',
-      customAddons.length ? `Topping: ${customAddons.map((a) => a.name).join(', ')}` : '',
-      customNote.trim(),
-    ]
-      .filter(Boolean)
-      .join(' · ');
-
-    setCart((prev) => [
-      ...prev,
-      {
-        cartItemId: `${customizingProduct.id}-${Date.now()}`,
-        product: customizingProduct,
-        quantity: 1,
-        note: combinedNote,
-        sugarLevel: customSugar,
-        iceLevel: customIce,
-        cupSize: customCup,
-        addons: customAddons,
-      },
-    ]);
-    setCustomizingProduct(null);
-    setCustomNote('');
-    setCustomAddons([]);
-  };
 
   const handleUpdateCartQty = (cartItemId: string, delta: number) => {
     setCart((prev) => {
@@ -1487,21 +1445,6 @@ export default function App() {
                           className="min-h-[38px] flex-1 rounded-lg bg-zinc-900 px-3 py-1.5 text-xs font-semibold text-white hover:bg-zinc-800 disabled:opacity-40 dark:bg-zinc-100 dark:text-zinc-900 dark:hover:bg-zinc-200 whitespace-nowrap shrink-0"
                         >
                           + Tambah
-                        </button>
-                        <button
-                          type="button"
-                          disabled={isOut}
-                          onClick={() => {
-                            setCustomizingProduct(product);
-                            setCustomSugar('Normal Sugar');
-                            setCustomIce('Normal Ice');
-                            setCustomCup('Regular');
-                            setCustomNote('');
-                            setCustomAddons([]);
-                          }}
-                          className="min-h-[38px] rounded-lg border border-zinc-300 px-2.5 py-1.5 text-xs font-medium hover:bg-zinc-100 disabled:opacity-40 dark:border-zinc-700 dark:hover:bg-zinc-800 whitespace-nowrap shrink-0"
-                        >
-                          Opsi
                         </button>
                       </div>
                     </div>
@@ -4026,92 +3969,6 @@ export default function App() {
                 className="min-h-[40px] rounded-xl bg-zinc-900 px-5 py-2 text-xs font-bold text-white hover:bg-zinc-800 disabled:opacity-40 dark:bg-zinc-100 dark:text-zinc-900"
               >
                 {isCheckoutProcessing ? 'Menyimpan...' : 'Konfirmasi & Simpan Transaksi'}
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
-
-      {/* ==================================================================== */}
-      {/* CENTERED DIALOG 2: KUSTOMISASI ITEM MENU                             */}
-      {/* ==================================================================== */}
-      {customizingProduct && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-4 backdrop-blur-xs">
-          <div className="w-full max-w-md rounded-2xl border border-zinc-200 bg-white p-6 shadow-2xl dark:border-zinc-800 dark:bg-zinc-900">
-            <div className="flex items-center justify-between">
-              <h3 className="text-base font-bold">Opsi Kustomisasi · {customizingProduct.name}</h3>
-              <button type="button" onClick={() => setCustomizingProduct(null)}>
-                <X className="size-4" />
-              </button>
-            </div>
-
-            <div className="mt-4 space-y-3 text-xs">
-              <div>
-                <label className="font-semibold">Takaran Gula (Sugar Level)</label>
-                <div className="mt-1.5 grid grid-cols-3 gap-1.5">
-                  {['Normal Sugar', 'Less Sugar', 'No Sugar'].map((s) => (
-                    <button
-                      key={s}
-                      type="button"
-                      onClick={() => setCustomSugar(s)}
-                      className={`rounded-lg py-2 font-medium ${
-                        customSugar === s
-                          ? 'bg-zinc-900 text-white dark:bg-zinc-100 dark:text-zinc-900'
-                          : 'border border-zinc-200 dark:border-zinc-800'
-                      }`}
-                    >
-                      {s}
-                    </button>
-                  ))}
-                </div>
-              </div>
-
-              <div>
-                <label className="font-semibold">Takaran Es (Ice Level)</label>
-                <div className="mt-1.5 grid grid-cols-3 gap-1.5">
-                  {['Normal Ice', 'Less Ice', 'Hot / Warm'].map((ic) => (
-                    <button
-                      key={ic}
-                      type="button"
-                      onClick={() => setCustomIce(ic)}
-                      className={`rounded-lg py-2 font-medium ${
-                        customIce === ic
-                          ? 'bg-zinc-900 text-white dark:bg-zinc-100 dark:text-zinc-900'
-                          : 'border border-zinc-200 dark:border-zinc-800'
-                      }`}
-                    >
-                      {ic}
-                    </button>
-                  ))}
-                </div>
-              </div>
-
-              <div>
-                <label className="font-semibold">Catatan Khusus Barista / Dapur</label>
-                <input
-                  type="text"
-                  value={customNote}
-                  onChange={(e) => setCustomNote(e.target.value)}
-                  placeholder="Contoh: Extra shot / pisah es..."
-                  className="mt-1 w-full rounded-lg border border-zinc-200 bg-zinc-50 px-3 py-2 dark:border-zinc-800 dark:bg-zinc-950"
-                />
-              </div>
-            </div>
-
-            <div className="mt-5 flex justify-end gap-2">
-              <button
-                type="button"
-                onClick={() => setCustomizingProduct(null)}
-                className="rounded-xl border border-zinc-300 px-4 py-2 text-xs font-semibold dark:border-zinc-700"
-              >
-                Batal
-              </button>
-              <button
-                type="button"
-                onClick={handleConfirmCustomProduct}
-                className="rounded-xl bg-zinc-900 px-4 py-2 text-xs font-bold text-white dark:bg-zinc-100 dark:text-zinc-900"
-              >
-                Masukkan ke Keranjang
               </button>
             </div>
           </div>

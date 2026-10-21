@@ -1332,7 +1332,6 @@ private fun KasirComposeScreen(
                             ) {
                                 OutlinedButton(
                                     onClick = {
-                                        customizingProduct = product
                                         customSugar = "Normal Sugar"
                                         customIce = "Normal Ice"
                                         customCup = "Regular"
@@ -1340,6 +1339,8 @@ private fun KasirComposeScreen(
                                         customOatMilk = false
                                         customAddonIds = emptySet()
                                         customNote = ""
+                                        // Wait for the latest saved options before building the dialog.
+                                        viewModel.refreshProductOptions { customizingProduct = product }
                                     },
                                     enabled = !product.isOutOfStock,
                                     contentPadding = PaddingValues(horizontal = 8.dp, vertical = 0.dp),

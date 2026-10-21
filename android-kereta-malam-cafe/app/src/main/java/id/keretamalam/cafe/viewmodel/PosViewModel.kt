@@ -1850,7 +1850,7 @@ class PosViewModel(application: Application) : AndroidViewModel(application) {
         }
     }
 
-    fun saveCustomizationOption(option: ProductCustomizationOption) {
+    fun saveCustomizationOption(option: ProductCustomizationOption, onSaved: (() -> Unit)? = null) {
         if (option.name.isBlank() || option.productId.isBlank() || option.priceDelta < 0 || option.groupKey !in listOf("size", "portion", "sugar", "ice", "spice", "rice", "cooking", "side", "extra", "sauce", "sambal", "topping")) {
             showNotice("Lengkapi produk, nama opsi, grup, dan harga yang valid.", isError = true)
             return
@@ -1858,11 +1858,16 @@ class PosViewModel(application: Application) : AndroidViewModel(application) {
         viewModelScope.launch {
             if (_uiState.value.backendStatus == BackendIntegrationStatus.ACTIVE_VERIFIED) {
                 runCatching { repository.saveCustomizationOption(option) }
-                    .onSuccess { syncProductOptions(); showNotice("Opsi kustomisasi tersimpan.") }
+                    .onSuccess {
+                        syncProductOptions()
+                        showNotice("Opsi kustomisasi tersimpan.")
+                        onSaved?.invoke()
+                    }
                     .onFailure { showNotice(it.message ?: "Opsi kustomisasi gagal disimpan.", isError = true) }
             } else {
                 val saved = option.copy(id = option.id.ifBlank { "custom-${System.currentTimeMillis()}" })
                 _uiState.update { state -> state.copy(customizationOptions = if (option.id.isBlank()) state.customizationOptions + saved else state.customizationOptions.map { if (it.id == option.id) saved else it }, successMessage = "Opsi disimpan (mode lokal).") }
+                onSaved?.invoke()
             }
         }
     }

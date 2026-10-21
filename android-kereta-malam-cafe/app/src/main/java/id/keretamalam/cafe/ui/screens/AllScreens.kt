@@ -1343,7 +1343,6 @@ private fun KasirComposeScreen(
                                         customExtraShot = false
                                         customOatMilk = false
                                         customAddonIds = emptySet()
-                                        customNote = ""
                                         // Wait for the latest saved options before building the dialog.
                                         viewModel.refreshProductOptions { customizingProduct = product }
                                     },
@@ -1807,15 +1806,6 @@ private fun KasirComposeScreen(
                     if (sugarOptions.isEmpty() && iceOptions.isEmpty() && sizeOptions.isEmpty() && extraGroups.isEmpty() && productToppings.isEmpty()) {
                         Text("Tidak ada opsi tambahan untuk produk ini.", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
                     }
-                    OutlinedTextField(
-                        value = customNote,
-                        onValueChange = { customNote = it },
-                        label = { Text("Catatan item") },
-                        modifier = Modifier.fillMaxWidth(),
-                        minLines = 1,
-                        maxLines = 2,
-                        textStyle = MaterialTheme.typography.bodySmall
-                    )
                     Row(
                         modifier = Modifier.fillMaxWidth(),
                         horizontalArrangement = Arrangement.End,

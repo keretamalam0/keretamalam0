@@ -1765,10 +1765,10 @@ private fun KasirComposeScreen(
                         }
                     }
                     extraGroups.forEach { (groupKey, options) ->
-                        Text(when (groupKey) { "spice" -> "Tingkat kepedasan"; "rice" -> "Pilihan nasi"; "cooking" -> "Tingkat kematangan"; "side" -> "Lauk / tambahan"; "sauce" -> "Saus / sambal"; "topping" -> "Topping makanan"; else -> groupKey.replaceFirstChar { it.uppercase() } }, style = MaterialTheme.typography.labelMedium)
+                        Text(when (groupKey) { "portion" -> "Porsi"; "spice" -> "Tingkat kepedasan"; "rice" -> "Pilihan nasi"; "cooking" -> "Tingkat kematangan"; "side" -> "Lauk"; "extra" -> "Tambahan"; "sauce" -> "Saus"; "sambal" -> "Sambal"; "topping" -> "Topping makanan"; else -> groupKey.replaceFirstChar { it.uppercase() } }, style = MaterialTheme.typography.labelMedium)
                         Row(Modifier.fillMaxWidth().horizontalScroll(rememberScrollState()), horizontalArrangement = Arrangement.spacedBy(5.dp)) {
                             options.forEach { option ->
-                                FilterChip(selected = option.name in customAddonIds, onClick = { customAddonIds = if (option.name in customAddonIds) customAddonIds - option.name else customAddonIds + option.name }, label = { Text(option.name + if (option.priceDelta > 0) " +" + RupiahFormatter.format(option.priceDelta) else "") })
+                                FilterChip(selected = option.id in customAddonIds, onClick = { customAddonIds = if (option.id in customAddonIds) customAddonIds - option.id else customAddonIds + option.id }, label = { Text(option.name + if (option.priceDelta > 0) " +" + RupiahFormatter.format(option.priceDelta) else "") })
                             }
                         }
                     }
@@ -1811,7 +1811,7 @@ private fun KasirComposeScreen(
                                 activeOptions.firstOrNull { it.groupKey == "size" && it.name == customCup },
                                 activeOptions.firstOrNull { it.groupKey == "sugar" && it.name == customSugar },
                                 activeOptions.firstOrNull { it.groupKey == "ice" && it.name == customIce }
-                            ) + activeOptions.filter { it.groupKey !in setOf("size", "sugar", "ice") && it.name in customAddonIds }
+                            ) + activeOptions.filter { it.groupKey !in setOf("size", "sugar", "ice") && it.id in customAddonIds }
                             val addons = buildList {
                                 uiState.productAddons.filter { it.productId == targetCustom.id && it.isActive && it.id in customAddonIds }.forEach { add(it) }
                                 if (activeOptions.none { it.groupKey == "size" } && customCup == "Large") {

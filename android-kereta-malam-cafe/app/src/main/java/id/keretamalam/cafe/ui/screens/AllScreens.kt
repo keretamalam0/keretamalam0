@@ -2609,11 +2609,22 @@ private fun ActivityLogComposeScreen(uiState: PosUiState) {
     var search by remember { mutableStateOf("") }
     var fromDate by remember { mutableStateOf("") }
     var toDate by remember { mutableStateOf("") }
-    val filteredLogs = remember(uiState.auditLogs, search, fromDate, toDate) {
+    var category by remember { mutableStateOf("SEMUA") }
+    val filteredLogs = remember(uiState.auditLogs, search, fromDate, toDate, category) {
         uiState.auditLogs.filter { log ->
             val date = log.createdAt.take(10)
             val dateMatch = (fromDate.isBlank() || date >= fromDate) && (toDate.isBlank() || date <= toDate)
-            dateMatch && (search.isBlank() ||
+            val haystack = "${log.action} ${log.entityType} ${log.detailsText}".lowercase()
+            val categoryMatch = when (category) {
+                "PEGAWAI" -> listOf("staff", "pegawai", "permission", "hak akses", "auth").any { it in haystack }
+                "PRODUK" -> listOf("product", "produk", "category", "kategori", "addon", "topping").any { it in haystack }
+                "STOK" -> listOf("inventory", "stock", "stok", "adjustment").any { it in haystack }
+                "SHIFT" -> listOf("shift", "audit").any { it in haystack }
+                "PEMBAYARAN" -> listOf("payment", "pembayaran", "refund").any { it in haystack }
+                "PENGATURAN" -> listOf("setting", "pengaturan", "printer", "outlet").any { it in haystack }
+                else -> true
+            }
+            dateMatch && categoryMatch && (search.isBlank() ||
                 log.action.contains(search, true) ||
                 log.actorName.contains(search, true) ||
                 log.entityType.contains(search, true) ||
@@ -2646,8 +2657,13 @@ private fun ActivityLogComposeScreen(uiState: PosUiState) {
         }
         Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
             Text("Hasil: ${filteredLogs.size} log", modifier = Modifier.weight(1f), style = MaterialTheme.typography.bodySmall)
-            TextButton(onClick = { fromDate = ""; toDate = ""; search = "" }) { Text("Reset") }
+            TextButton(onClick = { fromDate = ""; toDate = ""; search = ""; category = "SEMUA" }) { Text("Reset") }
             OutlinedButton(onClick = { exportLogsLauncher.launch("log-aktivitas-${java.time.LocalDate.now()}.csv") }, enabled = filteredLogs.isNotEmpty()) { Text("Export CSV") }
+        }
+        Row(Modifier.fillMaxWidth().horizontalScroll(rememberScrollState()), horizontalArrangement = Arrangement.spacedBy(6.dp)) {
+            listOf("SEMUA" to "Semua", "PEGAWAI" to "Pegawai & akses", "PRODUK" to "Produk", "STOK" to "Stok", "SHIFT" to "Shift & audit", "PEMBAYARAN" to "Pembayaran", "PENGATURAN" to "Pengaturan").forEach { (key, label) ->
+                FilterChip(selected = category == key, onClick = { category = key }, label = { Text(label, style = MaterialTheme.typography.labelSmall) })
+            }
         }
         LazyColumn(modifier = Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(8.dp)) {
             items(filteredLogs, key = { it.id }) { log ->

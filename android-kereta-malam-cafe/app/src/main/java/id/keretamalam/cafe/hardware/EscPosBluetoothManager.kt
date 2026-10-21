@@ -189,11 +189,19 @@ class EscPosBluetoothManager(private val context: Context) {
                 order.customerName?.let { appendLine("Plgn : $it") }
                 appendLine("--------------------------------")
                 order.orderItems.forEach { item ->
+                    val options = item.note.orEmpty().takeIf { it.startsWith("KMOPT|") }
+                        ?.removePrefix("KMOPT|")?.split(";")?.mapNotNull { raw ->
+                            val parts = raw.split("|", limit = 3)
+                            if (parts.size != 3) null else Triple(parts[0], parts[1], parts[2].toDoubleOrNull() ?: 0.0)
+                        }.orEmpty()
+                    val surcharge = options.sumOf { it.third }
                     appendLine(item.productName)
-                    appendLine("  ${item.quantity} x ${RupiahFormatter.format(item.unitPrice)} = ${RupiahFormatter.format(item.lineTotal)}")
-                    if (!item.note.isNullOrBlank()) {
-                        appendLine("  Catatan: ${item.note}")
+                    appendLine("  ${item.quantity} x ${RupiahFormatter.format((item.unitPrice - surcharge).coerceAtLeast(0.0))}")
+                    options.filter { it.third > 0 }.forEach { (group, name, delta) ->
+                        val label = when (group) { "size" -> "Cup"; "extra" -> "Tambahan"; "sugar" -> "Gula"; "ice" -> "Es/suhu"; "portion" -> "Porsi"; "spice" -> "Pedas"; "rice" -> "Nasi"; "cooking" -> "Kematangan"; "side" -> "Lauk"; "sauce" -> "Saus"; "sambal" -> "Sambal"; "topping" -> "Topping"; else -> group }
+                        appendLine("  $label $name +${RupiahFormatter.format(delta)}")
                     }
+                    appendLine("  Total: ${RupiahFormatter.format(item.lineTotal)}")
                 }
                 appendLine("--------------------------------")
                 appendLine("Subtotal : ${RupiahFormatter.format(order.subtotal)}")

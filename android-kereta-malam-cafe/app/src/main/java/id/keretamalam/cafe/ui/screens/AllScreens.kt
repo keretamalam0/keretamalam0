@@ -1162,18 +1162,7 @@ private fun KasirComposeScreen(
     isTabletOrWide: Boolean,
     isLandscapePhone: Boolean
 ) {
-    LaunchedEffect(Unit) {
-        viewModel.refreshProductOptions()
-    }
-
     var showConfirmCheckoutDialog by remember { mutableStateOf(false) }
-    var customizingProduct by remember { mutableStateOf<Product?>(null) }
-    var customSugar by remember { mutableStateOf("Normal Sugar") }
-    var customIce by remember { mutableStateOf("Normal Ice") }
-    var customCup by remember { mutableStateOf("Regular") }
-    var customExtraShot by remember { mutableStateOf(false) }
-    var customOatMilk by remember { mutableStateOf(false) }
-    var customAddonIds by remember { mutableStateOf(setOf<String>()) }
     var mobileTab by remember { mutableStateOf(0) } // 0 = Katalog Produk, 1 = Keranjang & Bayar
     var promoDropdownExpanded by remember { mutableStateOf(false) }
     var paymentDropdownExpanded by remember { mutableStateOf(false) }
@@ -1330,35 +1319,12 @@ private fun KasirComposeScreen(
                                     maxLines = 1
                                 )
                             }
-                            Row(
-                                modifier = Modifier.fillMaxWidth(),
-                                horizontalArrangement = Arrangement.spacedBy(6.dp),
-                                verticalAlignment = Alignment.CenterVertically
+                            FilledTonalButton(
+                                onClick = { viewModel.addToCart(product) },
+                                enabled = !product.isOutOfStock,
+                                modifier = Modifier.fillMaxWidth().height(36.dp)
                             ) {
-                                OutlinedButton(
-                                    onClick = {
-                                        customSugar = "Normal Sugar"
-                                        customIce = "Normal Ice"
-                                        customCup = "Regular"
-                                        customExtraShot = false
-                                        customOatMilk = false
-                                        customAddonIds = emptySet()
-                                        // Wait for the latest saved options before building the dialog.
-                                        viewModel.refreshProductOptions { customizingProduct = product }
-                                    },
-                                    enabled = !product.isOutOfStock,
-                                    contentPadding = PaddingValues(horizontal = 8.dp, vertical = 0.dp),
-                                    modifier = Modifier.weight(1f).height(32.dp)
-                                ) {
-                                    Text("Opsi", style = MaterialTheme.typography.labelMedium)
-                                }
-                                FilledIconButton(
-                                    onClick = { viewModel.addToCart(product) },
-                                    enabled = !product.isOutOfStock,
-                                    modifier = Modifier.size(32.dp)
-                                ) {
-                                    Text("+", style = MaterialTheme.typography.titleMedium)
-                                }
+                                Text("+ Tambah", style = MaterialTheme.typography.labelMedium)
                             }
                         }
                     }
@@ -1720,125 +1686,6 @@ private fun KasirComposeScreen(
                 }
             } else {
                 cartContent(Modifier.weight(1f).fillMaxWidth())
-            }
-        }
-    }
-
-    // Dialog kustomisasi ringkas dan bisa digulir saat layar landscape.
-    val targetCustom = customizingProduct
-    if (targetCustom != null) {
-        val screenHeight = androidx.compose.ui.platform.LocalConfiguration.current.screenHeightDp
-        Dialog(
-            onDismissRequest = { customizingProduct = null },
-            properties = DialogProperties(usePlatformDefaultWidth = true)
-        ) {
-            Surface(
-                shape = RoundedCornerShape(14.dp),
-                color = MaterialTheme.colorScheme.surface,
-                modifier = Modifier
-                    .widthIn(max = 400.dp)
-                    .heightIn(max = (screenHeight * 0.84f).dp)
-            ) {
-                Column(
-                    modifier = Modifier
-                        .padding(14.dp)
-                        .verticalScroll(rememberScrollState()),
-                    verticalArrangement = Arrangement.spacedBy(7.dp)
-                ) {
-                    Text(
-                        "Kustomisasi · ${targetCustom.name}",
-                        style = MaterialTheme.typography.titleMedium,
-                        fontWeight = FontWeight.SemiBold
-                    )
-                    val productOptions = uiState.customizationOptions.filter { it.productId == targetCustom.id && it.isActive }
-                    val sugarOptions = productOptions.filter { it.groupKey == "sugar" }
-                    val iceOptions = productOptions.filter { it.groupKey == "ice" }
-                    val sizeOptions = productOptions.filter { it.groupKey == "size" }
-                    val extraGroups = productOptions.filter { it.groupKey !in setOf("sugar", "ice", "size") }.groupBy { it.groupKey }
-                    val productToppings = uiState.productAddons.filter { it.productId == targetCustom.id && it.isActive }
-
-                    if (sugarOptions.isNotEmpty()) {
-                        Text("Tingkat gula", style = MaterialTheme.typography.labelMedium)
-                        Row(Modifier.fillMaxWidth().horizontalScroll(rememberScrollState()), horizontalArrangement = Arrangement.spacedBy(5.dp)) {
-                            sugarOptions.forEach { option ->
-                                FilterChip(selected = customSugar == option.name, onClick = { customSugar = option.name }, label = { Text(option.name + if (option.priceDelta > 0) " +${RupiahFormatter.format(option.priceDelta)}" else "", style = MaterialTheme.typography.labelSmall) })
-                            }
-                        }
-                    }
-                    if (iceOptions.isNotEmpty()) {
-                        Text("Es / suhu", style = MaterialTheme.typography.labelMedium)
-                        Row(Modifier.fillMaxWidth().horizontalScroll(rememberScrollState()), horizontalArrangement = Arrangement.spacedBy(5.dp)) {
-                            iceOptions.forEach { option ->
-                                FilterChip(selected = customIce == option.name, onClick = { customIce = option.name }, label = { Text(option.name + if (option.priceDelta > 0) " +${RupiahFormatter.format(option.priceDelta)}" else "", style = MaterialTheme.typography.labelSmall) })
-                            }
-                        }
-                    }
-                    if (sizeOptions.isNotEmpty()) {
-                        Text("Ukuran", style = MaterialTheme.typography.labelMedium)
-                        Row(Modifier.fillMaxWidth().horizontalScroll(rememberScrollState()), horizontalArrangement = Arrangement.spacedBy(5.dp)) {
-                            sizeOptions.forEach { option ->
-                                FilterChip(selected = customCup == option.name, onClick = { customCup = option.name }, label = { Text(option.name + if (option.priceDelta > 0) " +${RupiahFormatter.format(option.priceDelta)}" else "") })
-                            }
-                        }
-                    }
-                    extraGroups.forEach { (groupKey, options) ->
-                        Text(when (groupKey) { "portion" -> "Porsi"; "spice" -> "Tingkat kepedasan"; "rice" -> "Pilihan nasi"; "cooking" -> "Tingkat kematangan"; "side" -> "Lauk"; "extra" -> "Tambahan"; "sauce" -> "Saus"; "sambal" -> "Sambal"; "topping" -> "Topping makanan"; else -> groupKey.replaceFirstChar { it.uppercase() } }, style = MaterialTheme.typography.labelMedium)
-                        Row(Modifier.fillMaxWidth().horizontalScroll(rememberScrollState()), horizontalArrangement = Arrangement.spacedBy(5.dp)) {
-                            options.forEach { option ->
-                                FilterChip(selected = option.id in customAddonIds, onClick = { customAddonIds = if (option.id in customAddonIds) customAddonIds - option.id else customAddonIds + option.id }, label = { Text(option.name + if (option.priceDelta > 0) " +" + RupiahFormatter.format(option.priceDelta) else "") })
-                            }
-                        }
-                    }
-                    if (productToppings.isNotEmpty()) {
-                        Text("Tambahan", style = MaterialTheme.typography.labelMedium)
-                        Column(verticalArrangement = Arrangement.spacedBy(2.dp)) {
-                            productToppings.forEach { topping ->
-                                Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
-                                    Checkbox(checked = topping.id in customAddonIds, onCheckedChange = { checked ->
-                                        customAddonIds = if (checked) customAddonIds + topping.id else customAddonIds - topping.id
-                                    })
-                                    Text(topping.name, Modifier.weight(1f), style = MaterialTheme.typography.bodySmall)
-                                    Text("+${RupiahFormatter.format(topping.price)}", style = MaterialTheme.typography.bodySmall)
-                                }
-                            }
-                        }
-                    }
-                    if (sugarOptions.isEmpty() && iceOptions.isEmpty() && sizeOptions.isEmpty() && extraGroups.isEmpty() && productToppings.isEmpty()) {
-                        Text("Tidak ada opsi tambahan untuk produk ini.", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
-                    }
-                    Row(
-                        modifier = Modifier.fillMaxWidth(),
-                        horizontalArrangement = Arrangement.End,
-                        verticalAlignment = Alignment.CenterVertically
-                    ) {
-                        OutlinedButton(onClick = { customizingProduct = null }) { Text("Batal") }
-                        Spacer(modifier = Modifier.width(4.dp))
-                        Button(onClick = {
-                            val activeOptions = uiState.customizationOptions.filter { it.productId == targetCustom.id && it.isActive }
-                            val selectedOptions = listOfNotNull(
-                                activeOptions.firstOrNull { it.groupKey == "size" && it.name == customCup },
-                                activeOptions.firstOrNull { it.groupKey == "sugar" && it.name == customSugar },
-                                activeOptions.firstOrNull { it.groupKey == "ice" && it.name == customIce }
-                            ) + activeOptions.filter { it.groupKey !in setOf("size", "sugar", "ice") && it.id in customAddonIds }
-                            // Only use options and prices configured for this exact product.
-                            // Never inject hard-coded cup/add-on prices into a real cashier transaction.
-                            val addons = uiState.productAddons.filter {
-                                it.productId == targetCustom.id && it.isActive && it.id in customAddonIds
-                            }
-                            viewModel.addToCart(
-                                product = targetCustom,
-                                sugar = if (sugarOptions.isNotEmpty()) customSugar else "",
-                                ice = if (iceOptions.isNotEmpty()) customIce else "",
-                                cupSize = if (sizeOptions.isNotEmpty()) customCup else "",
-                                addons = addons,
-                                customizationOptions = selectedOptions,
-                            )
-                            customizingProduct = null
-                        }) {
-                            Text("Tambah", style = MaterialTheme.typography.labelLarge)
-                        }
-                    }
-                }
             }
         }
     }

@@ -379,9 +379,34 @@ class PosViewModel(application: Application) : AndroidViewModel(application) {
             if (!order.customerName.isNullOrBlank()) appendLine("Pelanggan : ${order.customerName}")
             appendLine(divider)
             order.orderItems.forEach { item ->
+                val optionLines = item.note.orEmpty().takeIf { it.startsWith("KMOPT|") }
+                    ?.removePrefix("KMOPT|")?.split(";")?.mapNotNull { raw ->
+                        val parts = raw.split("|", limit = 3)
+                        if (parts.size != 3) null else Triple(parts[0], parts[1], parts[2].toDoubleOrNull() ?: 0.0)
+                    }.orEmpty()
+                val surcharge = optionLines.sumOf { it.third }
+                val baseUnitPrice = (item.unitPrice - surcharge).coerceAtLeast(0.0)
                 appendLine(item.productName)
-                appendLine("  ${item.quantity} x ${RupiahFormatter.format(item.unitPrice)} = ${RupiahFormatter.format(item.lineTotal)}")
-                if (!item.note.isNullOrBlank()) appendLine("  Catatan: ${item.note}")
+                appendLine("  ${item.quantity} x ${RupiahFormatter.format(baseUnitPrice)}")
+                optionLines.forEach { (group, name, delta) ->
+                    val label = when (group) {
+                        "size" -> "Cup"
+                        "sugar" -> "Gula"
+                        "ice" -> "Es / suhu"
+                        "portion" -> "Porsi"
+                        "extra" -> "Tambahan"
+                        "spice" -> "Pedas"
+                        "rice" -> "Pilihan nasi"
+                        "cooking" -> "Kematangan"
+                        "side" -> "Lauk"
+                        "sauce" -> "Saus"
+                        "sambal" -> "Sambal"
+                        "topping" -> "Topping"
+                        else -> group.replaceFirstChar { it.uppercase() }
+                    }
+                    appendLine("  $label $name${if (delta > 0) " +${RupiahFormatter.format(delta)}" else ""}")
+                }
+                appendLine("  Total: ${RupiahFormatter.format(item.lineTotal)}")
             }
             appendLine(divider)
             appendLine("Subtotal  : ${RupiahFormatter.format(order.subtotal)}")
@@ -1036,18 +1061,12 @@ class PosViewModel(application: Application) : AndroidViewModel(application) {
             if (currentTotalQty + 1 > product.stock) {
                 return@update state.copy(errorMessage = "Stok ${product.name} hanya tersisa ${product.stock}.")
             }
-            val selectedByGroup = customizationOptions.associateBy { it.groupKey }
-            val customizationSummary = listOf(
-                "Gula: ${selectedByGroup["sugar"]?.name ?: sugar}",
-                "Es/suhu: ${selectedByGroup["ice"]?.name ?: ice}",
-                "Ukuran cup: ${selectedByGroup["size"]?.name ?: cupSize}"
-            ).joinToString(" · ")
-            val addonSummary = if (addons.isNotEmpty()) "Tambahan: ${addons.joinToString(", ") { it.name }}" else null
-            val combinedNote = listOfNotNull(
-                customizationSummary,
-                addonSummary,
-                customNote.trim().takeIf { it.isNotEmpty() }
-            ).joinToString(" · ")
+            // Persist selected options in a compact, machine-readable note so receipts can
+            // print each surcharge separately without exposing an item-note field in cashier UI.
+            val combinedNote = (customizationOptions.map { "${it.groupKey}|${it.name}|${it.priceDelta}" } +
+                addons.map { "extra|${it.name}|${it.price}" })
+                .joinToString(";")
+                .let { if (it.isBlank()) "" else "KMOPT|$it" }
 
             val existingIdx = state.cart.indexOfFirst {
                 it.product.id == product.id && it.note == combinedNote && it.cupSize == cupSize &&

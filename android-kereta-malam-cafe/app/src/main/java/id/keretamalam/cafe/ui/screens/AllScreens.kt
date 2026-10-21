@@ -1122,9 +1122,9 @@ private fun AiAssistantComposeScreen(viewModel: PosViewModel, uiState: PosUiStat
                     } else {
                         LazyColumn(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(8.dp)) {
                             itemsIndexed(historyEntries.sortedWith(compareByDescending<AiChatHistoryEntry> { it.pinned }.thenBy { historyEntries.indexOf(it) }), key = { _, entry -> entry.title + entry.messages.size.toString() }) { _, entry ->
-                                OutlinedCard(Modifier.fillMaxWidth(), onClick = {
+                                OutlinedCard(onClick = {
                                     chatMessages.clear(); chatMessages.addAll(entry.messages); prefs.edit().remove("current").apply(); showHistoryDialog = false
-                                }) {
+                                }, modifier = Modifier.fillMaxWidth()) {
                                     Row(Modifier.fillMaxWidth().padding(12.dp), verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                                         Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(4.dp)) {
                                             Text(entry.title, fontWeight = FontWeight.SemiBold, maxLines = 2)

@@ -1880,15 +1880,19 @@ class PosViewModel(application: Application) : AndroidViewModel(application) {
     }
 
     /** Refresh add-ons/customizations when entering the cashier so saved backend changes are not stale. */
-    fun refreshProductOptions() = syncProductOptions()
+    fun refreshProductOptions(onComplete: (() -> Unit)? = null) = syncProductOptions(onComplete)
 
-    private fun syncProductOptions() {
+    private fun syncProductOptions(onComplete: (() -> Unit)? = null) {
         viewModelScope.launch {
             runCatching {
                 repository.fetchProductAddons() to repository.fetchCustomizationOptions()
             }.onSuccess { (addons, options) ->
                 _uiState.update { it.copy(productAddons = addons, customizationOptions = options) }
-            }.onFailure { showNotice(it.message ?: "Gagal memuat opsi produk.", isError = true) }
+                onComplete?.invoke()
+            }.onFailure {
+                showNotice(it.message ?: "Gagal memuat opsi produk.", isError = true)
+                onComplete?.invoke()
+            }
         }
     }
 

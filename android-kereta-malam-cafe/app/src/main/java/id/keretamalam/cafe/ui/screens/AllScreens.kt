@@ -437,6 +437,9 @@ private fun DashboardComposeScreen(
 ) {
     var range by remember { mutableStateOf("today") }
     var menuOpen by remember { mutableStateOf(false) }
+    var customFrom by remember { mutableStateOf("") }
+    var customTo by remember { mutableStateOf("") }
+    val context = LocalContext.current
     val today = java.time.LocalDate.now()
     fun dateOf(raw: String): java.time.ZonedDateTime? = runCatching {
         runCatching { java.time.Instant.parse(raw).atZone(java.time.ZoneId.systemDefault()) }
@@ -448,10 +451,23 @@ private fun DashboardComposeScreen(
             "today" -> date == today
             "7days" -> date != null && !date.isBefore(today.minusDays(6)) && !date.isAfter(today)
             "30days" -> date != null && !date.isBefore(today.minusDays(29)) && !date.isAfter(today)
+            "custom" -> date != null && (customFrom.isBlank() || date.toString() >= customFrom) && (customTo.isBlank() || date.toString() <= customTo)
             else -> true
         }
     }
     val paid = orders.filter { it.isPaid && it.status != OrderStatus.CANCELLED }
+
+    val exportDashboardLauncher = rememberLauncherForActivityResult(ActivityResultContracts.CreateDocument("text/csv")) { uri ->
+        if (uri != null) runCatching {
+            context.contentResolver.openOutputStream(uri)?.bufferedWriter()?.use { writer ->
+                fun csv(value: String) = "\"" + value.replace("\"", "\"\"") + "\""
+                writer.appendLine("order_id,tanggal,status,pembayaran,total")
+                paid.forEach { order ->
+                    writer.appendLine(listOf(order.id,order.createdAt,order.status.name,order.paymentMethod ?: order.customerPaymentMethod.orEmpty(),order.total.toString()).joinToString(",") { csv(it) })
+                }
+            }
+        }.onFailure { android.widget.Toast.makeText(context, "Export dashboard gagal: ${it.message ?: "kesalahan file"}", android.widget.Toast.LENGTH_LONG).show() }
+    }
     val revenue = paid.sumOf { it.total }
     val average = if (paid.isEmpty()) 0.0 else revenue / paid.size
     val activeCount = uiState.orders.count { it.status == OrderStatus.NEW || it.status == OrderStatus.PREPARING || it.status == OrderStatus.READY }
@@ -485,7 +501,7 @@ private fun DashboardComposeScreen(
         paid.filter { dateOf(it.createdAt)?.toLocalDate() == d }.sumOf { it.total }.toFloat()
     }
     val labels = (0..6).map { today.minusDays((6 - it).toLong()).format(java.time.format.DateTimeFormatter.ofPattern("dd/MM")) }
-    val rangeLabel = when (range) { "today" -> "Hari ini"; "7days" -> "7 hari terakhir"; "30days" -> "1 bulan"; else -> "Semua data" }
+    val rangeLabel = when (range) { "today" -> "Hari ini"; "7days" -> "7 hari terakhir"; "30days" -> "1 bulan"; "custom" -> "Periode kustom"; else -> "Semua data" }
 
     LazyColumn(Modifier.fillMaxSize(), verticalArrangement = Arrangement.spacedBy(12.dp)) {
         item {
@@ -498,12 +514,24 @@ private fun DashboardComposeScreen(
                     Box {
                         OutlinedButton(onClick = { menuOpen = true }) { Text("Periode ▾") }
                         DropdownMenu(expanded = menuOpen, onDismissRequest = { menuOpen = false }) {
-                            listOf("today" to "Hari ini", "7days" to "7 hari", "30days" to "1 bulan", "all" to "Semua data").forEach { p ->
+                            listOf("today" to "Hari ini", "7days" to "7 hari", "30days" to "1 bulan", "custom" to "Tanggal kustom", "all" to "Semua data").forEach { p ->
                                 DropdownMenuItem(text = { Text(p.second) }, onClick = { range = p.first; menuOpen = false })
                             }
                         }
                     }
                 }
+            }
+            if (range == "custom") {
+                Column(Modifier.fillMaxWidth().padding(horizontal = 12.dp, vertical = 6.dp), verticalArrangement = Arrangement.spacedBy(6.dp)) {
+                    Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                        OutlinedTextField(value = customFrom, onValueChange = { customFrom = it.take(10) }, label = { Text("Dari (YYYY-MM-DD)") }, modifier = Modifier.weight(1f), singleLine = true)
+                        OutlinedTextField(value = customTo, onValueChange = { customTo = it.take(10) }, label = { Text("Sampai (YYYY-MM-DD)") }, modifier = Modifier.weight(1f), singleLine = true)
+                    }
+                    Text("Masukkan tanggal dengan format YYYY-MM-DD", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                }
+            }
+            Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.End) {
+                OutlinedButton(onClick = { exportDashboardLauncher.launch("dashboard-${java.time.LocalDate.now()}.csv") }, enabled = paid.isNotEmpty()) { Text("Export CSV") }
             }
         }
         item {

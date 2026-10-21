@@ -443,16 +443,38 @@ fun ProdukStokComposeScreen(viewModel: PosViewModel, uiState: PosUiState) {
                         OutlinedButton(onClick = { editingProduct = null }, modifier = Modifier.weight(0.8f)) { Text("Batal") }
                         Button(enabled = name.isNotBlank() && (price.toDoubleOrNull() ?: 0.0) > 0 && !uploadingImage, onClick = {
                             viewModel.saveProductItem(targetEdit.copy(name = name.trim(), description = desc.trim().ifBlank { null }, imageUrl = imageUrl.ifBlank { null }, categoryId = catId, price = price.toDoubleOrNull() ?: 0.0, costPrice = cost.toDoubleOrNull() ?: 0.0, stock = stock.toIntOrNull() ?: 0, lowStockThreshold = threshold.toIntOrNull() ?: 5, isActive = isActive, showOnMenu = showOnMenu)) { saved ->
-                                if (targetEdit.id.isBlank()) {
+                                if (inlineOptionName.isNotBlank()) {
+                                    // Save a filled option draft as part of the product's Save action.
+                                    viewModel.saveCustomizationOption(
+                                        ProductCustomizationOption(
+                                            productId = saved.id,
+                                            groupKey = inlineOptionGroup,
+                                            name = inlineOptionName.trim(),
+                                            priceDelta = inlineOptionPrice.toDoubleOrNull() ?: 0.0,
+                                            isActive = true,
+                                            sortOrder = uiState.customizationOptions.count { it.productId == saved.id && it.groupKey == inlineOptionGroup }
+                                        )
+                                    ) {
+                                        inlineOptionName = ""
+                                        inlineOptionPrice = "0"
+                                        if (targetEdit.id.isBlank()) {
+                                            // Keep a newly created product open for further configuration.
+                                            editingProduct = saved
+                                            productSaveNotice = "Produk dan opsi kustomisasi \"${saved.name}\" berhasil disimpan."
+                                        } else {
+                                            editingProduct = null
+                                            productSaveNotice = "Produk dan opsi kustomisasi \"${saved.name}\" berhasil disimpan."
+                                        }
+                                    }
+                                } else if (targetEdit.id.isBlank()) {
                                     // First save: keep the editor open so the user can add customizations.
                                     editingProduct = saved
                                 } else {
-                                    // Final save: close the editor and clearly confirm success.
                                     editingProduct = null
                                     productSaveNotice = "Produk \"${saved.name}\" berhasil disimpan."
                                 }
                             }
-                        }) { Text(if (targetEdit.id.isBlank()) "Simpan Produk & Lanjut" else "Simpan Produk") }
+                        }) { Text(if (targetEdit.id.isBlank()) "Simpan Produk & Lanjut" else "Simpan Produk & Opsi") }
                     }
                 }
             }

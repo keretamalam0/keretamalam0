@@ -440,7 +440,6 @@ private fun DashboardComposeScreen(
     var menuOpen by remember { mutableStateOf(false) }
     var customFrom by remember { mutableStateOf("") }
     var customTo by remember { mutableStateOf("") }
-    val context = LocalContext.current
     val today = java.time.LocalDate.now()
     fun dateOf(raw: String): java.time.ZonedDateTime? = runCatching {
         runCatching { java.time.Instant.parse(raw).atZone(java.time.ZoneId.systemDefault()) }
@@ -458,17 +457,6 @@ private fun DashboardComposeScreen(
     }
     val paid = orders.filter { it.isPaid && it.status != OrderStatus.CANCELLED }
 
-    val exportDashboardLauncher = rememberLauncherForActivityResult(ActivityResultContracts.CreateDocument("text/csv")) { uri ->
-        if (uri != null) runCatching {
-            context.contentResolver.openOutputStream(uri)?.bufferedWriter()?.use { writer ->
-                fun csv(value: String) = "\"" + value.replace("\"", "\"\"") + "\""
-                writer.appendLine("order_id,tanggal,status,pembayaran,total")
-                paid.forEach { order ->
-                    writer.appendLine(listOf(order.id,order.createdAt,order.status.name,order.paymentMethod ?: order.customerPaymentMethod.orEmpty(),order.total.toString()).joinToString(",") { csv(it) })
-                }
-            }
-        }.onFailure { android.widget.Toast.makeText(context, "Export dashboard gagal: ${it.message ?: "kesalahan file"}", android.widget.Toast.LENGTH_LONG).show() }
-    }
     val revenue = paid.sumOf { it.total }
     val average = if (paid.isEmpty()) 0.0 else revenue / paid.size
     val activeCount = uiState.orders.count { it.status == OrderStatus.NEW || it.status == OrderStatus.PREPARING || it.status == OrderStatus.READY }
@@ -530,9 +518,6 @@ private fun DashboardComposeScreen(
                     }
                     Text("Masukkan tanggal dengan format YYYY-MM-DD", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
                 }
-            }
-            Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.End) {
-                OutlinedButton(onClick = { exportDashboardLauncher.launch("dashboard-${java.time.LocalDate.now()}.csv") }, enabled = paid.isNotEmpty()) { Text("Export CSV") }
             }
         }
         item {

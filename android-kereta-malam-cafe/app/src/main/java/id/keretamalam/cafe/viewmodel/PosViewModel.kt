@@ -388,7 +388,7 @@ class PosViewModel(application: Application) : AndroidViewModel(application) {
                 val baseUnitPrice = (item.unitPrice - surcharge).coerceAtLeast(0.0)
                 appendLine(item.productName)
                 appendLine("  ${item.quantity} x ${RupiahFormatter.format(baseUnitPrice)}")
-                optionLines.forEach { (group, name, delta) ->
+                optionLines.filter { it.third > 0 }.forEach { (group, name, delta) ->
                     val label = when (group) {
                         "size" -> "Cup"
                         "sugar" -> "Gula"

@@ -2446,6 +2446,19 @@ private fun AuditShiftComposeScreen(viewModel: PosViewModel, uiState: PosUiState
     var fromDate by remember { mutableStateOf("") }
     var toDate by remember { mutableStateOf("") }
     var selectedShift by remember { mutableStateOf<StaffShift?>(null) }
+    val context = LocalContext.current
+    val exportAuditLauncher = rememberLauncherForActivityResult(ActivityResultContracts.CreateDocument("text/csv")) { uri ->
+        if (uri != null) runCatching {
+            context.contentResolver.openOutputStream(uri)?.bufferedWriter()?.use { writer ->
+                fun csv(value: String): String = "\"" + value.replace("\"", "\"\"") + "\""
+                writer.appendLine(listOf("shift_id","kasir","status","dibuka","ditutup","modal_awal","ekspektasi_kas","kas_akhir","selisih","terverifikasi","catatan").joinToString(","))
+                filtered.forEach { item ->
+                    val variance = (item.closingCash ?: 0.0) - (item.expectedCash ?: 0.0)
+                    writer.appendLine(listOf(item.id,item.staffName,item.status,item.openedAt,item.closedAt.orEmpty(),item.openingCash.toString(),(item.expectedCash ?: 0.0).toString(),item.closingCash?.toString().orEmpty(),variance.toString(),item.auditVerified.toString(),item.notes.orEmpty()).joinToString(",") { csv(it) })
+                }
+            }
+        }.onFailure { android.widget.Toast.makeText(context, "Export gagal: ${it.message ?: "kesalahan file"}", android.widget.Toast.LENGTH_LONG).show() }
+    }
     val activeCount = uiState.shifts.count { it.status.equals("open", true) }
     val needsReview = uiState.shifts.count { !it.auditVerified && it.status.equals("closed", true) }
     val filtered = uiState.shifts.filter { shift ->
@@ -2521,6 +2534,14 @@ private fun AuditShiftComposeScreen(viewModel: PosViewModel, uiState: PosUiState
             OutlinedTextField(value = fromDate, onValueChange = { fromDate = it.take(10) }, label = { Text("Dari") }, placeholder = { Text("YYYY-MM-DD") }, modifier = Modifier.weight(1f).heightIn(max = 54.dp), singleLine = true, textStyle = MaterialTheme.typography.bodySmall)
             OutlinedTextField(value = toDate, onValueChange = { toDate = it.take(10) }, label = { Text("Sampai") }, placeholder = { Text("YYYY-MM-DD") }, modifier = Modifier.weight(1f).heightIn(max = 54.dp), singleLine = true, textStyle = MaterialTheme.typography.bodySmall)
             if (fromDate.isNotBlank() || toDate.isNotBlank()) TextButton(onClick = { fromDate = ""; toDate = "" }, contentPadding = PaddingValues(horizontal = 4.dp, vertical = 0.dp)) { Text("Reset", style = MaterialTheme.typography.labelSmall) }
+        }
+        Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp), verticalAlignment = Alignment.CenterVertically) {
+            Text("Hasil: ${filtered.size} shift", modifier = Modifier.weight(1f), style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+            OutlinedButton(onClick = { exportAuditLauncher.launch("audit-shift-${java.time.LocalDate.now()}.csv") }, enabled = filtered.isNotEmpty()) {
+                Icon(Icons.Outlined.FileDownload, contentDescription = null, modifier = Modifier.size(18.dp))
+                Spacer(Modifier.width(6.dp))
+                Text("Export CSV")
+            }
         }
         Text("Riwayat shift", style = MaterialTheme.typography.labelLarge, fontWeight = FontWeight.SemiBold)
         if (filtered.isEmpty()) {

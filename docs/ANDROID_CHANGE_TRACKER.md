@@ -116,3 +116,14 @@ Project directory: `android-kereta-malam-cafe/`
 - Refreshed employee permission labels to make AI chat history, shift audit/date filters, activity/audit logs, and CSV export scope clearer without introducing new permission keys that would not be enforced by existing authorization code.
 - GitHub commits: `b99bd66` (remove Dashboard CSV), `716f048` (inactive product menu), `6af246b` (activity log categories), `333826b` (employee permission labels).
 - Build and on-device validation are pending. Activity Log only displays records emitted by the existing audit/backend logging pipeline; these UI commits themselves are not retroactively inserted as business activity records.
+
+
+## Android UX follow-up (2026-10-21)
+
+- Login screen refreshed to a light, white-card design based on the supplied visual reference; removed the login-page theme toggle and added a show/hide password eye control.
+- Login failure messages now show a user-facing generic message ("Email atau password salah") instead of backend/provider diagnostics. Successful login uses a neutral welcome message.
+- Employee permission controls are collapsed by default and grouped into Menu, Dashboard, and Tindakan categories to reduce scrolling while preserving existing permission keys.
+- Printer settings now provide a confirmation dialog and a Hapus action for each saved cashier/kitchen printer. Removal clears the local device setting and requests deletion of its saved remote setting.
+- Thermal receipt previews, cashier receipts, and kitchen tickets format ISO timestamps as Asia/Jakarta (WIB) instead of showing UTC raw timestamps.
+- Commits: `8014300` (light login/password visibility), `f1a7f1f` (generic login errors/WIB preview/printer removal action), `4b397fb` (printer delete UI), `6d56cfa` (compact employee access groups), `e7f5925` (WIB formatting on actual printer payloads).
+- Build and physical-device verification are pending; confirm Kotlin compilation and test login errors, printer removal persistence, and printed receipt times on a real device.

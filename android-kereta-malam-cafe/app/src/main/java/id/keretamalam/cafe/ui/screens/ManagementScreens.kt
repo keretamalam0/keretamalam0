@@ -442,6 +442,7 @@ fun ProdukStokComposeScreen(viewModel: PosViewModel, uiState: PosUiState) {
                     Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                         OutlinedButton(onClick = { editingProduct = null }, modifier = Modifier.weight(0.8f)) { Text("Batal") }
                         Button(enabled = name.isNotBlank() && (price.toDoubleOrNull() ?: 0.0) > 0 && !uploadingImage, onClick = {
+                            val savingOption = inlineOptionName.isNotBlank()
                             viewModel.saveProductAndOption(
                                 product = targetEdit.copy(name = name.trim(), description = desc.trim().ifBlank { null }, imageUrl = imageUrl.ifBlank { null }, categoryId = catId, price = price.toDoubleOrNull() ?: 0.0, costPrice = cost.toDoubleOrNull() ?: 0.0, stock = stock.toIntOrNull() ?: 0, lowStockThreshold = threshold.toIntOrNull() ?: 5, isActive = isActive, showOnMenu = showOnMenu),
                                 optionName = inlineOptionName,
@@ -456,7 +457,7 @@ fun ProdukStokComposeScreen(viewModel: PosViewModel, uiState: PosUiState) {
                                         productSaveNotice = "Produk dan opsi kustomisasi \"${saved.name}\" berhasil disimpan."
                                     } else {
                                         editingProduct = null
-                                        productSaveNotice = if (inlineOptionName.isBlank()) "Produk \"${saved.name}\" berhasil disimpan." else "Produk dan opsi kustomisasi \"${saved.name}\" berhasil disimpan."
+                                        productSaveNotice = if (savingOption) "Produk dan opsi kustomisasi \"${saved.name}\" berhasil disimpan." else "Produk \"${saved.name}\" berhasil disimpan."
                                     }
                                 } else {
                                     // Product was saved, but keep editor and option draft visible so the option can be retried.

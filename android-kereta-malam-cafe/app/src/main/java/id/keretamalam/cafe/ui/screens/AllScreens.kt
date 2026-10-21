@@ -1737,6 +1737,7 @@ private fun KasirComposeScreen(
                     val sugarOptions = productOptions.filter { it.groupKey == "sugar" }
                     val iceOptions = productOptions.filter { it.groupKey == "ice" }
                     val sizeOptions = productOptions.filter { it.groupKey == "size" }
+                    val extraGroups = productOptions.filter { it.groupKey !in setOf("sugar", "ice", "size") }.groupBy { it.groupKey }
                     val productToppings = uiState.productAddons.filter { it.productId == targetCustom.id && it.isActive }
 
                     if (sugarOptions.isNotEmpty()) {
@@ -1763,6 +1764,14 @@ private fun KasirComposeScreen(
                             }
                         }
                     }
+                    extraGroups.forEach { (groupKey, options) ->
+                        Text(when (groupKey) { "spice" -> "Tingkat kepedasan"; "rice" -> "Pilihan nasi"; "cooking" -> "Tingkat kematangan"; "side" -> "Lauk / tambahan"; "sauce" -> "Saus / sambal"; "topping" -> "Topping makanan"; else -> groupKey.replaceFirstChar { it.uppercase() } }, style = MaterialTheme.typography.labelMedium)
+                        Row(Modifier.fillMaxWidth().horizontalScroll(rememberScrollState()), horizontalArrangement = Arrangement.spacedBy(5.dp)) {
+                            options.forEach { option ->
+                                FilterChip(selected = option.name in customAddonIds, onClick = { customAddonIds = if (option.name in customAddonIds) customAddonIds - option.name else customAddonIds + option.name }, label = { Text(option.name + if (option.priceDelta > 0) " +" + RupiahFormatter.format(option.priceDelta) else "") })
+                            }
+                        }
+                    }
                     if (productToppings.isNotEmpty()) {
                         Text("Tambahan", style = MaterialTheme.typography.labelMedium)
                         Column(verticalArrangement = Arrangement.spacedBy(2.dp)) {
@@ -1777,7 +1786,7 @@ private fun KasirComposeScreen(
                             }
                         }
                     }
-                    if (sugarOptions.isEmpty() && iceOptions.isEmpty() && sizeOptions.isEmpty() && productToppings.isEmpty()) {
+                    if (sugarOptions.isEmpty() && iceOptions.isEmpty() && sizeOptions.isEmpty() && extraGroups.isEmpty() && productToppings.isEmpty()) {
                         Text("Tidak ada opsi tambahan untuk produk ini.", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
                     }
                     OutlinedTextField(
@@ -1802,7 +1811,7 @@ private fun KasirComposeScreen(
                                 activeOptions.firstOrNull { it.groupKey == "size" && it.name == customCup },
                                 activeOptions.firstOrNull { it.groupKey == "sugar" && it.name == customSugar },
                                 activeOptions.firstOrNull { it.groupKey == "ice" && it.name == customIce }
-                            )
+                            ) + activeOptions.filter { it.groupKey !in setOf("size", "sugar", "ice") && it.name in customAddonIds }
                             val addons = buildList {
                                 uiState.productAddons.filter { it.productId == targetCustom.id && it.isActive && it.id in customAddonIds }.forEach { add(it) }
                                 if (activeOptions.none { it.groupKey == "size" } && customCup == "Large") {

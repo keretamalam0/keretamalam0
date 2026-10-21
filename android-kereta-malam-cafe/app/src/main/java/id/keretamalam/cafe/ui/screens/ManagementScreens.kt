@@ -1452,7 +1452,7 @@ fun PegawaiComposeScreen(viewModel: PosViewModel, uiState: PosUiState) {
     var newRole by remember { mutableStateOf(StaffRole.CASHIER) }
     var pendingDelete by remember { mutableStateOf<StaffProfile?>(null) }
     val isOwner = uiState.staffProfile.role == StaffRole.OWNER && uiState.staffProfile.isActive
-    val modules = listOf("dashboard" to "Dashboard", "ai_assistant" to "AI Assistant", "orders" to "Kasir & Pesanan", "payments" to "Pembayaran", "shift_management" to "Buka / Tutup Shift", "shift_audit" to "Audit Shift", "activity_log" to "Log Aktivitas", "products" to "Produk & Stok", "inventory" to "Inventory", "tables" to "Meja & QR Menu", "reports" to "Laporan Penjualan", "expenses" to "Pengeluaran & Laba Rugi", "customers" to "Pelanggan & Loyalitas", "promotions" to "Promosi & Diskon", "printer_management" to "Printer", "settings" to "Pengaturan Outlet", "staff_management" to "Manajemen Pegawai", "export_data" to "Export / Download Data")
+    val modules = listOf("dashboard" to "Dashboard", "ai_assistant" to "AI Assistant & Riwayat Chat", "orders" to "Kasir & Pesanan", "payments" to "Pembayaran", "shift_management" to "Buka / Tutup Shift", "shift_audit" to "Audit Shift, filter tanggal & ekspor", "activity_log" to "Log Aktivitas & Audit Perubahan", "products" to "Produk & Stok", "inventory" to "Inventory", "tables" to "Meja & QR Menu", "reports" to "Laporan Penjualan", "expenses" to "Pengeluaran & Laba Rugi", "customers" to "Pelanggan & Loyalitas", "promotions" to "Promosi & Diskon", "printer_management" to "Printer", "settings" to "Pengaturan Outlet", "staff_management" to "Manajemen Pegawai", "export_data" to "Ekspor / Download Data (CSV)")
     val metrics = listOf("dashboard.total_sales" to "Total penjualan", "dashboard.paid_orders" to "Jumlah transaksi lunas", "dashboard.average_transaction" to "Rata-rata transaksi", "dashboard.peak_hour" to "Jam tersibuk", "dashboard.trend_chart" to "Grafik tren omzet", "dashboard.hourly_activity" to "Aktivitas per jam", "dashboard.best_sellers" to "Menu terlaris", "dashboard.quick_actions" to "Akses cepat")
     val actionPermissions = listOf(
         "products.edit" to "Tambah / edit produk",
@@ -1462,7 +1462,7 @@ fun PegawaiComposeScreen(viewModel: PosViewModel, uiState: PosUiState) {
         "history.delete" to "Hapus transaksi / detail riwayat",
         "staff.manage" to "Kelola pegawai dan hak akses",
         "shift.manage" to "Buka / tutup dan kelola shift",
-        "audit.view" to "Lihat audit shift",
+        "audit.view" to "Lihat audit shift & rentang tanggal",
         "settings.manage" to "Ubah pengaturan outlet",
         "pos.manual_discount" to "Diskon manual di kasir",
         "pos.void_transaction" to "Batalkan transaksi",
@@ -1472,7 +1472,7 @@ fun PegawaiComposeScreen(viewModel: PosViewModel, uiState: PosUiState) {
         "inventory.adjust_stock" to "Tambah / kurangi stok",
         "inventory.purchase_order" to "Kelola pembelian stok",
         "report.view" to "Lihat laporan",
-        "report.export" to "Ekspor laporan",
+        "report.export" to "Ekspor laporan (CSV)",
         "customers.export" to "Ekspor data pelanggan",
         "payments.manage_methods" to "Kelola metode pembayaran",
         "printer.manage" to "Kelola printer",
@@ -1513,6 +1513,7 @@ fun PegawaiComposeScreen(viewModel: PosViewModel, uiState: PosUiState) {
                     OutlinedButton(onClick = { pendingDelete = st }, modifier = Modifier.weight(1f), enabled = !uiState.isLoading) { Text("Delete") }
                 }
                 Text("Hak akses menu", style = MaterialTheme.typography.titleSmall, fontWeight = FontWeight.Bold)
+                Text("Periksa kembali akses Dashboard, AI Assistant, Produk & Stok, Audit Shift, Log Aktivitas, Laporan, dan Ekspor Data sesuai tugas pegawai.", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
                 modules.forEach { (key, label) -> PermissionToggleRow(label, st.permissions[key] == true, isOwner && !isCurrent && st.role != StaffRole.OWNER && !uiState.isLoading) { viewModel.toggleStaffPermission(st.userId, key) } }
                 HorizontalDivider()
                 Text("Detail Dashboard", style = MaterialTheme.typography.titleSmall, fontWeight = FontWeight.Bold)

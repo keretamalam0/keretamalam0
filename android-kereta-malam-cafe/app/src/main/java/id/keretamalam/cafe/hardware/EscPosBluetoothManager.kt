@@ -97,6 +97,23 @@ class EscPosBluetoothManager(private val context: Context) {
         return Result.success(adapter.bondedDevices?.toList().orEmpty())
     }
 
+    @SuppressLint("MissingPermission")
+    fun forgetPairedDevice(address: String): Result<Unit> {
+        if (!hasBluetoothPermissions()) {
+            return Result.failure(SecurityException("Izin Bluetooth belum diberikan."))
+        }
+        val bluetoothManager = context.getSystemService(Context.BLUETOOTH_SERVICE) as? BluetoothManager
+            ?: return Result.failure(IllegalStateException("Bluetooth tidak tersedia."))
+        val device = runCatching { bluetoothManager.adapter.getRemoteDevice(address) }.getOrElse {
+            return Result.failure(it)
+        }
+        return runCatching {
+            val removeBond = device.javaClass.getMethod("removeBond")
+            val accepted = removeBond.invoke(device) as? Boolean ?: false
+            check(accepted) { "Android menolak permintaan melupakan perangkat. Hapus pasangan lewat Pengaturan Bluetooth Android." }
+        }
+    }
+
     fun savePrinter(role: PrinterRole, name: String, address: String, autoPrint: Boolean) {
         prefs.edit()
             .putString("${role.key}_name", name)

@@ -219,7 +219,7 @@ fun ProdukStokComposeScreen(viewModel: PosViewModel, uiState: PosUiState) {
                             uiState.products.forEach { p -> FilterChip(selected = selectedProductId == p.id, onClick = { selectedProductId = p.id }, label = { Text(p.name) }) }
                         }
                         Row(Modifier.fillMaxWidth().horizontalScroll(rememberScrollState()), horizontalArrangement = Arrangement.spacedBy(6.dp)) {
-                            listOf("sugar" to "Gula", "ice" to "Es", "size" to "Ukuran").forEach { (key, label) -> FilterChip(selected = optionGroup == key, onClick = { optionGroup = key }, label = { Text(label) }) }
+                            listOf("size" to "Ukuran", "portion" to "Porsi", "sugar" to "Tingkat gula", "ice" to "Es / suhu", "spice" to "Tingkat kepedasan", "rice" to "Pilihan nasi", "cooking" to "Tingkat kematangan", "side" to "Lauk", "extra" to "Tambahan", "sauce" to "Saus", "sambal" to "Sambal", "topping" to "Topping makanan").forEach { (key, label) -> FilterChip(selected = optionGroup == key, onClick = { optionGroup = key }, label = { Text(label) }) }
                         }
                         OutlinedTextField(value = optionName, onValueChange = { optionName = it }, label = { Text("Nama pilihan") }, modifier = Modifier.fillMaxWidth(), singleLine = true)
                         OutlinedTextField(value = optionPrice, onValueChange = { optionPrice = it.filter(Char::isDigit) }, label = { Text("Tambahan harga (Rp)") }, modifier = Modifier.fillMaxWidth(), singleLine = true)
@@ -236,7 +236,7 @@ fun ProdukStokComposeScreen(viewModel: PosViewModel, uiState: PosUiState) {
                 }
                 LazyColumn(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(8.dp)) {
                     items(uiState.customizationOptions.filter { it.productId == selectedProductId }, key = { it.id }) { option ->
-                        val groupLabel = when (option.groupKey) { "sugar" -> "Gula"; "ice" -> "Es"; else -> "Ukuran" }
+                        val groupLabel = when (option.groupKey) { "size" -> "Ukuran"; "portion" -> "Porsi"; "sugar" -> "Tingkat gula"; "ice" -> "Es / suhu"; "spice" -> "Tingkat kepedasan"; "rice" -> "Pilihan nasi"; "cooking" -> "Tingkat kematangan"; "side" -> "Lauk"; "extra" -> "Tambahan"; "sauce" -> "Saus"; "sambal" -> "Sambal"; "topping" -> "Topping makanan"; else -> option.groupKey }
                         OutlinedCard { Row(Modifier.fillMaxWidth().padding(10.dp), verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(6.dp)) {
                             Column(Modifier.weight(1f)) { Text(option.name, fontWeight = FontWeight.SemiBold); Text("$groupLabel · +${RupiahFormatter.format(option.priceDelta)}", style = MaterialTheme.typography.bodySmall) }
                             Switch(checked = option.isActive, onCheckedChange = { viewModel.saveCustomizationOption(option.copy(isActive = it)) })

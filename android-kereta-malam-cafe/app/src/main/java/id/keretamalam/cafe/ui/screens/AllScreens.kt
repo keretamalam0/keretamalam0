@@ -1174,7 +1174,6 @@ private fun KasirComposeScreen(
     var customExtraShot by remember { mutableStateOf(false) }
     var customOatMilk by remember { mutableStateOf(false) }
     var customAddonIds by remember { mutableStateOf(setOf<String>()) }
-    var customNote by remember { mutableStateOf("") }
     var mobileTab by remember { mutableStateOf(0) } // 0 = Katalog Produk, 1 = Keranjang & Bayar
     var promoDropdownExpanded by remember { mutableStateOf(false) }
     var paymentDropdownExpanded by remember { mutableStateOf(false) }
@@ -1472,13 +1471,7 @@ private fun KasirComposeScreen(
                                             OutlinedButton(onClick = { viewModel.updateCartItemQuantity(item.cartItemId, 1) }) { Text("+") }
                                         }
                                     }
-                                    OutlinedTextField(
-                                        value = item.note,
-                                        onValueChange = { viewModel.updateCartItemNote(item.cartItemId, it) },
-                                        label = { Text("Catatan Item") },
-                                        modifier = Modifier.fillMaxWidth(),
-                                        singleLine = true
-                                    )
+
                                 }
                             }
                         }
@@ -1849,7 +1842,6 @@ private fun KasirComposeScreen(
                                 cupSize = if (sizeOptions.isNotEmpty()) customCup else "",
                                 addons = addons,
                                 customizationOptions = selectedOptions,
-                                customNote = customNote
                             )
                             customizingProduct = null
                         }) {

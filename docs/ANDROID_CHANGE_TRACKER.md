@@ -106,3 +106,13 @@ Project directory: `android-kereta-malam-cafe/`
 - Follow-up: if a batched deletion fails partway through, transaction history now re-fetches current server orders before falling back to the previous snapshot, avoiding a false rollback display when some batches already succeeded. Commit: `ee83f58`.
 
 - 2026-10-21: Removed the animated railway/station Canvas from the native Android login screen and removed its animation imports. Login form, dark static background, authentication call, theme toggle, and existing field contrast are retained. Build and device-level startup/login timing verification are still required.
+
+
+## Android follow-up — Dashboard export, activity log, employee access, inactive products (2026-10-21)
+
+- Removed the Dashboard's dedicated Export CSV button and its dashboard-only CSV document launcher. Dashboard date-range filtering and KPI/chart rendering remain.
+- Added a **Menu Nonaktif** tab to Produk & Stok. It lists inactive products and lets the owner open a product for management/reactivation; the inactive count is shown in the tab content.
+- Added category filters to Log Aktivitas for Pegawai & akses, Produk, Stok, Shift & audit, Pembayaran, and Pengaturan. Existing custom date filtering, search, reset, and filtered CSV export remain.
+- Refreshed employee permission labels to make AI chat history, shift audit/date filters, activity/audit logs, and CSV export scope clearer without introducing new permission keys that would not be enforced by existing authorization code.
+- GitHub commits: `b99bd66` (remove Dashboard CSV), `716f048` (inactive product menu), `6af246b` (activity log categories), `333826b` (employee permission labels).
+- Build and on-device validation are pending. Activity Log only displays records emitted by the existing audit/backend logging pipeline; these UI commits themselves are not retroactively inserted as business activity records.

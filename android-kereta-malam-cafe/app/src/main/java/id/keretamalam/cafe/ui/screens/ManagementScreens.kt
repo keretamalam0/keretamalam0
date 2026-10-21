@@ -213,8 +213,8 @@ fun ProdukStokComposeScreen(viewModel: PosViewModel, uiState: PosUiState) {
             else -> {
                 OutlinedCard(Modifier.fillMaxWidth()) {
                     Column(Modifier.padding(14.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                        Text(if (optionId.isBlank()) "Opsi kustomisasi minuman" else "Edit opsi kustomisasi", style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.SemiBold)
-                        Text("Opsi aktif tersedia pada pilihan pelanggan di QR Menu.", style = MaterialTheme.typography.bodySmall)
+                        Text(if (optionId.isBlank()) "Opsi kustomisasi semua produk" else "Edit opsi kustomisasi", style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.SemiBold)
+                        Text("Opsi aktif tersedia di kasir dan QR Menu untuk produk yang dipilih.", style = MaterialTheme.typography.bodySmall)
                         Row(Modifier.fillMaxWidth().horizontalScroll(rememberScrollState()), horizontalArrangement = Arrangement.spacedBy(6.dp)) {
                             uiState.products.forEach { p -> FilterChip(selected = selectedProductId == p.id, onClick = { selectedProductId = p.id }, label = { Text(p.name) }) }
                         }
@@ -286,7 +286,7 @@ fun ProdukStokComposeScreen(viewModel: PosViewModel, uiState: PosUiState) {
                     Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
                         Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(2.dp)) {
                             Text(if (targetEdit.id.isBlank()) "Tambah Produk" else "Edit Produk", style = MaterialTheme.typography.titleLarge, fontWeight = FontWeight.Bold)
-                            Text("Kelola detail, topping, dan opsi dalam satu form", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                            Text("Kelola detail produk, topping, dan opsi kustomisasi untuk makanan maupun minuman", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
                         }
                         TextButton(onClick = { editingProduct = null }) { Text("✕") }
                     }

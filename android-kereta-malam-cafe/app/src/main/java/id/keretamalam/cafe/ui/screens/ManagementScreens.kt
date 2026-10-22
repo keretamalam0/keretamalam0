@@ -1085,6 +1085,159 @@ fun KeuanganComposeScreen(viewModel: PosViewModel, uiState: PosUiState) {
 }
 
 // ============================================================================
+// LAPORAN KASIR — RINCIAN KATEGORI + REKAP MAKANAN / MINUMAN
+// ============================================================================
+private data class CashierReportLine(
+    val category: String,
+    val product: String,
+    val quantity: Int,
+    val amount: Double
+)
+
+private fun cashierReportGroup(categoryName: String): String {
+    val name = categoryName.lowercase().trim()
+    val foodKeywords = listOf("food", "makanan", "snack", "dessert", "bakery", "pastry", "cake", "rice", "meal", "appetizer", "side dish", "roti")
+    val drinkKeywords = listOf("coffee", "kopi", "non-coffee", "non coffee", "alcohol", "alkohol", "juice", "jus", "drink", "minuman", "beverage", "tea", "teh", "milk", "soda", "mocktail", "cocktail", "beer", "wine")
+    return when {
+        foodKeywords.any { name.contains(it) } -> "Makanan"
+        drinkKeywords.any { name.contains(it) } -> "Minuman"
+        else -> "Makanan"
+    }
+}
+
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
+fun LaporanKasirComposeScreen(viewModel: PosViewModel, uiState: PosUiState) {
+    val today = remember { java.time.LocalDate.now() }
+    var startDate by remember { mutableStateOf(today.toString()) }
+    var startTime by remember { mutableStateOf("17:00") }
+    var endDate by remember { mutableStateOf(today.plusDays(1).toString()) }
+    var endTime by remember { mutableStateOf("01:00") }
+    var selectedCategory by remember { mutableStateOf<String?>(null) }
+    val start = remember(startDate, startTime) {
+        runCatching { java.time.LocalDateTime.parse("${startDate.trim()} ${startTime.trim()}", java.time.format.DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm")) }.getOrNull()
+    }
+    val end = remember(endDate, endTime) {
+        runCatching { java.time.LocalDateTime.parse("${endDate.trim()} ${endTime.trim()}", java.time.format.DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm")) }.getOrNull()
+    }
+    val paidOrders = remember(uiState.orders, start, end) {
+        if (start == null || end == null || end.isBefore(start)) emptyList()
+        else uiState.orders.filter { order ->
+            if (!order.isPaid || order.status == OrderStatus.CANCELLED) false
+            else {
+                val created = reportDate(order.createdAt)
+                created != null && !created.isBefore(start) && !created.isAfter(end)
+            }
+        }
+    }
+    val categoryTotals = remember(paidOrders, uiState.products, uiState.categories) {
+        val productById = uiState.products.associateBy { it.id }
+        val categoryById = uiState.categories.associateBy { it.id }
+        paidOrders.flatMap { order ->
+            val rawItemsTotal = order.orderItems.sumOf { it.lineTotal }.takeIf { it > 0.0 }
+            order.orderItems.map { item ->
+                val product = item.productId?.let { productById[it] }
+                    ?: uiState.products.firstOrNull { it.name.equals(item.productName, true) }
+                val categoryName = product?.categoryId?.let { categoryById[it]?.name } ?: "Lainnya"
+                val allocatedTotal = if (rawItemsTotal != null) order.total * (item.lineTotal / rawItemsTotal) else 0.0
+                CashierReportLine(categoryName, item.productName, item.quantity, allocatedTotal)
+            }
+        }.groupBy { it.category }.mapValues { (_, rows) ->
+            rows to (rows.sumOf { it.amount } to rows.sumOf { it.quantity })
+        }.toList().sortedByDescending { it.second.second.first }
+    }
+    val foodTotal = categoryTotals.filter { cashierReportGroup(it.first) == "Makanan" }.sumOf { it.second.second.first }
+    val drinkTotal = categoryTotals.filter { cashierReportGroup(it.first) == "Minuman" }.sumOf { it.second.second.first }
+    val foodQty = categoryTotals.filter { cashierReportGroup(it.first) == "Makanan" }.sumOf { it.second.second.second }
+    val drinkQty = categoryTotals.filter { cashierReportGroup(it.first) == "Minuman" }.sumOf { it.second.second.second }
+    val reportTotal = paidOrders.sumOf { it.total }
+    val validRange = start != null && end != null && !end.isBefore(start)
+    val rupiah = { amount: Double -> RupiahFormatter.format(amount) }
+    Column(
+        Modifier.fillMaxSize().verticalScroll(rememberScrollState()).padding(bottom = 16.dp),
+        verticalArrangement = Arrangement.spacedBy(12.dp)
+    ) {
+        Text("Laporan Kasir", style = MaterialTheme.typography.headlineSmall, fontWeight = FontWeight.Bold)
+        Text("Rincian kategori dan rekap makanan/minuman dari transaksi lunas.", style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
+        Card {
+            Column(Modifier.fillMaxWidth().padding(12.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                Text("Rentang waktu operasional", style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.SemiBold)
+                Text("Contoh operasional malam: 17.00 sampai 01.00 hari berikutnya.", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                    OutlinedTextField(startDate, { startDate = it }, modifier = Modifier.weight(1f), label = { Text("Tanggal mulai") }, singleLine = true, placeholder = { Text("YYYY-MM-DD") })
+                    OutlinedTextField(startTime, { startTime = it }, modifier = Modifier.width(112.dp), label = { Text("Jam") }, singleLine = true, placeholder = { Text("17:00") })
+                }
+                Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                    OutlinedTextField(endDate, { endDate = it }, modifier = Modifier.weight(1f), label = { Text("Tanggal selesai") }, singleLine = true, placeholder = { Text("YYYY-MM-DD") })
+                    OutlinedTextField(endTime, { endTime = it }, modifier = Modifier.width(112.dp), label = { Text("Jam") }, singleLine = true, placeholder = { Text("01:00") })
+                }
+                if (!validRange) Text("Rentang tanggal/jam tidak valid. Gunakan format tanggal YYYY-MM-DD dan jam HH:mm.", color = MaterialTheme.colorScheme.error, style = MaterialTheme.typography.bodySmall)
+                Text("${paidOrders.size} transaksi lunas · ${start?.format(java.time.format.DateTimeFormatter.ofPattern("dd MMM HH:mm")) ?: "—"} – ${end?.format(java.time.format.DateTimeFormatter.ofPattern("dd MMM HH:mm")) ?: "—"}", style = MaterialTheme.typography.bodySmall)
+            }
+        }
+        Card {
+            Column(Modifier.fillMaxWidth().padding(14.dp), verticalArrangement = Arrangement.spacedBy(6.dp)) {
+                Text("Total Penjualan", style = MaterialTheme.typography.titleMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                Text(rupiah(reportTotal), style = MaterialTheme.typography.headlineMedium, fontWeight = FontWeight.Bold)
+                Text("Transaksi lunas, tidak termasuk pesanan dibatalkan.", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+            }
+        }
+        Text("Rincian per Kategori", style = MaterialTheme.typography.titleLarge, fontWeight = FontWeight.Bold)
+        if (categoryTotals.isEmpty()) {
+            Card { Text(if (validRange) "Belum ada transaksi lunas pada rentang ini." else "Periksa kembali tanggal dan jam laporan.", Modifier.padding(16.dp), color = MaterialTheme.colorScheme.onSurfaceVariant) }
+        } else {
+            categoryTotals.forEach { (category, grouped) ->
+                val rows = grouped.first
+                val totals = grouped.second
+                Card(
+                    modifier = Modifier.fillMaxWidth().clickable { selectedCategory = if (selectedCategory == category) null else category },
+                    colors = CardDefaults.cardColors(containerColor = if (selectedCategory == category) MaterialTheme.colorScheme.secondaryContainer else MaterialTheme.colorScheme.surface)
+                ) {
+                    Column(Modifier.fillMaxWidth().padding(12.dp), verticalArrangement = Arrangement.spacedBy(6.dp)) {
+                        Row(verticalAlignment = Alignment.CenterVertically) {
+                            Column(Modifier.weight(1f)) {
+                                Text(category, style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.SemiBold)
+                                Text("${totals.second} item terjual · ${cashierReportGroup(category)}", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                            }
+                            Text(rupiah(totals.first), style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold)
+                        }
+                        if (selectedCategory == category) {
+                            HorizontalDivider()
+                            rows.groupBy { it.product }.map { (name, productRows) ->
+                                name to (productRows.sumOf { it.quantity } to productRows.sumOf { it.amount })
+                            }.sortedByDescending { it.second.second }.forEach { (name, values) ->
+                                Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
+                                    Text("${name} × ${values.first}", modifier = Modifier.weight(1f), style = MaterialTheme.typography.bodyMedium)
+                                    Text(rupiah(values.second), style = MaterialTheme.typography.bodyMedium)
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        }
+        Text("Rekap Utama", style = MaterialTheme.typography.titleLarge, fontWeight = FontWeight.Bold)
+        Row(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
+            Card(Modifier.weight(1f), colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.tertiaryContainer)) {
+                Column(Modifier.fillMaxWidth().padding(12.dp), verticalArrangement = Arrangement.spacedBy(6.dp)) {
+                    Text("Makanan", style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.SemiBold)
+                    Text(rupiah(foodTotal), style = MaterialTheme.typography.titleLarge, fontWeight = FontWeight.Bold)
+                    Text("${foodQty} item · Food + Snack + kategori makanan", style = MaterialTheme.typography.bodySmall)
+                }
+            }
+            Card(Modifier.weight(1f), colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.primaryContainer)) {
+                Column(Modifier.fillMaxWidth().padding(12.dp), verticalArrangement = Arrangement.spacedBy(6.dp)) {
+                    Text("Minuman", style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.SemiBold)
+                    Text(rupiah(drinkTotal), style = MaterialTheme.typography.titleLarge, fontWeight = FontWeight.Bold)
+                    Text("${drinkQty} item · Coffee + Non-Coffee + Juice + Alkohol", style = MaterialTheme.typography.bodySmall)
+                }
+            }
+        }
+        Text("Sumber: transaksi dan item pesanan asli di database aplikasi. Kategori mengikuti kategori produk saat ini.", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+    }
+}
+
+// ============================================================================
 // 14. LAPORAN PENJUALAN SCREEN
 // ============================================================================
 private val ReportChartPalette = listOf(androidx.compose.ui.graphics.Color(0xFF6F91C5), androidx.compose.ui.graphics.Color(0xFF6BAF92), androidx.compose.ui.graphics.Color(0xFFE1B36A), androidx.compose.ui.graphics.Color(0xFF9A83C7), androidx.compose.ui.graphics.Color(0xFFD58A8A), androidx.compose.ui.graphics.Color(0xFF6DAAB5))

@@ -51,6 +51,7 @@ private fun moduleIconTint(route: PosModuleRoute): androidx.compose.ui.graphics.
     PosModuleRoute.PROMOSI -> androidx.compose.ui.graphics.Color(0xFFD39A68) // muted orange
     PosModuleRoute.KEUANGAN -> androidx.compose.ui.graphics.Color(0xFF6D9EBA) // blue teal
     PosModuleRoute.LAPORAN -> androidx.compose.ui.graphics.Color(0xFF6F91C5) // blue
+    PosModuleRoute.LAPORAN_KASIR -> androidx.compose.ui.graphics.Color(0xFF6BAF92) // sage
     PosModuleRoute.PEGAWAI -> androidx.compose.ui.graphics.Color(0xFFB784A3) // dusty rose
     PosModuleRoute.PENGATURAN -> androidx.compose.ui.graphics.Color(0xFF8993A4) // slate
     PosModuleRoute.PRINTER -> androidx.compose.ui.graphics.Color(0xFF8A9C8C) // sage
@@ -79,6 +80,7 @@ enum class PosModuleRoute(
     PROMOSI("promosi", "Promosi & Diskon", "PEMASARAN", PermissionKey.PROMOTIONS, Icons.Outlined.Percent),
     KEUANGAN("keuangan", "Pengeluaran & Laba Rugi", "MANAJEMEN", PermissionKey.EXPENSES, Icons.Outlined.AccountBalanceWallet),
     LAPORAN("laporan", "Laporan Penjualan", "MANAJEMEN", PermissionKey.REPORTS, Icons.Outlined.BarChart),
+    LAPORAN_KASIR("laporan-kasir", "Laporan Kasir", "TRANSAKSI", PermissionKey.ORDERS, Icons.Outlined.ReceiptLong),
     PEGAWAI("pegawai", "Pegawai & Shift", "MANAJEMEN", PermissionKey.STAFF_MANAGEMENT, Icons.Outlined.Badge),
     PENGATURAN("pengaturan", "Pengaturan Outlet", "MANAJEMEN", PermissionKey.SETTINGS, Icons.Outlined.Settings),
     PRINTER("printer", "Printer", "MANAJEMEN", PermissionKey.PRINTER_MANAGEMENT, Icons.Outlined.Print),

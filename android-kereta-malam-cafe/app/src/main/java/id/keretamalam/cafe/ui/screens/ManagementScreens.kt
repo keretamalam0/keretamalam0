@@ -1108,17 +1108,35 @@ private fun cashierReportGroup(categoryName: String): String {
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun LaporanKasirComposeScreen(viewModel: PosViewModel, uiState: PosUiState) {
+    val context = LocalContext.current
     val today = remember { java.time.LocalDate.now() }
-    var startDate by remember { mutableStateOf(today.toString()) }
+    var startDate by remember { mutableStateOf(today) }
     var startTime by remember { mutableStateOf("17:00") }
-    var endDate by remember { mutableStateOf(today.plusDays(1).toString()) }
+    var endDate by remember { mutableStateOf(today.plusDays(1)) }
     var endTime by remember { mutableStateOf("01:00") }
     var selectedCategory by remember { mutableStateOf<String?>(null) }
+    var showStartDatePicker by remember { mutableStateOf(false) }
+    var showEndDatePicker by remember { mutableStateOf(false) }
+    val dateFormatter = remember { java.time.format.DateTimeFormatter.ofPattern("dd MMM yyyy", java.util.Locale("id", "ID")) }
+    val timeFormatter = remember { java.time.format.DateTimeFormatter.ofPattern("HH:mm") }
+    val utc = remember { java.time.ZoneOffset.UTC }
+    if (showStartDatePicker) {
+        val picker = rememberDatePickerState(initialSelectedDateMillis = startDate.atStartOfDay(utc).toInstant().toEpochMilli())
+        DatePickerDialog(onDismissRequest = { showStartDatePicker = false }, confirmButton = {
+            TextButton(onClick = { picker.selectedDateMillis?.let { startDate = java.time.Instant.ofEpochMilli(it).atZone(utc).toLocalDate() }; showStartDatePicker = false }) { Text("Pilih") }
+        }, dismissButton = { TextButton(onClick = { showStartDatePicker = false }) { Text("Batal") } }) { DatePicker(state = picker) }
+    }
+    if (showEndDatePicker) {
+        val picker = rememberDatePickerState(initialSelectedDateMillis = endDate.atStartOfDay(utc).toInstant().toEpochMilli())
+        DatePickerDialog(onDismissRequest = { showEndDatePicker = false }, confirmButton = {
+            TextButton(onClick = { picker.selectedDateMillis?.let { endDate = java.time.Instant.ofEpochMilli(it).atZone(utc).toLocalDate() }; showEndDatePicker = false }) { Text("Pilih") }
+        }, dismissButton = { TextButton(onClick = { showEndDatePicker = false }) { Text("Batal") } }) { DatePicker(state = picker) }
+    }
     val start = remember(startDate, startTime) {
-        runCatching { java.time.LocalDateTime.parse("${startDate.trim()} ${startTime.trim()}", java.time.format.DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm")) }.getOrNull()
+        runCatching { java.time.LocalDateTime.of(startDate, java.time.LocalTime.parse(startTime, timeFormatter)) }.getOrNull()
     }
     val end = remember(endDate, endTime) {
-        runCatching { java.time.LocalDateTime.parse("${endDate.trim()} ${endTime.trim()}", java.time.format.DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm")) }.getOrNull()
+        runCatching { java.time.LocalDateTime.of(endDate, java.time.LocalTime.parse(endTime, timeFormatter)) }.getOrNull()
     }
     val paidOrders = remember(uiState.orders, start, end) {
         if (start == null || end == null || end.isBefore(start)) emptyList()
@@ -1163,16 +1181,59 @@ fun LaporanKasirComposeScreen(viewModel: PosViewModel, uiState: PosUiState) {
             Column(Modifier.fillMaxWidth().padding(12.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
                 Text("Rentang waktu operasional", style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.SemiBold)
                 Text("Contoh operasional malam: 17.00 sampai 01.00 hari berikutnya.", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
-                Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                    OutlinedTextField(startDate, { startDate = it }, modifier = Modifier.weight(1f), label = { Text("Tanggal mulai") }, singleLine = true, placeholder = { Text("YYYY-MM-DD") })
-                    OutlinedTextField(startTime, { startTime = it }, modifier = Modifier.width(112.dp), label = { Text("Jam") }, singleLine = true, placeholder = { Text("17:00") })
+                Text("MULAI", style = MaterialTheme.typography.labelMedium, color = MaterialTheme.colorScheme.primary, fontWeight = FontWeight.Bold)
+                OutlinedCard(onClick = { showStartDatePicker = true }, modifier = Modifier.fillMaxWidth()) {
+                    Row(Modifier.fillMaxWidth().padding(12.dp), verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(10.dp)) {
+                        Icon(Icons.Outlined.DateRange, contentDescription = null, tint = MaterialTheme.colorScheme.primary)
+                        Column(Modifier.weight(1f)) {
+                            Text("Tanggal mulai", style = MaterialTheme.typography.labelMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                            Text(startDate.format(dateFormatter), style = MaterialTheme.typography.bodyLarge, fontWeight = FontWeight.SemiBold)
+                        }
+                        Icon(Icons.Outlined.ChevronRight, contentDescription = null)
+                    }
                 }
-                Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                    OutlinedTextField(endDate, { endDate = it }, modifier = Modifier.weight(1f), label = { Text("Tanggal selesai") }, singleLine = true, placeholder = { Text("YYYY-MM-DD") })
-                    OutlinedTextField(endTime, { endTime = it }, modifier = Modifier.width(112.dp), label = { Text("Jam") }, singleLine = true, placeholder = { Text("01:00") })
+                OutlinedCard(onClick = {
+                    val parts = startTime.split(":")
+                    android.app.TimePickerDialog(context, { _, hour, minute -> startTime = "%02d:%02d".format(java.util.Locale.US, hour, minute) }, parts.getOrNull(0)?.toIntOrNull() ?: 17, parts.getOrNull(1)?.toIntOrNull() ?: 0, true).show()
+                }, modifier = Modifier.fillMaxWidth()) {
+                    Row(Modifier.fillMaxWidth().padding(12.dp), verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(10.dp)) {
+                        Icon(Icons.Outlined.AccessTime, contentDescription = null, tint = MaterialTheme.colorScheme.primary)
+                        Column(Modifier.weight(1f)) {
+                            Text("Jam mulai", style = MaterialTheme.typography.labelMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                            Text(startTime, style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold)
+                            Text("Pilih jam dan menit", style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                        }
+                        Icon(Icons.Outlined.ChevronRight, contentDescription = null)
+                    }
                 }
-                if (!validRange) Text("Rentang tanggal/jam tidak valid. Gunakan format tanggal YYYY-MM-DD dan jam HH:mm.", color = MaterialTheme.colorScheme.error, style = MaterialTheme.typography.bodySmall)
-                Text("${paidOrders.size} transaksi lunas · ${start?.format(java.time.format.DateTimeFormatter.ofPattern("dd MMM HH:mm")) ?: "—"} – ${end?.format(java.time.format.DateTimeFormatter.ofPattern("dd MMM HH:mm")) ?: "—"}", style = MaterialTheme.typography.bodySmall)
+                HorizontalDivider()
+                Text("SELESAI", style = MaterialTheme.typography.labelMedium, color = MaterialTheme.colorScheme.primary, fontWeight = FontWeight.Bold)
+                OutlinedCard(onClick = { showEndDatePicker = true }, modifier = Modifier.fillMaxWidth()) {
+                    Row(Modifier.fillMaxWidth().padding(12.dp), verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(10.dp)) {
+                        Icon(Icons.Outlined.DateRange, contentDescription = null, tint = MaterialTheme.colorScheme.primary)
+                        Column(Modifier.weight(1f)) {
+                            Text("Tanggal selesai", style = MaterialTheme.typography.labelMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                            Text(endDate.format(dateFormatter), style = MaterialTheme.typography.bodyLarge, fontWeight = FontWeight.SemiBold)
+                        }
+                        Icon(Icons.Outlined.ChevronRight, contentDescription = null)
+                    }
+                }
+                OutlinedCard(onClick = {
+                    val parts = endTime.split(":")
+                    android.app.TimePickerDialog(context, { _, hour, minute -> endTime = "%02d:%02d".format(java.util.Locale.US, hour, minute) }, parts.getOrNull(0)?.toIntOrNull() ?: 1, parts.getOrNull(1)?.toIntOrNull() ?: 0, true).show()
+                }, modifier = Modifier.fillMaxWidth()) {
+                    Row(Modifier.fillMaxWidth().padding(12.dp), verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(10.dp)) {
+                        Icon(Icons.Outlined.AccessTime, contentDescription = null, tint = MaterialTheme.colorScheme.primary)
+                        Column(Modifier.weight(1f)) {
+                            Text("Jam selesai", style = MaterialTheme.typography.labelMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                            Text(endTime, style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold)
+                            Text("Pilih jam dan menit", style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                        }
+                        Icon(Icons.Outlined.ChevronRight, contentDescription = null)
+                    }
+                }
+                if (!validRange) Text("Rentang tanggal/jam tidak valid. Pastikan waktu selesai setelah waktu mulai.", color = MaterialTheme.colorScheme.error, style = MaterialTheme.typography.bodySmall)
+                Text("${paidOrders.size} transaksi lunas · ${start?.format(java.time.format.DateTimeFormatter.ofPattern("dd MMM HH:mm", java.util.Locale("id", "ID"))) ?: "—"} – ${end?.format(java.time.format.DateTimeFormatter.ofPattern("dd MMM HH:mm", java.util.Locale("id", "ID"))) ?: "—"}", style = MaterialTheme.typography.bodySmall)
             }
         }
         Card {

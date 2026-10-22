@@ -344,6 +344,7 @@ fun RenderModuleScreen(
                 PosModuleRoute.PROMOSI -> PromosiComposeScreen(viewModel, uiState)
                 PosModuleRoute.KEUANGAN -> KeuanganComposeScreen(viewModel, uiState)
                 PosModuleRoute.LAPORAN -> LaporanPenjualanComposeScreen(viewModel, uiState, selectedReportPage, onSelectedReportPageChange)
+                PosModuleRoute.LAPORAN_KASIR -> LaporanKasirComposeScreen(viewModel, uiState)
                 PosModuleRoute.PEGAWAI -> PegawaiComposeScreen(viewModel, uiState)
                 PosModuleRoute.PENGATURAN -> PengaturanOutletComposeScreen(viewModel, uiState)
                 PosModuleRoute.PRINTER -> PrinterComposeScreen(viewModel, uiState, isTabletOrWide)

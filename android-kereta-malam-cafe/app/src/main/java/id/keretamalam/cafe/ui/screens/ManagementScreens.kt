@@ -1313,10 +1313,12 @@ fun LaporanKasirComposeScreen(viewModel: PosViewModel, uiState: PosUiState) {
 // 14. LAPORAN PENJUALAN SCREEN
 // ============================================================================
 private val ReportChartPalette = listOf(androidx.compose.ui.graphics.Color(0xFF6F91C5), androidx.compose.ui.graphics.Color(0xFF6BAF92), androidx.compose.ui.graphics.Color(0xFFE1B36A), androidx.compose.ui.graphics.Color(0xFF9A83C7), androidx.compose.ui.graphics.Color(0xFFD58A8A), androidx.compose.ui.graphics.Color(0xFF6DAAB5))
-private fun reportDate(value: String): java.time.LocalDateTime? =
-    runCatching { java.time.Instant.parse(value).atZone(java.time.ZoneId.systemDefault()).toLocalDateTime() }.getOrNull()
-        ?: runCatching { java.time.OffsetDateTime.parse(value).toLocalDateTime() }.getOrNull()
+private fun reportDate(value: String): java.time.LocalDateTime? {
+    val zone = java.time.ZoneId.systemDefault()
+    return runCatching { java.time.Instant.parse(value).atZone(zone).toLocalDateTime() }.getOrNull()
+        ?: runCatching { java.time.OffsetDateTime.parse(value).atZoneSameInstant(zone).toLocalDateTime() }.getOrNull()
         ?: runCatching { java.time.LocalDateTime.parse(value.take(19)) }.getOrNull()
+}
 private fun reportMoney(value: Double) = RupiahFormatter.format(value)
 
 @OptIn(ExperimentalMaterial3Api::class)

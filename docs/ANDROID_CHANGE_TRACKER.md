@@ -10,6 +10,12 @@ Project directory: `android-kereta-malam-cafe/`
 - [ ] Android Gradle build verified by GitHub Actions (workflow added in `857052dd6ef318cb8b69bde173ff2cfe3c8da41b`; run result must be checked after GitHub executes it).
 - [ ] Device-level verification recorded.
 
+## 2026-10-22 — Native Android Laporan Kasir
+- Added a dedicated `Laporan Kasir` navigation screen in the native Android app, accessible through the cashier/orders permission and available alongside the owner’s existing `Laporan Penjualan` menu.
+- Added operational date/time range inputs (default 17:00 through 01:00 next day), paid/non-cancelled transaction filtering, category totals, expandable product detail, and Makanan/Minuman summary cards using existing order/item/product/category data; no new tables or mock sales data added.
+- Category sales amounts allocate each paid order total proportionally across its item line totals so category amounts reconcile to the order total when order items are present. Food/drink grouping uses category-name keywords; unrecognized categories currently default to Makanan and should be reviewed against the cafe’s category naming.
+- [ ] GitHub Actions APK build and runtime/device checks must pass before distributing the APK.
+
 ## 2026-10-21 — UI and reporting changes committed
 - [x] AI chat history upgraded from a small alert to a near-full-screen conversation list; pin/unpin, open, delete one, and delete all are available. History remains device-local.
 - [x] Dashboard KPI cards have zero default and pressed elevation while preserving their tinted backgrounds.

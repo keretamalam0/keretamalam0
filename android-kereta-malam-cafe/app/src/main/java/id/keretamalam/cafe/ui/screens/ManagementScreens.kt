@@ -1179,6 +1179,16 @@ fun LaporanKasirComposeScreen(viewModel: PosViewModel, uiState: PosUiState) {
     val drinkTotal = categoryTotals.filter { cashierReportGroup(it.first) == "Minuman" }.sumOf { it.second.second.first }
     val foodQty = categoryTotals.filter { cashierReportGroup(it.first) == "Makanan" }.sumOf { it.second.second.second }
     val drinkQty = categoryTotals.filter { cashierReportGroup(it.first) == "Minuman" }.sumOf { it.second.second.second }
+    // Ringkasan transaksi memakai nilai yang tersimpan pada setiap order.
+    // Service/penyesuaian diturunkan sebagai selisih karena model order saat ini
+    // menyimpan subtotal, discount, tax, dan total tetapi belum menyimpan service fee terpisah.
+    val reportGrossSales = paidOrders.sumOf { it.subtotal }
+    val reportDiscounts = paidOrders.sumOf { it.discount }
+    val reportNetBeforeTax = paidOrders.sumOf { (it.subtotal - it.discount).coerceAtLeast(0.0) }
+    val reportTax = paidOrders.sumOf { it.tax }
+    val reportServiceAdjustments = paidOrders.sumOf {
+        (it.total - (it.subtotal - it.discount) - it.tax).coerceAtLeast(0.0)
+    }
     val reportTotal = paidOrders.sumOf { it.total }
     val validRange = start != null && end != null && !end.isBefore(start)
     val rupiah = { amount: Double -> RupiahFormatter.format(amount) }
@@ -1248,10 +1258,40 @@ fun LaporanKasirComposeScreen(viewModel: PosViewModel, uiState: PosUiState) {
             }
         }
         Card {
-            Column(Modifier.fillMaxWidth().padding(14.dp), verticalArrangement = Arrangement.spacedBy(6.dp)) {
-                Text("Total Penjualan", style = MaterialTheme.typography.titleMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
+            Column(Modifier.fillMaxWidth().padding(14.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                Text("Ringkasan Keuangan", style = MaterialTheme.typography.titleMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
                 Text(rupiah(reportTotal), style = MaterialTheme.typography.headlineMedium, fontWeight = FontWeight.Bold)
-                Text("Transaksi lunas, tidak termasuk pesanan dibatalkan.", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                HorizontalDivider()
+                Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween, verticalAlignment = Alignment.CenterVertically) {
+                    Text("Penjualan kotor", style = MaterialTheme.typography.bodyMedium)
+                    Text(rupiah(reportGrossSales), style = MaterialTheme.typography.bodyMedium, fontWeight = FontWeight.Medium)
+                }
+                Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween, verticalAlignment = Alignment.CenterVertically) {
+                    Text("Diskon & promo", style = MaterialTheme.typography.bodyMedium)
+                    Text("-${rupiah(reportDiscounts)}", style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.error)
+                }
+                Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween, verticalAlignment = Alignment.CenterVertically) {
+                    Text("Penjualan setelah diskon", style = MaterialTheme.typography.bodyMedium)
+                    Text(rupiah(reportNetBeforeTax), style = MaterialTheme.typography.bodyMedium, fontWeight = FontWeight.Medium)
+                }
+                Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween, verticalAlignment = Alignment.CenterVertically) {
+                    Text("Pajak tercatat", style = MaterialTheme.typography.bodyMedium)
+                    Text(rupiah(reportTax), style = MaterialTheme.typography.bodyMedium)
+                }
+                Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween, verticalAlignment = Alignment.CenterVertically) {
+                    Text("Biaya layanan / penyesuaian", style = MaterialTheme.typography.bodyMedium)
+                    Text(rupiah(reportServiceAdjustments), style = MaterialTheme.typography.bodyMedium)
+                }
+                HorizontalDivider()
+                Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween, verticalAlignment = Alignment.CenterVertically) {
+                    Text("Total dibayar pelanggan", style = MaterialTheme.typography.titleSmall, fontWeight = FontWeight.Bold)
+                    Text(rupiah(reportTotal), style = MaterialTheme.typography.titleSmall, fontWeight = FontWeight.Bold)
+                }
+                Text(
+                    "Hanya transaksi lunas; pesanan dibatalkan tidak dihitung. Biaya layanan/penyesuaian adalah selisih dari total transaksi karena nilai layanan belum disimpan sebagai kolom terpisah.",
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                )
             }
         }
         Text("Rincian per Kategori", style = MaterialTheme.typography.titleLarge, fontWeight = FontWeight.Bold)

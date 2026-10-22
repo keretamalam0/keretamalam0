@@ -22,6 +22,17 @@ import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.*
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.outlined.DateRange
+import androidx.compose.material.icons.outlined.WarningAmber
+import androidx.compose.material.icons.outlined.Schedule
+import androidx.compose.material.icons.outlined.Restaurant
+import androidx.compose.material.icons.outlined.ReceiptLong
+import androidx.compose.material.icons.outlined.PointOfSale
+import androidx.compose.material.icons.outlined.LocalCafe
+import androidx.compose.material.icons.outlined.FilterAlt
+import androidx.compose.material.icons.outlined.ExpandMore
+import androidx.compose.material.icons.outlined.ExpandLess
+import androidx.compose.material.icons.outlined.ChevronRight
+import androidx.compose.material.icons.outlined.AccessTime
 import androidx.compose.material.icons.outlined.Delete
 import androidx.compose.material.icons.outlined.Search
 import androidx.compose.material.icons.outlined.FileDownload

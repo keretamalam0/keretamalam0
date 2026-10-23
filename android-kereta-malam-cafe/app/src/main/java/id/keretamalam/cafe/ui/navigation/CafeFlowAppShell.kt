@@ -80,7 +80,7 @@ enum class PosModuleRoute(
     PROMOSI("promosi", "Promosi & Diskon", "PEMASARAN", PermissionKey.PROMOTIONS, Icons.Outlined.Percent),
     KEUANGAN("keuangan", "Pengeluaran & Laba Rugi", "MANAJEMEN", PermissionKey.EXPENSES, Icons.Outlined.AccountBalanceWallet),
     LAPORAN("laporan", "Laporan Penjualan", "MANAJEMEN", PermissionKey.REPORTS, Icons.Outlined.BarChart),
-    LAPORAN_KASIR("laporan-kasir", "Laporan Kasir", "TRANSAKSI", PermissionKey.ORDERS, Icons.Outlined.ReceiptLong),
+    LAPORAN_KASIR("laporan-kasir", "Laporan Kasir", "TRANSAKSI", PermissionKey.CASHIER_REPORT, Icons.Outlined.ReceiptLong),
     PEGAWAI("pegawai", "Pegawai & Shift", "MANAJEMEN", PermissionKey.STAFF_MANAGEMENT, Icons.Outlined.Badge),
     PENGATURAN("pengaturan", "Pengaturan Outlet", "MANAJEMEN", PermissionKey.SETTINGS, Icons.Outlined.Settings),
     PRINTER("printer", "Printer", "MANAJEMEN", PermissionKey.PRINTER_MANAGEMENT, Icons.Outlined.Print),

@@ -299,11 +299,29 @@ class EscPosBluetoothManager(private val context: Context) {
         var socket: BluetoothSocket? = null
         return try {
             adapter.cancelDiscovery()
-            socket = device.createRfcommSocketToServiceRecord(SPP_UUID)
-            socket.connect()
-            val outputStream = socket.outputStream
 
-            // ESC/POS Initialize (\x1B@), Left Align (\x1Ba\x00), ASCII safe Indonesian text, Feed & Partial Cut (\x1DVA\x00)
+            // Sebagian printer thermal SPP menolak koneksi RFCOMM secure.
+            // Coba secure dahulu, lalu fallback ke insecure RFCOMM jika gagal.
+            var secureFailure: IOException? = null
+            socket = device.createRfcommSocketToServiceRecord(SPP_UUID)
+            try {
+                socket.connect()
+            } catch (e: IOException) {
+                secureFailure = e
+                runCatching { socket?.close() }
+                socket = device.createInsecureRfcommSocketToServiceRecord(SPP_UUID)
+                try {
+                    socket.connect()
+                } catch (fallbackError: IOException) {
+                    fallbackError.addSuppressed(secureFailure)
+                    throw fallbackError
+                }
+            }
+
+            val activeSocket = socket ?: throw IOException("Koneksi Bluetooth tidak terbentuk.")
+            val outputStream = activeSocket.outputStream
+
+            // ESC/POS Initialize, left align, text, feed & cut.
             val initBytes = byteArrayOf(0x1B, 0x40, 0x1B, 0x61, 0x00)
             val sanitizedText = textContent.replace(Regex("[^\\x00-\\x7F\\n\\r\\t]"), "?")
             val textBytes = sanitizedText.toByteArray(Charset.forName("US-ASCII"))

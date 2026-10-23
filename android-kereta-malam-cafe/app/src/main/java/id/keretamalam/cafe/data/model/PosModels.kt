@@ -22,6 +22,7 @@ enum class PermissionKey(val key: String) {
     INVENTORY("inventory"),
     TABLES("tables"),
     REPORTS("reports"),
+    CASHIER_REPORT("cashier_report"),
     CUSTOMERS("customers"),
     PROMOTIONS("promotions"),
     SETTINGS("settings"),

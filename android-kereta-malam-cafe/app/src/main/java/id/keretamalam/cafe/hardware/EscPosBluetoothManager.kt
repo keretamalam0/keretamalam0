@@ -305,13 +305,13 @@ class EscPosBluetoothManager(private val context: Context) {
             var secureFailure: IOException? = null
             socket = device.createRfcommSocketToServiceRecord(SPP_UUID)
             try {
-                socket.connect()
+                socket!!.connect()
             } catch (e: IOException) {
                 secureFailure = e
                 runCatching { socket?.close() }
                 socket = device.createInsecureRfcommSocketToServiceRecord(SPP_UUID)
                 try {
-                    socket.connect()
+                    socket!!.connect()
                 } catch (fallbackError: IOException) {
                     fallbackError.addSuppressed(secureFailure)
                     throw fallbackError

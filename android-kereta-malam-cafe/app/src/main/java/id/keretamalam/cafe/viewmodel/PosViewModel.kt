@@ -1339,6 +1339,30 @@ class PosViewModel(application: Application) : AndroidViewModel(application) {
         }
     }
 
+    fun returnPaidOrder(order: OrderWithItems, reason: String) {
+        if (!order.isPaid || order.returnedAt != null) {
+            showNotice("Hanya transaksi lunas yang belum diretur yang bisa diretur.", isError = true)
+            return
+        }
+        if (reason.isBlank()) {
+            showNotice("Alasan retur wajib diisi.", isError = true)
+            return
+        }
+        viewModelScope.launch {
+            val before = _uiState.value.orders.firstOrNull { it.id == order.id } ?: order
+            val returned = before.copy(returnedAt = nowString(), returnReason = reason.trim(), returnedBy = "Kasir")
+            _uiState.update { state -> state.copy(orders = state.orders.map { if (it.id == order.id) returned else it }, successMessage = null, errorMessage = null) }
+            if (_uiState.value.backendStatus == BackendIntegrationStatus.ACTIVE_VERIFIED) {
+                runCatching { repository.returnPaidOrder(order.id, reason, "Kasir") }
+                    .onSuccess { refreshOrdersSilently(); showNotice("Transaksi #${order.orderNo} berhasil diretur.") }
+                    .onFailure { error ->
+                        _uiState.update { state -> state.copy(orders = state.orders.map { if (it.id == order.id) before else it }) }
+                        showNotice(error.message ?: "Retur gagal disimpan.", isError = true)
+                    }
+            } else showNotice("Transaksi #${order.orderNo} berhasil diretur (mode lokal).")
+        }
+    }
+
     fun updateOrderStatus(order: OrderWithItems, nextStatus: OrderStatus, onSuccess: (() -> Unit)? = null) {
         viewModelScope.launch {
             val liveBackend = _uiState.value.backendStatus == BackendIntegrationStatus.ACTIVE_VERIFIED

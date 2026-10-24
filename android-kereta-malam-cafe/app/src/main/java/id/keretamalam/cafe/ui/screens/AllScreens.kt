@@ -463,7 +463,7 @@ private fun DashboardComposeScreen(
             else -> true
         }
     }
-    val paid = orders.filter { it.isPaid && it.status != OrderStatus.CANCELLED }
+    val paid = orders.filter { it.isPaid && it.status != OrderStatus.CANCELLED && it.returnedAt == null }
 
     val revenue = paid.sumOf { it.total }
     val average = if (paid.isEmpty()) 0.0 else revenue / paid.size

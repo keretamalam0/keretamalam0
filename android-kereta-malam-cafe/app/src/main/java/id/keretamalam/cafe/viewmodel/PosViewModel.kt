@@ -179,12 +179,13 @@ data class PosUiState(
     }
 
     fun expectedDrawerCashForShift(shift: StaffShift): Double {
-        val startDate = shift.openedAt.take(10)
-        val endDate = (shift.closedAt ?: nowString()).take(10)
+        val opened = parseShiftTimestamp(shift.openedAt) ?: return shift.openingCash
+        val closed = parseShiftTimestamp(shift.closedAt)
         val cashExpenses = expenses.filter { expense ->
             val method = expense.paymentMethod.lowercase()
+            val created = parseShiftTimestamp(expense.createdAt)
             method in setOf("cash", "tunai") &&
-                expense.expenseDate >= startDate && expense.expenseDate <= endDate
+                created != null && created >= opened && (closed == null || created <= closed)
         }.sumOf { it.amount }
         return (shift.openingCash + cashSalesForShift(shift) - cashExpenses).coerceAtLeast(0.0)
     }
@@ -1350,10 +1351,11 @@ class PosViewModel(application: Application) : AndroidViewModel(application) {
         }
         viewModelScope.launch {
             val before = _uiState.value.orders.firstOrNull { it.id == order.id } ?: order
-            val returned = before.copy(returnedAt = nowString(), returnReason = reason.trim(), returnedBy = "Kasir")
+            val returnedBy = _uiState.value.staffProfile.fullName.ifBlank { _uiState.value.staffProfile.email.ifBlank { "Kasir" } }
+            val returned = before.copy(returnedAt = java.time.OffsetDateTime.now().toString(), returnReason = reason.trim(), returnedBy = returnedBy)
             _uiState.update { state -> state.copy(orders = state.orders.map { if (it.id == order.id) returned else it }, successMessage = null, errorMessage = null) }
             if (_uiState.value.backendStatus == BackendIntegrationStatus.ACTIVE_VERIFIED) {
-                runCatching { repository.returnPaidOrder(order.id, reason, "Kasir") }
+                runCatching { repository.returnPaidOrder(order.id, reason, returnedBy) }
                     .onSuccess { refreshOrdersSilently(); showNotice("Transaksi #${order.orderNo} berhasil diretur.") }
                     .onFailure { error ->
                         _uiState.update { state -> state.copy(orders = state.orders.map { if (it.id == order.id) before else it }) }

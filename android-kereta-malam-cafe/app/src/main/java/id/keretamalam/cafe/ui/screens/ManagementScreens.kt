@@ -962,7 +962,6 @@ fun KeuanganComposeScreen(viewModel: PosViewModel, uiState: PosUiState) {
     val context = LocalContext.current
     var tabIndex by remember { mutableStateOf(0) }
     var amount by remember { mutableStateOf("") }
-    var category by remember { mutableStateOf("Bahan baku") }
     var method by remember { mutableStateOf("cash") }
     var description by remember { mutableStateOf("") }
 
@@ -1009,10 +1008,7 @@ fun KeuanganComposeScreen(viewModel: PosViewModel, uiState: PosUiState) {
                     OutlinedCard(modifier = Modifier.fillMaxWidth()) {
                         Column(modifier = Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
                             Text("Catat Kas Keluar / Pengeluaran Baru", style = MaterialTheme.typography.titleMedium)
-                            Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                                OutlinedTextField(value = amount, onValueChange = { amount = it }, label = { Text("Nominal (Rp)") }, modifier = Modifier.weight(0.5f), singleLine = true)
-                                OutlinedTextField(value = category, onValueChange = { category = it }, label = { Text("Kategori") }, modifier = Modifier.weight(0.5f), singleLine = true)
-                            }
+                            OutlinedTextField(value = amount, onValueChange = { amount = it }, label = { Text("Nominal (Rp)") }, modifier = Modifier.fillMaxWidth(), singleLine = true)
                             Row(horizontalArrangement = Arrangement.spacedBy(6.dp)) {
                                 listOf("cash" to "Tunai", "qris" to "QRIS", "transfer" to "Transfer").forEach { (c, lbl) ->
                                     FilterChip(selected = method == c, onClick = { method = c }, label = { Text(lbl) })
@@ -1020,7 +1016,7 @@ fun KeuanganComposeScreen(viewModel: PosViewModel, uiState: PosUiState) {
                             }
                             OutlinedTextField(value = description, onValueChange = { description = it }, label = { Text("Keterangan Pengeluaran") }, modifier = Modifier.fillMaxWidth(), singleLine = true)
                             Button(onClick = {
-                                viewModel.addExpense(amount.toDoubleOrNull() ?: 0.0, category, "2026-10-11", method, description)
+                                viewModel.addExpense(amount.toDoubleOrNull() ?: 0.0, "Operasional", java.time.LocalDate.now().toString(), method, description)
                                 amount = ""
                                 description = ""
                             }) { Text("Simpan Pengeluaran") }

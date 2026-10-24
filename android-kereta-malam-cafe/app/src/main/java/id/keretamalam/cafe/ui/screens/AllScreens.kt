@@ -2108,6 +2108,8 @@ private fun HistoryComposeScreen(viewModel: PosViewModel, uiState: PosUiState) {
     var selectedIds by remember { mutableStateOf(setOf<String>()) }
     var confirmDeleteSelected by remember { mutableStateOf(false) }
     var confirmDeleteAll by remember { mutableStateOf(false) }
+    var orderToReturn by remember { mutableStateOf<OrderWithItems?>(null) }
+    var returnReason by remember { mutableStateOf("") }
 
     val filteredOrders = remember(uiState.orders, fromDate, toDate, search) {
         uiState.orders.filter { o ->
@@ -2129,6 +2131,28 @@ private fun HistoryComposeScreen(viewModel: PosViewModel, uiState: PosUiState) {
                 .onSuccess { viewModel.showNotice("CSV Riwayat Transaksi berhasil disimpan.") }
                 .onFailure { viewModel.showNotice(it.message ?: "Gagal menyimpan CSV.", isError = true) }
         }
+    }
+
+    if (orderToReturn != null) {
+        AlertDialog(
+            onDismissRequest = { orderToReturn = null; returnReason = "" },
+            title = { Text("Retur transaksi #${orderToReturn?.orderNo}") },
+            text = {
+                Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                    Text("Transaksi akan ditandai Diretur dan tidak dihitung sebagai penjualan. Riwayat tetap disimpan.")
+                    OutlinedTextField(value = returnReason, onValueChange = { returnReason = it }, label = { Text("Alasan retur") }, modifier = Modifier.fillMaxWidth(), minLines = 2)
+                }
+            },
+            confirmButton = {
+                TextButton(onClick = {
+                    val order = orderToReturn
+                    if (order != null && returnReason.isNotBlank()) viewModel.returnPaidOrder(order, returnReason)
+                    orderToReturn = null
+                    returnReason = ""
+                }, enabled = returnReason.isNotBlank()) { Text("Konfirmasi Retur") }
+            },
+            dismissButton = { TextButton(onClick = { orderToReturn = null; returnReason = "" }) { Text("Batal") } }
+        )
     }
 
     if (confirmDeleteSelected) {
@@ -2223,11 +2247,13 @@ private fun HistoryComposeScreen(viewModel: PosViewModel, uiState: PosUiState) {
                                 )
                             }
                             Text("Dibayar: ${if (order.isPaid) "LUNAS" else "BELUM LUNAS"}", color = if (order.isPaid) Color(0xFF15803D) else MaterialTheme.colorScheme.error, style = MaterialTheme.typography.bodySmall)
+                            if (order.returnedAt != null) Text("DIRETUR · ${order.returnReason ?: "Tanpa alasan"} · ${order.returnedAt}", color = MaterialTheme.colorScheme.error, style = MaterialTheme.typography.bodySmall)
                         }
                         Column(horizontalAlignment = Alignment.End, verticalArrangement = Arrangement.spacedBy(5.dp)) {
                             Text("Total", style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
                             Text(RupiahFormatter.format(order.total), fontWeight = FontWeight.Bold)
                             OutlinedButton(onClick = { viewModel.openReceiptDialog(order) }) { Text("Detail") }
+                            if (order.isPaid && order.returnedAt == null) OutlinedButton(onClick = { orderToReturn = order; returnReason = "" }) { Text("Retur") }
                         }
                     }
                 }

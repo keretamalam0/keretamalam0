@@ -148,7 +148,7 @@ data class PosUiState(
         get() = (cashReceivedValue - grandTotal).coerceAtLeast(0.0)
 
     val paidOrders: List<OrderWithItems>
-        get() = orders.filter { it.isPaid && it.status != OrderStatus.CANCELLED }
+        get() = orders.filter { it.isPaid && it.status != OrderStatus.CANCELLED && it.returnedAt == null }
 
     /**
      * Cash collected for one shift only. Prefer payment timestamps because an order

@@ -900,6 +900,23 @@ class CafeFlowRepository(private val context: Context) {
         )
     }
 
+    suspend fun returnPaidOrder(orderId: String, reason: String, returnedBy: String) {
+        val creds = requireVerifiedCredentials()
+        require(reason.isNotBlank()) { "Alasan retur wajib diisi." }
+        val encodedId = URLEncoder.encode(orderId, "UTF-8")
+        val payload = buildJsonObject {
+            put("returned_at", java.time.OffsetDateTime.now().toString())
+            put("return_reason", reason.trim())
+            put("returned_by", returnedBy.trim())
+        }
+        executeJsonRequest(
+            method = "PATCH",
+            url = "${creds.supabaseUrl}/rest/v1/orders?id=eq.$encodedId&is_paid=eq.true&returned_at=is.null",
+            headers = buildHeaders(creds, "return=representation"),
+            bodyJson = json.encodeToString(JsonObject.serializer(), payload)
+        )
+    }
+
     suspend fun approveQrOrder(orderId: String, paymentMethod: String = "qris", cashReceived: Double? = null) {
         val creds = requireVerifiedCredentials()
         val payload = buildJsonObject {

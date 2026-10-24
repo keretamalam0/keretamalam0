@@ -178,8 +178,16 @@ data class PosUiState(
         }
     }
 
-    fun expectedDrawerCashForShift(shift: StaffShift): Double =
-        (shift.openingCash + cashSalesForShift(shift)).coerceAtLeast(0.0)
+    fun expectedDrawerCashForShift(shift: StaffShift): Double {
+        val startDate = shift.openedAt.take(10)
+        val endDate = (shift.closedAt ?: nowString()).take(10)
+        val cashExpenses = expenses.filter { expense ->
+            val method = expense.paymentMethod.lowercase()
+            method in setOf("cash", "tunai") &&
+                expense.expenseDate >= startDate && expense.expenseDate <= endDate
+        }.sumOf { it.amount }
+        return (shift.openingCash + cashSalesForShift(shift) - cashExpenses).coerceAtLeast(0.0)
+    }
 
     private fun parseShiftTimestamp(value: String?): java.time.Instant? {
         if (value.isNullOrBlank()) return null

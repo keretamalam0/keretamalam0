@@ -909,12 +909,16 @@ class CafeFlowRepository(private val context: Context) {
             put("return_reason", reason.trim())
             put("returned_by", returnedBy.trim())
         }
-        executeJsonRequest(
+        val response = executeJsonRequest(
             method = "PATCH",
             url = "${creds.supabaseUrl}/rest/v1/orders?id=eq.$encodedId&is_paid=eq.true&returned_at=is.null",
             headers = buildHeaders(creds, "return=representation"),
             bodyJson = json.encodeToString(JsonObject.serializer(), payload)
         )
+        val updatedRows = runCatching { json.parseToJsonElement(response) as? JsonArray }.getOrNull()
+        check(!updatedRows.isNullOrEmpty()) {
+            "Retur tidak tersimpan. Transaksi mungkin sudah diretur atau status pembayarannya bukan lunas."
+        }
     }
 
     suspend fun approveQrOrder(orderId: String, paymentMethod: String = "qris", cashReceived: Double? = null) {

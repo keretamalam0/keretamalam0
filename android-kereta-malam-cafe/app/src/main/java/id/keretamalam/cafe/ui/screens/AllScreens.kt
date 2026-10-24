@@ -2192,7 +2192,7 @@ private fun HistoryComposeScreen(viewModel: PosViewModel, uiState: PosUiState) {
         Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(6.dp)) {
             Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(1.dp)) {
                 Text("History · ${filteredOrders.size} order", style = MaterialTheme.typography.titleSmall, fontWeight = FontWeight.SemiBold)
-                Text("Lunas: ${RupiahFormatter.format(filteredOrders.filter { it.isPaid }.sumOf { it.total })}", style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                Text("Lunas: ${RupiahFormatter.format(filteredOrders.filter { it.isPaid && it.returnedAt == null }.sumOf { it.total })}", style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
             }
             IconButton(onClick = { csvLauncher.launch("history-transaksi-kereta-malam.csv") }, modifier = Modifier.size(38.dp)) {
                 Icon(Icons.Outlined.FileDownload, contentDescription = "Ekspor CSV", tint = Color(0xFF2878F0))

@@ -223,6 +223,9 @@ data class OrderWithItems(
     @SerialName("payment_status") val paymentStatus: PaymentStatus = PaymentStatus.UNPAID,
     @SerialName("created_at") val createdAt: String = "",
     @SerialName("updated_at") val updatedAt: String = "",
+    @SerialName("returned_at") val returnedAt: String? = null,
+    @SerialName("return_reason") val returnReason: String? = null,
+    @SerialName("returned_by") val returnedBy: String? = null,
     @SerialName("order_items") val orderItems: List<OrderItem> = emptyList(),
     val payments: List<PaymentRecord> = emptyList(),
     @SerialName("restaurant_tables") val restaurantTable: TableNameRef? = null

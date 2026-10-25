@@ -489,6 +489,10 @@ private fun DashboardComposeScreen(
             else -> "other"
         }
     }
+    val allPaidOrders = uiState.orders.filter { it.isPaid && it.status != OrderStatus.CANCELLED && it.returnedAt == null }
+    val allCashSales = allPaidOrders.filter { paymentGroup(it) == "cash" }.sumOf { it.total }
+    val cashSalesAllocatedToFund = uiState.cashFundEntries.filter { it.entryType == "replenishment" && it.source == "sales_cash" }.sumOf { it.amount }
+    val availableSalesCash = (allCashSales - cashSalesAllocatedToFund).coerceAtLeast(0.0)
     val payments = paymentGroups.map { pair ->
         val matched = paid.filter { paymentGroup(it) == pair.first }
         Triple(pair.second, matched.sumOf { it.total }, matched.size)
@@ -534,6 +538,7 @@ private fun DashboardComposeScreen(
                 if (uiState.staffProfile.canAccessDashboardMetric("dashboard.paid_orders")) add(Triple("Pesanan Lunas", paid.size.toString(), "Transaksi berhasil") to PosModuleRoute.PESANAN)
                 if (uiState.staffProfile.canAccessDashboardMetric("dashboard.average_transaction")) add(Triple("Rata-rata Pesanan", RupiahFormatter.format(average), "Per transaksi lunas") to PosModuleRoute.LAPORAN)
                 if (uiState.staffProfile.canAccessDashboardMetric("dashboard.peak_hour")) add(Triple("Jam Tersibuk", peak?.let { "%02d.00–%02d.00".format(it, (it + 1) % 24) } ?: "—", if (peak == null) "Belum ada pesanan" else hours[peak].toInt().toString() + " pesanan") to PosModuleRoute.LAPORAN)
+                add(Triple("Kas Penjualan Tersedia", RupiahFormatter.format(availableSalesCash), "Penjualan tunai dikurangi alokasi modal") to PosModuleRoute.LAPORAN)
             }
             Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
                 metrics.chunked(if (isTabletOrWide) 4 else 2).forEach { row ->

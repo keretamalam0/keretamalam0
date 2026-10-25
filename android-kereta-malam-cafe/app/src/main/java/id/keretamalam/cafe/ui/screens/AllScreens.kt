@@ -2116,7 +2116,7 @@ private fun HistoryComposeScreen(viewModel: PosViewModel, uiState: PosUiState) {
 
     val filteredOrders = remember(uiState.orders, fromDate, toDate, search, returnsOnly) {
         uiState.orders.filter { o ->
-            val datePart = o.createdAt.take(10)
+            val datePart = (if (returnsOnly) o.returnedAt else o.createdAt)?.take(10).orEmpty()
             val inRange = (fromDate.isBlank() || datePart >= fromDate) && (toDate.isBlank() || datePart <= toDate)
             val matchQuery = search.isBlank() ||
                 o.orderNo.toString().contains(search) ||

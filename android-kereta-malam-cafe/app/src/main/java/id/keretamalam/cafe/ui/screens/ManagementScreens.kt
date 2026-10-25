@@ -971,6 +971,9 @@ fun KeuanganComposeScreen(viewModel: PosViewModel, uiState: PosUiState) {
 
     val cashFundTarget = uiState.cashFundEntries.firstOrNull { it.entryType == "set_target" }?.amount ?: 0.0
     val totalReplenishments = uiState.cashFundEntries.filter { it.entryType == "replenishment" }.sumOf { it.amount }
+    val cashOperationalExpenses = uiState.expenses.filter { it.paymentMethod.equals("cash", true) }.sumOf { it.amount }
+    val currentCashFundBalance = (cashFundTarget + totalReplenishments - cashOperationalExpenses).coerceAtLeast(0.0)
+    val salesCashReplenishments = uiState.cashFundEntries.filter { it.entryType == "replenishment" && it.source == "sales_cash" }.sumOf { it.amount }
 
     val grossSales = uiState.paidOrders.sumOf { it.subtotal }
     val totalDiscounts = uiState.paidOrders.sumOf { it.discount }
@@ -1100,14 +1103,19 @@ fun KeuanganComposeScreen(viewModel: PosViewModel, uiState: PosUiState) {
                 item {
                     OutlinedCard(modifier = Modifier.fillMaxWidth()) {
                         Column(Modifier.fillMaxWidth().padding(16.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                            Text("Target Modal Kas", style = MaterialTheme.typography.titleMedium)
-                            Text("Target tersimpan: ${RupiahFormatter.format(cashFundTarget)}")
-                            OutlinedTextField(value = cashFundTargetInput, onValueChange = { cashFundTargetInput = it }, label = { Text("Target tetap (Rp)") }, modifier = Modifier.fillMaxWidth(), singleLine = true)
+                            Text("Saldo Modal Kas Saat Ini", style = MaterialTheme.typography.titleMedium)
+                            Text(RupiahFormatter.format(currentCashFundBalance), style = MaterialTheme.typography.headlineMedium, fontWeight = FontWeight.Bold)
+                            Text("Modal awal + isi ulang - pengeluaran tunai", style = MaterialTheme.typography.bodySmall)
+                            HorizontalDivider()
+                            Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) { Text("Modal awal"); Text(RupiahFormatter.format(cashFundTarget)) }
+                            Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) { Text("Isi ulang"); Text("+${RupiahFormatter.format(totalReplenishments)}") }
+                            Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) { Text("Pengeluaran tunai"); Text("-${RupiahFormatter.format(cashOperationalExpenses)}") }
+                            OutlinedTextField(value = cashFundTargetInput, onValueChange = { cashFundTargetInput = it }, label = { Text("Modal awal tunai (Rp)") }, modifier = Modifier.fillMaxWidth(), singleLine = true, enabled = cashFundTarget <= 0.0)
                             Button(onClick = {
                                 val value = cashFundTargetInput.filter { it.isDigit() }.toDoubleOrNull() ?: 0.0
-                                viewModel.saveCashFundTarget(value)
+                                if (cashFundTarget <= 0.0) viewModel.saveCashFundTarget(value) else viewModel.showNotice("Modal awal sudah tercatat. Untuk menambah atau mengganti uang yang terpakai, gunakan Isi Ulang Modal Kas.")
                                 cashFundTargetInput = ""
-                            }, modifier = Modifier.fillMaxWidth()) { Text("Simpan Target ke Supabase") }
+                            }, modifier = Modifier.fillMaxWidth(), enabled = cashFundTarget <= 0.0) { Text("Simpan Modal Awal") }
                         }
                     }
                 }
@@ -1127,8 +1135,9 @@ fun KeuanganComposeScreen(viewModel: PosViewModel, uiState: PosUiState) {
                                 replenishmentAmount = ""
                                 replenishmentDescription = ""
                             }, modifier = Modifier.fillMaxWidth()) { Text("Catat Isi Ulang") }
-                            Text("Isi ulang adalah alokasi uang, bukan omzet atau beban pengeluaran.", style = MaterialTheme.typography.bodySmall)
-                            Text("Total isi ulang tercatat: ${RupiahFormatter.format(totalReplenishments)}", fontWeight = FontWeight.SemiBold)
+                            Text("Isi ulang dari penjualan tunai memindahkan uang penjualan ke modal kas. Ini bukan omzet baru.", style = MaterialTheme.typography.bodySmall)
+                            Text("Total dari penjualan tunai: ${RupiahFormatter.format(salesCashReplenishments)}", fontWeight = FontWeight.SemiBold)
+                            Text("Saldo modal setelah transaksi: ${RupiahFormatter.format(currentCashFundBalance)}", fontWeight = FontWeight.SemiBold)
                         }
                     }
                 }

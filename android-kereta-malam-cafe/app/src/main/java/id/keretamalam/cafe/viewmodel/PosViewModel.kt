@@ -19,6 +19,8 @@ import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.collectLatest
 import kotlinx.coroutines.flow.distinctUntilChanged
 import kotlinx.coroutines.flow.map
+import kotlinx.serialization.json.buildJsonObject
+import kotlinx.serialization.json.put
 import kotlinx.coroutines.sync.Mutex
 import java.text.SimpleDateFormat
 import java.util.Date
@@ -1341,8 +1343,13 @@ class PosViewModel(application: Application) : AndroidViewModel(application) {
     }
 
     fun returnPaidOrder(order: OrderWithItems, reason: String) {
-        if (!order.isPaid || order.returnedAt != null) {
-            showNotice("Hanya transaksi lunas yang belum diretur yang bisa diretur.", isError = true)
+        val role = _uiState.value.staffProfile.role
+        if (role !in setOf(StaffRole.OWNER, StaffRole.CASHIER)) {
+            showNotice("Hanya Owner dan Kasir yang boleh melakukan Return.", isError = true)
+            return
+        }
+        if (order.status != OrderStatus.COMPLETED || !order.isPaid || order.returnedAt != null) {
+            showNotice("Return hanya tersedia untuk transaksi selesai dan lunas yang belum diretur.", isError = true)
             return
         }
         if (reason.isBlank()) {
@@ -1355,8 +1362,25 @@ class PosViewModel(application: Application) : AndroidViewModel(application) {
             val returned = before.copy(returnedAt = java.time.OffsetDateTime.now().toString(), returnReason = reason.trim(), returnedBy = returnedBy)
             _uiState.update { state -> state.copy(orders = state.orders.map { if (it.id == order.id) returned else it }, successMessage = null, errorMessage = null) }
             if (_uiState.value.backendStatus == BackendIntegrationStatus.ACTIVE_VERIFIED) {
-                runCatching { repository.returnPaidOrder(order.id, reason, returnedBy) }
-                    .onSuccess { refreshOrdersSilently(); showNotice("Transaksi #${order.orderNo} berhasil diretur.") }
+                runCatching {
+                    repository.returnPaidOrder(order.id, reason, returnedBy)
+                    repository.logActivity(
+                        action = "order.return",
+                        entityType = "orders",
+                        entityId = order.id,
+                        details = buildJsonObject {
+                            put("order_no", order.orderNo)
+                            put("refund_amount", order.total)
+                            put("subtotal", order.subtotal)
+                            put("discount", order.discount)
+                            put("tax", order.tax)
+                            put("reason", reason.trim())
+                            put("returned_by", returnedBy)
+                            put("returned_at", returned.returnedAt.orEmpty())
+                            put("refund_method", "manual")
+                        }
+                    )
+                }.onSuccess { refreshOrdersSilently(); showNotice("Transaksi #${order.orderNo} berhasil diretur. Refund ${RupiahFormatter.format(order.total)} dicatat.") }
                     .onFailure { error ->
                         _uiState.update { state -> state.copy(orders = state.orders.map { if (it.id == order.id) before else it }) }
                         showNotice(error.message ?: "Retur gagal disimpan.", isError = true)

@@ -1444,15 +1444,15 @@ class CafeFlowRepository(private val context: Context) {
     }
 
 
-    suspend fun createCashFundEntry(type: String, amount: Double, replenishmentSource: String, description: String): CashFundEntry {
+    suspend fun createCashFundEntry(type: String, amount: Double, replenishmentSource: String, description: String, ownerId: String): CashFundEntry {
         val creds = requireVerifiedCredentials()
         require(type in listOf("set_target", "replenishment")) { "Jenis transaksi modal kas tidak valid." }
         require(amount > 0.0 && description.isNotBlank()) { "Nominal dan keterangan wajib diisi." }
         require(replenishmentSource in listOf("setting", "sales_cash", "owner_funds")) { "Sumber modal kas tidak valid." }
-        val ownerId = creds.authenticatedUserId
-        require(ownerId.isNotBlank()) { "Akun pengguna tidak ditemukan." }
+        val resolvedOwnerId = ownerId.takeIf { it.isNotBlank() && !it.startsWith("usr-") } ?: creds.authenticatedUserId
+        require(resolvedOwnerId.isNotBlank()) { "Akun pengguna tidak ditemukan." }
         val payload = buildJsonObject {
-            put("owner_id", ownerId)
+            put("owner_id", resolvedOwnerId)
             put("entry_type", type)
             put("amount", amount)
             put("source", replenishmentSource)

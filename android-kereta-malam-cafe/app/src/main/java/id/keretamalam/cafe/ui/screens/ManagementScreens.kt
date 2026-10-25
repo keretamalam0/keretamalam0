@@ -972,7 +972,7 @@ fun KeuanganComposeScreen(viewModel: PosViewModel, uiState: PosUiState) {
     val cashFundTarget = uiState.cashFundEntries.firstOrNull { it.entryType == "set_target" }?.amount ?: 0.0
     val totalReplenishments = uiState.cashFundEntries.filter { it.entryType == "replenishment" }.sumOf { it.amount }
     val cashOperationalExpenses = uiState.expenses.filter { it.paymentMethod.equals("cash", true) }.sumOf { it.amount }
-    val currentCashFundBalance = (cashFundTarget + totalReplenishments - cashOperationalExpenses).coerceAtLeast(0.0)
+    val currentCashFundBalance = cashFundTarget + totalReplenishments - cashOperationalExpenses
     val salesCashReplenishments = uiState.cashFundEntries.filter { it.entryType == "replenishment" && it.source == "sales_cash" }.sumOf { it.amount }
 
     val grossSales = uiState.paidOrders.sumOf { it.subtotal }

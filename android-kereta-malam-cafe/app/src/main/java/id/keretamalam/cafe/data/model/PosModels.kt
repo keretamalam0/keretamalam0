@@ -336,6 +336,17 @@ data class Expense(
 )
 
 @Serializable
+data class CashFundEntry(
+    val id: String = "",
+    @SerialName("owner_id") val ownerId: String = "",
+    @SerialName("entry_type") val entryType: String,
+    val amount: Double,
+    val source: String = "",
+    val description: String = "",
+    @SerialName("created_at") val createdAt: String? = null
+)
+
+@Serializable
 data class InventoryMovement(
     val id: String = "",
     @SerialName("product_id") val productId: String,

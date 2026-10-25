@@ -1148,7 +1148,7 @@ fun LaporanKasirComposeScreen(viewModel: PosViewModel, uiState: PosUiState) {
     val paidOrders = remember(uiState.orders, start, end) {
         if (start == null || end == null || end.isBefore(start)) emptyList()
         else uiState.orders.filter { order ->
-            if (!order.isPaid || order.status == OrderStatus.CANCELLED) false
+            if (!order.isPaid || order.status == OrderStatus.CANCELLED || order.returnedAt != null) false
             else {
                 val created = reportDate(order.createdAt)
                 created != null && !created.isBefore(start) && !created.isAfter(end)

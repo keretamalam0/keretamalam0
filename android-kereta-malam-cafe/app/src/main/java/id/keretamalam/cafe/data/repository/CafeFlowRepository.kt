@@ -1443,6 +1443,41 @@ class CafeFlowRepository(private val context: Context) {
             ?: throw IllegalStateException("Supabase tidak mengembalikan data pengeluaran yang tersimpan.")
     }
 
+
+    suspend fun createCashFundEntry(type: String, amount: Double, replenishmentSource: String, description: String): CashFundEntry {
+        val creds = requireVerifiedCredentials()
+        require(type in listOf("set_target", "replenishment")) { "Jenis transaksi modal kas tidak valid." }
+        require(amount > 0.0 && description.isNotBlank()) { "Nominal dan keterangan wajib diisi." }
+        require(replenishmentSource in listOf("setting", "sales_cash", "owner_funds")) { "Sumber modal kas tidak valid." }
+        val ownerId = creds.authenticatedUserId
+        require(ownerId.isNotBlank()) { "Akun pengguna tidak ditemukan." }
+        val payload = buildJsonObject {
+            put("owner_id", ownerId)
+            put("entry_type", type)
+            put("amount", amount)
+            put("source", replenishmentSource)
+            put("description", description.trim())
+        }
+        val raw = executeJsonRequest(
+            "POST",
+            "${creds.supabaseUrl}/rest/v1/cash_fund_entries",
+            buildHeaders(creds, "return=representation"),
+            json.encodeToString(JsonObject.serializer(), payload)
+        )
+        return json.decodeFromString<List<CashFundEntry>>(raw).firstOrNull()
+            ?: throw IllegalStateException("Supabase tidak mengembalikan catatan modal kas.")
+    }
+
+    suspend fun fetchCashFundEntries(): List<CashFundEntry> {
+        val creds = requireVerifiedCredentials()
+        val raw = executeJsonRequest(
+            "GET",
+            "${creds.supabaseUrl}/rest/v1/cash_fund_entries?select=*&order=created_at.desc",
+            buildHeaders(creds)
+        )
+        return json.decodeFromString(raw)
+    }
+
     suspend fun fetchExpenses(): List<Expense> {
         val creds = requireVerifiedCredentials()
         val url = "${creds.supabaseUrl}/rest/v1/expenses?select=*&order=expense_date.desc"

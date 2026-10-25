@@ -2099,6 +2099,7 @@ private fun PesananComposeScreen(
 // ============================================================================
 // 5. HISTORY TRANSAKSI SCREEN
 // ============================================================================
+@OptIn(ExperimentalMaterial3Api::class)
 @Composable
 private fun HistoryComposeScreen(viewModel: PosViewModel, uiState: PosUiState) {
     val context = LocalContext.current

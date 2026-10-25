@@ -2139,7 +2139,7 @@ private fun HistoryComposeScreen(viewModel: PosViewModel, uiState: PosUiState) {
             title = { Text("Retur transaksi #${orderToReturn?.orderNo}") },
             text = {
                 Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                    Text("Transaksi akan ditandai Diretur dan tidak dihitung sebagai penjualan. Riwayat tetap disimpan.")
+                    Text("Refund penuh: ${RupiahFormatter.format(orderToReturn?.total ?: 0.0)}. Uang dikembalikan manual oleh kasir. Penjualan, diskon, dan pajak akan dikoreksi sesuai transaksi asli. Riwayat tetap disimpan.")
                     OutlinedTextField(value = returnReason, onValueChange = { returnReason = it }, label = { Text("Alasan retur") }, modifier = Modifier.fillMaxWidth(), minLines = 2)
                 }
             },
@@ -2253,7 +2253,7 @@ private fun HistoryComposeScreen(viewModel: PosViewModel, uiState: PosUiState) {
                             Text("Total", style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
                             Text(RupiahFormatter.format(order.total), fontWeight = FontWeight.Bold)
                             OutlinedButton(onClick = { viewModel.openReceiptDialog(order) }) { Text("Detail") }
-                            if (order.isPaid && order.returnedAt == null) OutlinedButton(onClick = { orderToReturn = order; returnReason = "" }) { Text("Retur") }
+                            if (order.status == OrderStatus.COMPLETED && order.isPaid && order.returnedAt == null && uiState.staffProfile.role in setOf(StaffRole.OWNER, StaffRole.CASHIER)) OutlinedButton(onClick = { orderToReturn = order; returnReason = "" }) { Text("Return") }
                         }
                     }
                 }

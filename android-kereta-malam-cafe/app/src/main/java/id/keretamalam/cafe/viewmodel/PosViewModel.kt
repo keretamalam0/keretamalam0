@@ -2321,7 +2321,7 @@ class PosViewModel(application: Application) : AndroidViewModel(application) {
             showNotice("Modal kas hanya bisa disimpan saat terhubung ke Supabase.", isError = true); return
         }
         viewModelScope.launch {
-            runCatching { repository.createCashFundEntry("set_target", amount, "setting", "Penetapan target modal kas") }
+            runCatching { repository.createCashFundEntry("set_target", amount, "setting", "Penetapan target modal kas", _uiState.value.staffProfile.ownerId) }
                 .onSuccess { entry ->
                     runCatching { repository.fetchCashFundEntries() }.onSuccess { rows ->
                         _uiState.update { it.copy(cashFundEntries = rows, successMessage = "Target modal kas tersimpan di Supabase.") }
@@ -2338,7 +2338,7 @@ class PosViewModel(application: Application) : AndroidViewModel(application) {
             showNotice("Isi ulang modal kas hanya bisa dicatat saat terhubung ke Supabase.", isError = true); return
         }
         viewModelScope.launch {
-            runCatching { repository.createCashFundEntry("replenishment", amount, replenishmentSource = source, description = description.trim()) }
+            runCatching { repository.createCashFundEntry("replenishment", amount, replenishmentSource = source, description = description.trim(), ownerId = _uiState.value.staffProfile.ownerId) }
                 .onSuccess { entry ->
                     runCatching { repository.fetchCashFundEntries() }.onSuccess { rows ->
                         _uiState.update { it.copy(cashFundEntries = rows, successMessage = "Isi ulang modal kas tersimpan. Tidak dihitung sebagai omzet atau beban baru.") }

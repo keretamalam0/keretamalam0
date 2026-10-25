@@ -50,6 +50,7 @@ data class PosUiState(
     val orders: List<OrderWithItems> = SandboxSeedData.initialOrders,
     val shifts: List<StaffShift> = SandboxSeedData.initialShifts,
     val expenses: List<Expense> = SandboxSeedData.initialExpenses,
+    val cashFundEntries: List<CashFundEntry> = emptyList(),
     val inventoryMovements: List<InventoryMovement> = SandboxSeedData.initialInventoryMovements,
     val auditLogs: List<AuditLog> = SandboxSeedData.initialAuditLogs,
     val outletSettings: OutletSettings = OutletSettings(),
@@ -941,6 +942,7 @@ class PosViewModel(application: Application) : AndroidViewModel(application) {
                 val paymentMethods = repository.fetchPaymentMethods()
                 val shifts = repository.fetchStaffShifts()
                 val expenses = repository.fetchExpenses()
+                val cashFundEntries = repository.fetchCashFundEntries()
                 val logs = repository.fetchAuditLogs()
 
                 orderBaselineInitialized = true
@@ -960,6 +962,7 @@ class PosViewModel(application: Application) : AndroidViewModel(application) {
                         paymentMethods = paymentMethods,
                         shifts = shifts,
                         expenses = expenses,
+                        cashFundEntries = cashFundEntries,
                         auditLogs = logs,
                         // Routine syncs are silent; only actionable errors are surfaced.
                         successMessage = null
@@ -2308,6 +2311,39 @@ class PosViewModel(application: Application) : AndroidViewModel(application) {
                 promotions = state.promotions.filterNot { it.id == promoId },
                 successMessage = "Promosi berhasil dihapus dalam mode simulasi."
             )
+        }
+    }
+
+
+    fun saveCashFundTarget(amount: Double) {
+        if (amount <= 0.0) { showNotice("Target modal kas harus lebih dari Rp0.", isError = true); return }
+        if (_uiState.value.backendStatus != BackendIntegrationStatus.ACTIVE_VERIFIED) {
+            showNotice("Modal kas hanya bisa disimpan saat terhubung ke Supabase.", isError = true); return
+        }
+        viewModelScope.launch {
+            runCatching { repository.createCashFundEntry("set_target", amount, "setting", "Penetapan target modal kas") }
+                .onSuccess { entry ->
+                    runCatching { repository.fetchCashFundEntries() }.onSuccess { rows ->
+                        _uiState.update { it.copy(cashFundEntries = rows, successMessage = "Target modal kas tersimpan di Supabase.") }
+                    }.onFailure { _uiState.update { it.copy(cashFundEntries = listOf(entry) + it.cashFundEntries, successMessage = "Target modal kas tersimpan di Supabase.") } }
+                }.onFailure { err -> showNotice(err.message ?: "Gagal menyimpan target modal kas.", isError = true) }
+        }
+    }
+
+    fun replenishCashFund(amount: Double, source: String, description: String) {
+        if (amount <= 0.0 || source !in listOf("sales_cash", "owner_funds") || description.isBlank()) {
+            showNotice("Nominal, sumber isi ulang, dan keterangan wajib benar.", isError = true); return
+        }
+        if (_uiState.value.backendStatus != BackendIntegrationStatus.ACTIVE_VERIFIED) {
+            showNotice("Isi ulang modal kas hanya bisa dicatat saat terhubung ke Supabase.", isError = true); return
+        }
+        viewModelScope.launch {
+            runCatching { repository.createCashFundEntry("replenishment", amount, replenishmentSource = source, description = description.trim()) }
+                .onSuccess { entry ->
+                    runCatching { repository.fetchCashFundEntries() }.onSuccess { rows ->
+                        _uiState.update { it.copy(cashFundEntries = rows, successMessage = "Isi ulang modal kas tersimpan. Tidak dihitung sebagai omzet atau beban baru.") }
+                    }.onFailure { _uiState.update { it.copy(cashFundEntries = listOf(entry) + it.cashFundEntries, successMessage = "Isi ulang modal kas tersimpan di Supabase.") } }
+                }.onFailure { err -> showNotice(err.message ?: "Gagal mencatat isi ulang modal kas.", isError = true) }
         }
     }
 

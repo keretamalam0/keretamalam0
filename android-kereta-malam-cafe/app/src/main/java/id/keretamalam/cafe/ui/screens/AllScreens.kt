@@ -2110,16 +2110,39 @@ private fun HistoryComposeScreen(viewModel: PosViewModel, uiState: PosUiState) {
     var confirmDeleteAll by remember { mutableStateOf(false) }
     var orderToReturn by remember { mutableStateOf<OrderWithItems?>(null) }
     var returnReason by remember { mutableStateOf("") }
+    var returnsOnly by remember { mutableStateOf(false) }
+    var showFromDatePicker by remember { mutableStateOf(false) }
+    var showToDatePicker by remember { mutableStateOf(false) }
 
-    val filteredOrders = remember(uiState.orders, fromDate, toDate, search) {
+    val filteredOrders = remember(uiState.orders, fromDate, toDate, search, returnsOnly) {
         uiState.orders.filter { o ->
             val datePart = o.createdAt.take(10)
             val inRange = (fromDate.isBlank() || datePart >= fromDate) && (toDate.isBlank() || datePart <= toDate)
             val matchQuery = search.isBlank() ||
                 o.orderNo.toString().contains(search) ||
                 (o.customerName ?: "").contains(search, ignoreCase = true)
-            inRange && matchQuery
+            val matchReturnFilter = !returnsOnly || o.returnedAt != null
+            inRange && matchQuery && matchReturnFilter
         }
+    }
+    val utcZone = remember { java.time.ZoneOffset.UTC }
+    if (showFromDatePicker) {
+        val initialMillis = runCatching { java.time.LocalDate.parse(fromDate).atStartOfDay(utcZone).toInstant().toEpochMilli() }.getOrDefault(System.currentTimeMillis())
+        val picker = rememberDatePickerState(initialSelectedDateMillis = initialMillis)
+        DatePickerDialog(
+            onDismissRequest = { showFromDatePicker = false },
+            confirmButton = { TextButton(onClick = { picker.selectedDateMillis?.let { fromDate = java.time.Instant.ofEpochMilli(it).atZone(utcZone).toLocalDate().toString() }; showFromDatePicker = false }) { Text("Pilih") } },
+            dismissButton = { TextButton(onClick = { showFromDatePicker = false }) { Text("Batal") } }
+        ) { DatePicker(state = picker) }
+    }
+    if (showToDatePicker) {
+        val initialMillis = runCatching { java.time.LocalDate.parse(toDate).atStartOfDay(utcZone).toInstant().toEpochMilli() }.getOrDefault(System.currentTimeMillis())
+        val picker = rememberDatePickerState(initialSelectedDateMillis = initialMillis)
+        DatePickerDialog(
+            onDismissRequest = { showToDatePicker = false },
+            confirmButton = { TextButton(onClick = { picker.selectedDateMillis?.let { toDate = java.time.Instant.ofEpochMilli(it).atZone(utcZone).toLocalDate().toString() }; showToDatePicker = false }) { Text("Pilih") } },
+            dismissButton = { TextButton(onClick = { showToDatePicker = false }) { Text("Batal") } }
+        ) { DatePicker(state = picker) }
     }
     val selectedVisibleIds = filteredOrders.map { it.id }.filter { it in selectedIds }.toSet()
 
@@ -2191,8 +2214,8 @@ private fun HistoryComposeScreen(viewModel: PosViewModel, uiState: PosUiState) {
         // Compact fixed toolbar: the order list scrolls independently below it.
         Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(6.dp)) {
             Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(1.dp)) {
-                Text("History · ${filteredOrders.size} order", style = MaterialTheme.typography.titleSmall, fontWeight = FontWeight.SemiBold)
-                Text("Lunas: ${RupiahFormatter.format(filteredOrders.filter { it.isPaid && it.returnedAt == null }.sumOf { it.total })}", style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                Text(if (returnsOnly) "Daftar Return · ${filteredOrders.size} transaksi" else "History · ${filteredOrders.size} order", style = MaterialTheme.typography.titleSmall, fontWeight = FontWeight.SemiBold)
+                Text(if (returnsOnly) "Nominal retur: ${RupiahFormatter.format(filteredOrders.sumOf { it.total })}" else "Lunas: ${RupiahFormatter.format(filteredOrders.filter { it.isPaid && it.returnedAt == null }.sumOf { it.total })}", style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
             }
             IconButton(onClick = { csvLauncher.launch("history-transaksi-kereta-malam.csv") }, modifier = Modifier.size(38.dp)) {
                 Icon(Icons.Outlined.FileDownload, contentDescription = "Ekspor CSV", tint = Color(0xFF2878F0))
@@ -2201,9 +2224,33 @@ private fun HistoryComposeScreen(viewModel: PosViewModel, uiState: PosUiState) {
                 Icon(Icons.Outlined.DeleteSweep, contentDescription = "Hapus semua data", tint = MaterialTheme.colorScheme.error)
             }
         }
-        Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(6.dp), verticalAlignment = Alignment.CenterVertically) {
-            OutlinedTextField(value = fromDate, onValueChange = { fromDate = it.take(10) }, label = { Text("Dari tanggal") }, placeholder = { Text("YYYY-MM-DD") }, modifier = Modifier.weight(1f).heightIn(max = 58.dp), singleLine = true, textStyle = MaterialTheme.typography.bodySmall)
-            OutlinedTextField(value = toDate, onValueChange = { toDate = it.take(10) }, label = { Text("Sampai") }, placeholder = { Text("YYYY-MM-DD") }, modifier = Modifier.weight(1f).heightIn(max = 58.dp), singleLine = true, textStyle = MaterialTheme.typography.bodySmall)
+        OutlinedCard(
+            onClick = { returnsOnly = !returnsOnly },
+            modifier = Modifier.fillMaxWidth(),
+            colors = CardDefaults.outlinedCardColors(containerColor = if (returnsOnly) MaterialTheme.colorScheme.secondaryContainer else MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.45f)),
+            border = CardDefaults.outlinedCardBorder().copy(brush = androidx.compose.ui.graphics.SolidColor(if (returnsOnly) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.outlineVariant))
+        ) {
+            Row(Modifier.fillMaxWidth().padding(horizontal = 12.dp, vertical = 9.dp), verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(10.dp)) {
+                Icon(Icons.Outlined.Refresh, contentDescription = null, tint = MaterialTheme.colorScheme.primary)
+                Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(2.dp)) {
+                    Text("Return", fontWeight = FontWeight.SemiBold)
+                    Text("${uiState.orders.count { it.returnedAt != null }} transaksi · ${RupiahFormatter.format(uiState.orders.filter { it.returnedAt != null }.sumOf { it.total })} nominal retur", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                }
+                Text(if (returnsOnly) "Lihat semua" else "Lihat daftar", style = MaterialTheme.typography.labelMedium, color = MaterialTheme.colorScheme.primary)
+            }
+        }
+        Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp), verticalAlignment = Alignment.CenterVertically) {
+            Text("Tanggal", style = MaterialTheme.typography.labelMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
+            TextButton(onClick = { showFromDatePicker = true }, contentPadding = PaddingValues(horizontal = 6.dp, vertical = 0.dp), modifier = Modifier.height(34.dp)) {
+                Icon(Icons.Outlined.Schedule, contentDescription = null, modifier = Modifier.size(16.dp))
+                Spacer(Modifier.width(4.dp))
+                Text(if (fromDate.isBlank()) "Dari" else fromDate, style = MaterialTheme.typography.labelMedium)
+            }
+            Text("–", color = MaterialTheme.colorScheme.onSurfaceVariant)
+            TextButton(onClick = { showToDatePicker = true }, contentPadding = PaddingValues(horizontal = 6.dp, vertical = 0.dp), modifier = Modifier.height(34.dp)) {
+                Text(if (toDate.isBlank()) "Sampai" else toDate, style = MaterialTheme.typography.labelMedium)
+            }
+            if (fromDate.isNotBlank() || toDate.isNotBlank()) TextButton(onClick = { fromDate = ""; toDate = "" }, contentPadding = PaddingValues(horizontal = 4.dp, vertical = 0.dp), modifier = Modifier.height(34.dp)) { Text("Reset") }
         }
         Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(6.dp), verticalAlignment = Alignment.CenterVertically) {
             OutlinedTextField(value = search, onValueChange = { search = it }, label = { Text("Cari order") }, leadingIcon = { Icon(Icons.Outlined.Search, contentDescription = null, modifier = Modifier.size(18.dp)) }, modifier = Modifier.weight(1f).heightIn(max = 58.dp), singleLine = true, textStyle = MaterialTheme.typography.bodySmall)

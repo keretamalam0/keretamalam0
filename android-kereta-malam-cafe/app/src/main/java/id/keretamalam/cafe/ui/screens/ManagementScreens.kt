@@ -963,6 +963,7 @@ fun KeuanganComposeScreen(viewModel: PosViewModel, uiState: PosUiState) {
     var tabIndex by remember { mutableStateOf(0) }
     var amount by remember { mutableStateOf("") }
     var method by remember { mutableStateOf("cash") }
+    var expenseCashSource by remember { mutableStateOf("cash_fund") }
     var description by remember { mutableStateOf("") }
     var cashFundTargetInput by remember { mutableStateOf("") }
     var replenishmentAmount by remember { mutableStateOf("") }
@@ -971,8 +972,9 @@ fun KeuanganComposeScreen(viewModel: PosViewModel, uiState: PosUiState) {
 
     val cashFundTarget = uiState.cashFundEntries.firstOrNull { it.entryType == "set_target" }?.amount ?: 0.0
     val totalReplenishments = uiState.cashFundEntries.filter { it.entryType == "replenishment" }.sumOf { it.amount }
-    val cashOperationalExpenses = uiState.expenses.filter { it.paymentMethod.equals("cash", true) }.sumOf { it.amount }
-    val currentCashFundBalance = cashFundTarget + totalReplenishments - cashOperationalExpenses
+    val cashFundExpenses = uiState.expenses.filter { it.paymentMethod.equals("cash", true) && it.cashSource == "cash_fund" }.sumOf { it.amount }
+    val salesCashExpenses = uiState.expenses.filter { it.paymentMethod.equals("cash", true) && it.cashSource == "sales_cash" }.sumOf { it.amount }
+    val currentCashFundBalance = cashFundTarget + totalReplenishments - cashFundExpenses
     val salesCashReplenishments = uiState.cashFundEntries.filter { it.entryType == "replenishment" && it.source == "sales_cash" }.sumOf { it.amount }
 
     val grossSales = uiState.paidOrders.sumOf { it.subtotal }
@@ -1026,10 +1028,19 @@ fun KeuanganComposeScreen(viewModel: PosViewModel, uiState: PosUiState) {
                                 }
                             }
                             OutlinedTextField(value = description, onValueChange = { description = it }, label = { Text("Keterangan Pengeluaran") }, modifier = Modifier.fillMaxWidth(), singleLine = true)
+                            if (method == "cash") {
+                                Text("Sumber uang yang dipakai", style = MaterialTheme.typography.labelLarge)
+                                Row(horizontalArrangement = Arrangement.spacedBy(6.dp)) {
+                                    FilterChip(selected = expenseCashSource == "cash_fund", onClick = { expenseCashSource = "cash_fund" }, label = { Text("Modal kas") })
+                                    FilterChip(selected = expenseCashSource == "sales_cash", onClick = { expenseCashSource = "sales_cash" }, label = { Text("Penjualan tunai") })
+                                }
+                                Text(if (expenseCashSource == "cash_fund") "Pengeluaran ini mengurangi saldo modal kas." else "Pengeluaran ini mengurangi kas penjualan yang tersedia.", style = MaterialTheme.typography.bodySmall)
+                            }
                             Button(onClick = {
-                                viewModel.addExpense(amount.toDoubleOrNull() ?: 0.0, "Operasional", java.time.LocalDate.now().toString(), method, description)
+                                viewModel.addExpense(amount.toDoubleOrNull() ?: 0.0, "Operasional", java.time.LocalDate.now().toString(), method, description, expenseCashSource)
                                 amount = ""
                                 description = ""
+                                expenseCashSource = "cash_fund"
                             }) { Text("Simpan Pengeluaran") }
                         }
                     }
@@ -1045,7 +1056,7 @@ fun KeuanganComposeScreen(viewModel: PosViewModel, uiState: PosUiState) {
                         ) {
                             Column(modifier = Modifier.weight(1f)) {
                                 Text(exp.description, fontWeight = FontWeight.SemiBold)
-                                Text("${exp.expenseDate} · ${exp.category} · ${exp.paymentMethod.uppercase()}")
+                                Text("${exp.expenseDate} · ${exp.category} · ${exp.paymentMethod.uppercase()} · ${if (exp.cashSource == "sales_cash") "Kas penjualan" else if (exp.cashSource == "cash_fund") "Modal kas" else "Dana lain"}")
                             }
                             Text(RupiahFormatter.format(exp.amount), fontWeight = FontWeight.Bold)
                         }
@@ -1109,7 +1120,7 @@ fun KeuanganComposeScreen(viewModel: PosViewModel, uiState: PosUiState) {
                             HorizontalDivider()
                             Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) { Text("Modal awal"); Text(RupiahFormatter.format(cashFundTarget)) }
                             Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) { Text("Isi ulang"); Text("+${RupiahFormatter.format(totalReplenishments)}") }
-                            Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) { Text("Pengeluaran tunai"); Text("-${RupiahFormatter.format(cashOperationalExpenses)}") }
+                            Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) { Text("Pengeluaran dari modal kas"); Text("-${RupiahFormatter.format(cashFundExpenses)}") }
                             OutlinedTextField(value = cashFundTargetInput, onValueChange = { cashFundTargetInput = it }, label = { Text("Modal awal tunai (Rp)") }, modifier = Modifier.fillMaxWidth(), singleLine = true, enabled = cashFundTarget <= 0.0)
                             Button(onClick = {
                                 val value = cashFundTargetInput.filter { it.isDigit() }.toDoubleOrNull() ?: 0.0
@@ -1136,7 +1147,8 @@ fun KeuanganComposeScreen(viewModel: PosViewModel, uiState: PosUiState) {
                                 replenishmentDescription = ""
                             }, modifier = Modifier.fillMaxWidth()) { Text("Catat Isi Ulang") }
                             Text("Isi ulang dari penjualan tunai memindahkan uang penjualan ke modal kas. Ini bukan omzet baru.", style = MaterialTheme.typography.bodySmall)
-                            Text("Total dari penjualan tunai: ${RupiahFormatter.format(salesCashReplenishments)}", fontWeight = FontWeight.SemiBold)
+                            Text("Total isi ulang dari penjualan tunai: ${RupiahFormatter.format(salesCashReplenishments)}", fontWeight = FontWeight.SemiBold)
+                            Text("Pengeluaran dari penjualan tunai: ${RupiahFormatter.format(salesCashExpenses)}", fontWeight = FontWeight.SemiBold)
                             Text("Saldo modal setelah transaksi: ${RupiahFormatter.format(currentCashFundBalance)}", fontWeight = FontWeight.SemiBold)
                         }
                     }

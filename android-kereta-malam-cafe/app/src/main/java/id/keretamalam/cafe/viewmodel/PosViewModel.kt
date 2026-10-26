@@ -2338,6 +2338,24 @@ class PosViewModel(application: Application) : AndroidViewModel(application) {
         if (_uiState.value.backendStatus != BackendIntegrationStatus.ACTIVE_VERIFIED) {
             showNotice("Isi ulang modal kas hanya bisa dicatat saat terhubung ke Supabase.", isError = true); return
         }
+        if (source == "sales_cash") {
+            val state = _uiState.value
+            fun isCashSale(order: OrderWithItems): Boolean {
+                val raw = (order.paymentMethod?.takeIf { it.isNotBlank() }
+                    ?: order.customerPaymentMethod?.takeIf { it.isNotBlank() }
+                    ?: order.payments.firstOrNull()?.method?.takeIf { it.isNotBlank() }
+                    ?: "cash").lowercase().replace("-", "_").trim()
+                return raw == "cash" || raw == "tunai" || raw.contains("cash")
+            }
+            val cashSales = state.orders.filter { it.isPaid && it.status != OrderStatus.CANCELLED && it.returnedAt == null && isCashSale(it) }.sumOf { it.total }
+            val usedForFund = state.cashFundEntries.filter { it.entryType == "replenishment" && it.source == "sales_cash" }.sumOf { it.amount }
+            val salesExpenses = state.expenses.filter { it.paymentMethod.equals("cash", true) && it.cashSource == "sales_cash" }.sumOf { it.amount }
+            val available = cashSales - usedForFund - salesExpenses
+            if (amount > available) {
+                showNotice("Kas penjualan tunai tersedia hanya ${RupiahFormatter.format(available)}. Isi ulang tidak boleh melebihi saldo yang tersedia.", isError = true)
+                return
+            }
+        }
         viewModelScope.launch {
             runCatching { repository.createCashFundEntry("replenishment", amount, replenishmentSource = source, description = description.trim(), ownerId = _uiState.value.staffProfile.ownerId) }
                 .onSuccess { entry ->

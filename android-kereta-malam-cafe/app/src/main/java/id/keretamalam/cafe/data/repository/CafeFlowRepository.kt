@@ -1432,6 +1432,7 @@ class CafeFlowRepository(private val context: Context) {
             put("description", expense.description.trim())
             put("expense_date", expense.expenseDate)
             put("payment_method", expense.paymentMethod.ifBlank { "cash" })
+            put("cash_source", expense.cashSource.ifBlank { "cash_fund" })
         }
         val raw = executeJsonRequest(
             "POST",

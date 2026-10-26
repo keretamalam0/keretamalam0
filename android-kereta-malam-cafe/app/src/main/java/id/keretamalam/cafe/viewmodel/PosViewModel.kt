@@ -2316,7 +2316,8 @@ class PosViewModel(application: Application) : AndroidViewModel(application) {
 
 
     fun saveCashFundTarget(amount: Double) {
-        if (amount <= 0.0) { showNotice("Target modal kas harus lebih dari Rp0.", isError = true); return }
+        if (_uiState.value.cashFundEntries.any { it.entryType == "set_target" }) { showNotice("Modal awal sudah tercatat. Gunakan isi ulang atau penyesuaian kas untuk perubahan saldo.", isError = true); return }
+        if (amount <= 0.0) { showNotice("Modal awal harus lebih dari Rp0.", isError = true); return }
         if (_uiState.value.backendStatus != BackendIntegrationStatus.ACTIVE_VERIFIED) {
             showNotice("Modal kas hanya bisa disimpan saat terhubung ke Supabase.", isError = true); return
         }
@@ -2347,7 +2348,7 @@ class PosViewModel(application: Application) : AndroidViewModel(application) {
         }
     }
 
-    fun addExpense(amount: Double, category: String, date: String, method: String, description: String) {
+    fun addExpense(amount: Double, category: String, date: String, method: String, description: String, cashSource: String = "cash_fund") {
         if (amount <= 0.0 || category.isBlank() || description.isBlank()) {
             showNotice("Nominal harus lebih dari Rp0, kategori dan keterangan wajib diisi.", isError = true)
             return
@@ -2363,6 +2364,7 @@ class PosViewModel(application: Application) : AndroidViewModel(application) {
                     category = category.trim(),
                     expenseDate = date,
                     paymentMethod = method.ifBlank { "cash" },
+                    cashSource = if (method.equals("cash", true)) cashSource else "other_funds",
                     description = description.trim(),
                     createdAt = nowString()
                 )

@@ -492,7 +492,8 @@ private fun DashboardComposeScreen(
     val allPaidOrders = uiState.orders.filter { it.isPaid && it.status != OrderStatus.CANCELLED && it.returnedAt == null }
     val allCashSales = allPaidOrders.filter { paymentGroup(it) == "cash" }.sumOf { it.total }
     val cashSalesAllocatedToFund = uiState.cashFundEntries.filter { it.entryType == "replenishment" && it.source == "sales_cash" }.sumOf { it.amount }
-    val availableSalesCash = (allCashSales - cashSalesAllocatedToFund).coerceAtLeast(0.0)
+    val cashExpensesFromSales = uiState.expenses.filter { it.paymentMethod.equals("cash", true) && it.cashSource == "sales_cash" }.sumOf { it.amount }
+    val availableSalesCash = allCashSales - cashSalesAllocatedToFund - cashExpensesFromSales
     val payments = paymentGroups.map { pair ->
         val matched = paid.filter { paymentGroup(it) == pair.first }
         Triple(pair.second, matched.sumOf { it.total }, matched.size)

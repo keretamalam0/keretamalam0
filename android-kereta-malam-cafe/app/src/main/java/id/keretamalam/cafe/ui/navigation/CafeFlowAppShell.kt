@@ -78,7 +78,7 @@ enum class PosModuleRoute(
     MEJA("meja", "Meja & QR Menu", "PRODUK & OUTLET", PermissionKey.TABLES, Icons.Outlined.QrCode2),
     INVENTORY("inventory", "Inventory", "PRODUK & OUTLET", PermissionKey.INVENTORY, Icons.Outlined.Warehouse),
     PROMOSI("promosi", "Promosi & Diskon", "PEMASARAN", PermissionKey.PROMOTIONS, Icons.Outlined.Percent),
-    KEUANGAN("keuangan", "Pengeluaran & Laba Rugi", "MANAJEMEN", PermissionKey.EXPENSES, Icons.Outlined.AccountBalanceWallet),
+    KEUANGAN("keuangan", "Profit & Loss", "MANAJEMEN", PermissionKey.EXPENSES, Icons.Outlined.AccountBalanceWallet),
     LAPORAN("laporan", "Laporan Penjualan", "MANAJEMEN", PermissionKey.REPORTS, Icons.Outlined.BarChart),
     LAPORAN_KASIR("laporan-kasir", "Laporan Kasir", "TRANSAKSI", PermissionKey.CASHIER_REPORT, Icons.Outlined.ReceiptLong),
     PEGAWAI("pegawai", "Pegawai & Shift", "MANAJEMEN", PermissionKey.STAFF_MANAGEMENT, Icons.Outlined.Badge),

@@ -490,10 +490,28 @@ private fun DashboardComposeScreen(
         }
     }
     val allPaidOrders = uiState.orders.filter { it.isPaid && it.status != OrderStatus.CANCELLED && it.returnedAt == null }
-    val allCashSales = allPaidOrders.filter { paymentGroup(it) == "cash" }.sumOf { it.total }
-    val cashSalesAllocatedToFund = uiState.cashFundEntries.filter { it.entryType == "replenishment" && it.source == "sales_cash" }.sumOf { it.amount }
-    val cashExpensesFromSales = uiState.expenses.filter { it.paymentMethod.equals("cash", true) && it.cashSource == "sales_cash" }.sumOf { it.amount }
-    val availableSalesCash = allCashSales - cashSalesAllocatedToFund - cashExpensesFromSales
+    // Lifetime comparison: recorded sales history versus the remaining balance after adjustments.
+    fun historySales(method: String): Double = allPaidOrders.filter { paymentGroup(it) == method }.sumOf { it.total }
+    fun allocated(method: String): Double {
+        val source = when (method) {
+            "cash" -> "sales_cash"
+            "qris" -> "sales_qris"
+            "transfer" -> "sales_transfer"
+            else -> return 0.0
+        }
+        val adjustment = uiState.cashFundEntries.filter { it.entryType == "replenishment" && it.source == source }.sumOf { it.amount }
+        val expenses = uiState.expenses.filter { it.cashSource == source }.sumOf { it.amount }
+        return adjustment + expenses
+    }
+    fun remainingSales(method: String): Double = (historySales(method) - allocated(method)).coerceAtLeast(0.0)
+    val allCashSales = historySales("cash")
+    val availableSalesCash = remainingSales("cash")
+    val historyCash = historySales("cash")
+    val historyQris = historySales("qris")
+    val historyTransfer = historySales("transfer")
+    val remainingCash = remainingSales("cash")
+    val remainingQris = remainingSales("qris")
+    val remainingTransfer = remainingSales("transfer")
     val payments = paymentGroups.map { pair ->
         val matched = paid.filter { paymentGroup(it) == pair.first }
         Triple(pair.second, matched.sumOf { it.total }, matched.size)
@@ -539,7 +557,7 @@ private fun DashboardComposeScreen(
                 if (uiState.staffProfile.canAccessDashboardMetric("dashboard.paid_orders")) add(Triple("Pesanan Lunas", paid.size.toString(), "Transaksi berhasil") to PosModuleRoute.PESANAN)
                 if (uiState.staffProfile.canAccessDashboardMetric("dashboard.average_transaction")) add(Triple("Rata-rata Pesanan", RupiahFormatter.format(average), "Per transaksi lunas") to PosModuleRoute.LAPORAN)
                 if (uiState.staffProfile.canAccessDashboardMetric("dashboard.peak_hour")) add(Triple("Jam Tersibuk", peak?.let { "%02d.00–%02d.00".format(it, (it + 1) % 24) } ?: "—", if (peak == null) "Belum ada pesanan" else hours[peak].toInt().toString() + " pesanan") to PosModuleRoute.LAPORAN)
-                add(Triple("Kas Penjualan Tersedia", RupiahFormatter.format(availableSalesCash), "Penjualan tunai dikurangi alokasi modal") to PosModuleRoute.LAPORAN)
+                add(Triple("Kas Penjualan Tersedia", RupiahFormatter.format(availableSalesCash), "Penjualan tunai setelah adjustment") to PosModuleRoute.LAPORAN)
             }
             Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
                 metrics.chunked(if (isTabletOrWide) 4 else 2).forEach { row ->
@@ -548,6 +566,34 @@ private fun DashboardComposeScreen(
                             DashboardKpiCard(Modifier.weight(1f), metric.first.first, metric.first.second, metric.first.third) { onNavigateModule(metric.second) }
                         }
                         repeat((if (isTabletOrWide) 4 else 2) - row.size) { Spacer(Modifier.weight(1f)) }
+                    }
+                }
+            }
+        }
+        item {
+            OutlinedCard(Modifier.fillMaxWidth()) {
+                Column(Modifier.fillMaxWidth().padding(16.dp), verticalArrangement = Arrangement.spacedBy(10.dp)) {
+                    Text("Penjualan Berdasarkan History", style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold)
+                    Text("Perbandingan seluruh transaksi lunas yang tercatat dengan saldo setelah Adjustment. Top-up Owner dan Lainnya tidak mengurangi hasil penjualan.", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                    Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                        Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(4.dp)) {
+                            Text("History", style = MaterialTheme.typography.labelLarge, fontWeight = FontWeight.SemiBold)
+                            Text("Tunai", style = MaterialTheme.typography.bodySmall)
+                            Text(RupiahFormatter.format(historyCash), fontWeight = FontWeight.Bold)
+                            Text("QRIS", style = MaterialTheme.typography.bodySmall)
+                            Text(RupiahFormatter.format(historyQris), fontWeight = FontWeight.Bold)
+                            Text("Transfer Bank", style = MaterialTheme.typography.bodySmall)
+                            Text(RupiahFormatter.format(historyTransfer), fontWeight = FontWeight.Bold)
+                        }
+                        Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(4.dp)) {
+                            Text("Setelah Adjustment", style = MaterialTheme.typography.labelLarge, fontWeight = FontWeight.SemiBold)
+                            Text("Tunai", style = MaterialTheme.typography.bodySmall)
+                            Text(RupiahFormatter.format(remainingCash), fontWeight = FontWeight.Bold)
+                            Text("QRIS", style = MaterialTheme.typography.bodySmall)
+                            Text(RupiahFormatter.format(remainingQris), fontWeight = FontWeight.Bold)
+                            Text("Transfer Bank", style = MaterialTheme.typography.bodySmall)
+                            Text(RupiahFormatter.format(remainingTransfer), fontWeight = FontWeight.Bold)
+                        }
                     }
                 }
             }
@@ -2322,18 +2368,20 @@ private fun HistoryComposeScreen(viewModel: PosViewModel, uiState: PosUiState) {
 @Composable
 private fun ShiftKasirComposeScreen(viewModel: PosViewModel, uiState: PosUiState) {
     val activeShift = uiState.shifts.find { it.status == "open" }
-    val cashSales = uiState.paidOrders.filter { it.paymentMethod.equals("cash", true) }.sumOf { it.total }
+    val cashSales = activeShift?.let { uiState.cashSalesForShift(it) } ?: 0.0
     var openingInput by remember { mutableStateOf("500000") }
     var closingInput by remember { mutableStateOf("") }
     var closingNotes by remember { mutableStateOf("") }
     var adjustmentAmount by remember { mutableStateOf("") }
     var adjustmentDescription by remember { mutableStateOf("") }
+    var adjustmentSource by remember { mutableStateOf("owner_funds") }
+    var adjustmentSourceMenuOpen by remember { mutableStateOf(false) }
     var expenseAmount by remember { mutableStateOf("") }
     var expenseDescription by remember { mutableStateOf("") }
 
     val shiftStart = activeShift?.openedAt.orEmpty()
     val adjustments = uiState.cashFundEntries.filter {
-        it.entryType == "replenishment" && it.source == "owner_funds" &&
+        it.entryType == "replenishment" && it.source in setOf("owner_funds", "sales_cash") &&
             (shiftStart.isBlank() || (it.createdAt ?: "") >= shiftStart)
     }.sumOf { it.amount }
     val cashExpenses = uiState.expenses.filter {
@@ -2342,7 +2390,7 @@ private fun ShiftKasirComposeScreen(viewModel: PosViewModel, uiState: PosUiState
     }.sumOf { it.amount }
     val openingCash = activeShift?.openingCash ?: 0.0
     val cashFundBalance = (openingCash + adjustments - cashExpenses).coerceAtLeast(0.0)
-    val expectedCash = (openingCash + cashSales + adjustments - cashExpenses).coerceAtLeast(0.0)
+    val expectedCash = activeShift?.let { uiState.expectedDrawerCashForShift(it) } ?: 0.0
 
     LazyColumn(Modifier.fillMaxSize(), verticalArrangement = Arrangement.spacedBy(12.dp)) {
         item {
@@ -2358,11 +2406,36 @@ private fun ShiftKasirComposeScreen(viewModel: PosViewModel, uiState: PosUiState
                         Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) { Text("Pengeluaran (-)"); Text("-${RupiahFormatter.format(cashExpenses)}") }
                         HorizontalDivider()
                         Text("Adjustment — Tambah Saldo", style = MaterialTheme.typography.titleMedium)
+                        Box {
+                            OutlinedButton(onClick = { adjustmentSourceMenuOpen = true }, modifier = Modifier.fillMaxWidth()) {
+                                Text("Sumber: " + when (adjustmentSource) {
+                                    "sales_cash" -> "Penjualan Tunai"
+                                    "sales_qris" -> "Penjualan QRIS"
+                                    "sales_transfer" -> "Transfer Bank"
+                                    "owner_funds" -> "Top-up Owner"
+                                    else -> "Lainnya"
+                                })
+                            }
+                            DropdownMenu(expanded = adjustmentSourceMenuOpen, onDismissRequest = { adjustmentSourceMenuOpen = false }) {
+                                listOf(
+                                    "sales_cash" to "Penjualan Tunai",
+                                    "sales_qris" to "Penjualan QRIS",
+                                    "sales_transfer" to "Transfer Bank",
+                                    "owner_funds" to "Top-up Owner",
+                                    "other" to "Lainnya"
+                                ).forEach { option ->
+                                    DropdownMenuItem(text = { Text(option.second) }, onClick = {
+                                        adjustmentSource = option.first
+                                        adjustmentSourceMenuOpen = false
+                                    })
+                                }
+                            }
+                        }
                         OutlinedTextField(value = adjustmentAmount, onValueChange = { adjustmentAmount = it.filter(Char::isDigit) }, label = { Text("Nominal penambahan (Rp)") }, modifier = Modifier.fillMaxWidth(), singleLine = true)
                         OutlinedTextField(value = adjustmentDescription, onValueChange = { adjustmentDescription = it }, label = { Text("Keterangan adjustment") }, modifier = Modifier.fillMaxWidth(), singleLine = true)
                         Button(onClick = {
                             val value = adjustmentAmount.toDoubleOrNull() ?: 0.0
-                            viewModel.replenishCashFund(value, "owner_funds", adjustmentDescription)
+                            viewModel.replenishCashFund(value, adjustmentSource, adjustmentDescription)
                             adjustmentAmount = ""
                             adjustmentDescription = ""
                         }, modifier = Modifier.fillMaxWidth()) { Text("Tambah Saldo Kas") }
@@ -2376,7 +2449,20 @@ private fun ShiftKasirComposeScreen(viewModel: PosViewModel, uiState: PosUiState
                             expenseAmount = ""
                             expenseDescription = ""
                         }, modifier = Modifier.fillMaxWidth()) { Text("Simpan Pengeluaran") }
-                        Text("Adjustment menambah saldo kas modal. Pengeluaran mengurangi saldo modal dan tidak menambah omzet.", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                        val recentExpenses = uiState.expenses.sortedByDescending { it.createdAt ?: "" }.take(5)
+                        if (recentExpenses.isNotEmpty()) {
+                            Text("Pengeluaran Terbaru", style = MaterialTheme.typography.titleSmall, fontWeight = FontWeight.SemiBold)
+                            recentExpenses.forEach { expense ->
+                                Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween, verticalAlignment = Alignment.Top) {
+                                    Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(2.dp)) {
+                                        Text(expense.description.ifBlank { "Tanpa keterangan" }, fontWeight = FontWeight.Medium)
+                                        Text("${expense.expenseDate} · ${expense.category}", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                                    }
+                                    Text(RupiahFormatter.format(expense.amount), fontWeight = FontWeight.SemiBold)
+                                }
+                            }
+                        }
+                        Text("Adjustment memindahkan alokasi sumber dana; bukan penjualan baru. Pengeluaran tidak menambah omzet.", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
                         HorizontalDivider()
                         Text("Rekap Closing", style = MaterialTheme.typography.titleMedium)
                         Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) { Text("Penjualan tunai"); Text(RupiahFormatter.format(cashSales)) }

@@ -190,7 +190,11 @@ data class PosUiState(
             method in setOf("cash", "tunai") &&
                 created != null && created >= opened && (closed == null || created <= closed)
         }.sumOf { it.amount }
-        return (shift.openingCash + cashSalesForShift(shift) - cashExpenses).coerceAtLeast(0.0)
+        val ownerCashTopUps = cashFundEntries.filter { entry ->
+            entry.entryType == "replenishment" && entry.source == "owner_funds" &&
+                (parseShiftTimestamp(entry.createdAt)?.let { it >= opened && (closed == null || it <= closed) } == true)
+        }.sumOf { it.amount }
+        return (shift.openingCash + cashSalesForShift(shift) + ownerCashTopUps - cashExpenses).coerceAtLeast(0.0)
     }
 
     private fun parseShiftTimestamp(value: String?): java.time.Instant? {
@@ -2332,27 +2336,34 @@ class PosViewModel(application: Application) : AndroidViewModel(application) {
     }
 
     fun replenishCashFund(amount: Double, source: String, description: String) {
-        if (amount <= 0.0 || source !in listOf("sales_cash", "owner_funds") || description.isBlank()) {
+        if (amount <= 0.0 || source !in listOf("sales_cash", "sales_qris", "sales_transfer", "owner_funds", "other") || description.isBlank()) {
             showNotice("Nominal, sumber isi ulang, dan keterangan wajib benar.", isError = true); return
         }
         if (_uiState.value.backendStatus != BackendIntegrationStatus.ACTIVE_VERIFIED) {
             showNotice("Isi ulang modal kas hanya bisa dicatat saat terhubung ke Supabase.", isError = true); return
         }
-        if (source == "sales_cash") {
+        if (source in setOf("sales_cash", "sales_qris", "sales_transfer")) {
             val state = _uiState.value
-            fun isCashSale(order: OrderWithItems): Boolean {
+            fun methodGroup(order: OrderWithItems): String {
                 val raw = (order.paymentMethod?.takeIf { it.isNotBlank() }
                     ?: order.customerPaymentMethod?.takeIf { it.isNotBlank() }
                     ?: order.payments.firstOrNull()?.method?.takeIf { it.isNotBlank() }
                     ?: "cash").lowercase().replace("-", "_").trim()
-                return raw == "cash" || raw == "tunai" || raw.contains("cash")
+                return when {
+                    raw == "cash" || raw == "tunai" || raw.contains("cash") -> "cash"
+                    raw.contains("qris") -> "qris"
+                    raw.contains("transfer") || raw.contains("bank_transfer") || raw.contains("bca") || raw.contains("bni") || raw.contains("bri") || raw.contains("mandiri") || raw.contains("permata") -> "transfer"
+                    else -> "other"
+                }
             }
-            val cashSales = state.orders.filter { it.isPaid && it.status != OrderStatus.CANCELLED && it.returnedAt == null && isCashSale(it) }.sumOf { it.total }
-            val usedForFund = state.cashFundEntries.filter { it.entryType == "replenishment" && it.source == "sales_cash" }.sumOf { it.amount }
-            val salesExpenses = state.expenses.filter { it.paymentMethod.equals("cash", true) && it.cashSource == "sales_cash" }.sumOf { it.amount }
-            val available = cashSales - usedForFund - salesExpenses
+            val targetMethod = when (source) { "sales_cash" -> "cash"; "sales_qris" -> "qris"; else -> "transfer" }
+            val sales = state.orders.filter { it.isPaid && it.status != OrderStatus.CANCELLED && it.returnedAt == null && methodGroup(it) == targetMethod }.sumOf { it.total }
+            val alreadyAllocated = state.cashFundEntries.filter { it.entryType == "replenishment" && it.source == source }.sumOf { it.amount }
+            val paidOut = state.expenses.filter { it.cashSource == source }.sumOf { it.amount }
+            val available = (sales - alreadyAllocated - paidOut).coerceAtLeast(0.0)
             if (amount > available) {
-                showNotice("Kas penjualan tunai tersedia hanya ${RupiahFormatter.format(available)}. Isi ulang tidak boleh melebihi saldo yang tersedia.", isError = true)
+                val label = when (source) { "sales_cash" -> "tunai"; "sales_qris" -> "QRIS"; else -> "transfer bank" }
+                showNotice("Saldo penjualan $label yang tersedia hanya ${RupiahFormatter.format(available)}.", isError = true)
                 return
             }
         }

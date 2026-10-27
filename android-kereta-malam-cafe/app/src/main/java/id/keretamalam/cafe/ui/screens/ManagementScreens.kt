@@ -960,208 +960,52 @@ fun PromosiComposeScreen(viewModel: PosViewModel, uiState: PosUiState) {
 @Composable
 fun KeuanganComposeScreen(viewModel: PosViewModel, uiState: PosUiState) {
     val context = LocalContext.current
-    var tabIndex by remember { mutableStateOf(0) }
-    var amount by remember { mutableStateOf("") }
-    var method by remember { mutableStateOf("cash") }
-    var expenseCashSource by remember { mutableStateOf("cash_fund") }
-    var description by remember { mutableStateOf("") }
-    var cashFundTargetInput by remember { mutableStateOf("") }
-    var replenishmentAmount by remember { mutableStateOf("") }
-    var replenishmentSource by remember { mutableStateOf("sales_cash") }
-    var replenishmentDescription by remember { mutableStateOf("") }
-
-    val cashFundTarget = uiState.cashFundEntries.firstOrNull { it.entryType == "set_target" }?.amount ?: 0.0
-    val totalReplenishments = uiState.cashFundEntries.filter { it.entryType == "replenishment" }.sumOf { it.amount }
-    val cashFundExpenses = uiState.expenses.filter { it.paymentMethod.equals("cash", true) && it.cashSource == "cash_fund" }.sumOf { it.amount }
-    val salesCashExpenses = uiState.expenses.filter { it.paymentMethod.equals("cash", true) && it.cashSource == "sales_cash" }.sumOf { it.amount }
-    val currentCashFundBalance = cashFundTarget + totalReplenishments - cashFundExpenses
-    val salesCashReplenishments = uiState.cashFundEntries.filter { it.entryType == "replenishment" && it.source == "sales_cash" }.sumOf { it.amount }
-
     val grossSales = uiState.paidOrders.sumOf { it.subtotal }
     val totalDiscounts = uiState.paidOrders.sumOf { it.discount }
     val netSales = uiState.todayRevenue
-    val cogs = uiState.paidOrders.sumOf { o ->
-        o.orderItems.sumOf { oi -> (oi.costPriceSnapshot ?: 0.0) * oi.quantity }
+    val cogs = uiState.paidOrders.sumOf { order ->
+        order.orderItems.sumOf { item -> (item.costPriceSnapshot ?: 0.0) * item.quantity }
     }
     val grossProfit = netSales - cogs
     val totalExpenses = uiState.expenses.sumOf { it.amount }
     val netProfit = grossProfit - totalExpenses
-
-    val csvLauncher = rememberLauncherForActivityResult(
-        ActivityResultContracts.CreateDocument("text/csv")
-    ) { uri ->
+    val csvLauncher = rememberLauncherForActivityResult(ActivityResultContracts.CreateDocument("text/csv")) { uri ->
         if (uri != null) {
             CsvExporter.writeFinancialReportToUri(
-                context,
-                uri,
-                "2026-10-01",
-                "2026-10-12",
-                netSales,
-                cogs,
-                totalExpenses,
-                netProfit,
-                uiState.expenses
-            ).onSuccess { viewModel.showNotice("CSV Laporan Keuangan & Laba Rugi berhasil disimpan.") }
+                context, uri, java.time.LocalDate.now().toString(), java.time.LocalDate.now().toString(),
+                netSales, cogs, totalExpenses, netProfit, uiState.expenses
+            ).onSuccess { viewModel.showNotice("CSV Profit & Loss berhasil disimpan.") }
         }
     }
-
-    Column(modifier = Modifier.fillMaxSize(), verticalArrangement = Arrangement.spacedBy(10.dp)) {
-        TabRow(selectedTabIndex = tabIndex) {
-            Tab(selected = tabIndex == 0, onClick = { tabIndex = 0 }, text = { Text("Pengeluaran Operasional") })
-            Tab(selected = tabIndex == 1, onClick = { tabIndex = 1 }, text = { Text("Laporan Laba Rugi (P&L)") })
-            Tab(selected = tabIndex == 2, onClick = { tabIndex = 2 }, text = { Text("Modal Kas") })
-        }
-
-        if (tabIndex == 0) {
-            LazyColumn(
-                modifier = Modifier.weight(1f),
-                verticalArrangement = Arrangement.spacedBy(10.dp)
-            ) {
-                item {
-                    OutlinedCard(modifier = Modifier.fillMaxWidth()) {
-                        Column(modifier = Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                            Text("Catat Kas Keluar / Pengeluaran Baru", style = MaterialTheme.typography.titleMedium)
-                            OutlinedTextField(value = amount, onValueChange = { amount = it }, label = { Text("Nominal (Rp)") }, modifier = Modifier.fillMaxWidth(), singleLine = true)
-                            Row(horizontalArrangement = Arrangement.spacedBy(6.dp)) {
-                                listOf("cash" to "Tunai", "qris" to "QRIS", "transfer" to "Transfer").forEach { (c, lbl) ->
-                                    FilterChip(selected = method == c, onClick = { method = c }, label = { Text(lbl) })
-                                }
-                            }
-                            OutlinedTextField(value = description, onValueChange = { description = it }, label = { Text("Keterangan Pengeluaran") }, modifier = Modifier.fillMaxWidth(), singleLine = true)
-                            if (method == "cash") {
-                                Text("Sumber uang yang dipakai", style = MaterialTheme.typography.labelLarge)
-                                Row(horizontalArrangement = Arrangement.spacedBy(6.dp)) {
-                                    FilterChip(selected = expenseCashSource == "cash_fund", onClick = { expenseCashSource = "cash_fund" }, label = { Text("Modal kas") })
-                                    FilterChip(selected = expenseCashSource == "sales_cash", onClick = { expenseCashSource = "sales_cash" }, label = { Text("Penjualan tunai") })
-                                }
-                                Text(if (expenseCashSource == "cash_fund") "Pengeluaran ini mengurangi saldo modal kas." else "Pengeluaran ini mengurangi kas penjualan yang tersedia.", style = MaterialTheme.typography.bodySmall)
-                            }
-                            Button(onClick = {
-                                viewModel.addExpense(amount.toDoubleOrNull() ?: 0.0, "Operasional", java.time.LocalDate.now().toString(), method, description, expenseCashSource)
-                                amount = ""
-                                description = ""
-                                expenseCashSource = "cash_fund"
-                            }) { Text("Simpan Pengeluaran") }
+    LazyColumn(Modifier.fillMaxSize(), verticalArrangement = Arrangement.spacedBy(12.dp)) {
+        item {
+            OutlinedCard(Modifier.fillMaxWidth()) {
+                Column(Modifier.fillMaxWidth().padding(20.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
+                    Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween, verticalAlignment = Alignment.CenterVertically) {
+                        Column(Modifier.weight(1f)) {
+                            Text("Profit & Loss", style = MaterialTheme.typography.titleLarge, fontWeight = FontWeight.Bold)
+                            Text("Ringkasan laba dan rugi operasional", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
                         }
-                    }
-                }
-
-                items(uiState.expenses, key = { it.id }) { exp ->
-                    OutlinedCard(modifier = Modifier.fillMaxWidth()) {
-                        Row(
-                            modifier = Modifier
-                                .fillMaxWidth()
-                                .padding(14.dp),
-                            horizontalArrangement = Arrangement.SpaceBetween
-                        ) {
-                            Column(modifier = Modifier.weight(1f)) {
-                                Text(exp.description, fontWeight = FontWeight.SemiBold)
-                                Text("${exp.expenseDate} · ${exp.category} · ${exp.paymentMethod.uppercase()} · ${if (exp.cashSource == "sales_cash") "Kas penjualan" else if (exp.cashSource == "cash_fund") "Modal kas" else "Dana lain"}")
-                            }
-                            Text(RupiahFormatter.format(exp.amount), fontWeight = FontWeight.Bold)
-                        }
-                    }
-                }
-            }
-        } else if (tabIndex == 1) {
-            OutlinedCard(modifier = Modifier.fillMaxWidth()) {
-                Column(modifier = Modifier.padding(20.dp), verticalArrangement = Arrangement.spacedBy(10.dp)) {
-                    Row(
-                        modifier = Modifier.fillMaxWidth(),
-                        horizontalArrangement = Arrangement.SpaceBetween,
-                        verticalAlignment = Alignment.CenterVertically
-                    ) {
-                        Text("Laporan Laba Rugi (Profit & Loss)", style = MaterialTheme.typography.titleLarge)
-                        Button(onClick = { csvLauncher.launch("laporan-keuangan-laba-rugi.csv") }) {
-                            Text("Ekspor CSV P&L")
-                        }
+                        Button(onClick = { csvLauncher.launch("profit-loss.csv") }) { Text("Ekspor CSV") }
                     }
                     HorizontalDivider()
-                    Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
-                        Text("Penjualan Kotor (Gross Sales)")
-                        Text(RupiahFormatter.format(grossSales))
-                    }
-                    Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
-                        Text("Potongan Diskon & Promo")
-                        Text("-${RupiahFormatter.format(totalDiscounts)}")
-                    }
-                    Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
-                        Text("Penjualan Bersih (Net Sales)", fontWeight = FontWeight.SemiBold)
+                    Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) { Text("Penjualan Kotor"); Text(RupiahFormatter.format(grossSales)) }
+                    Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) { Text("Diskon & Promo"); Text("-${RupiahFormatter.format(totalDiscounts)}") }
+                    Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
+                        Text("Penjualan Bersih", fontWeight = FontWeight.SemiBold)
                         Text(RupiahFormatter.format(netSales), fontWeight = FontWeight.SemiBold)
                     }
-                    Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
-                        Text("Harga Pokok Penjualan (HPP / COGS)")
-                        Text("-${RupiahFormatter.format(cogs)}")
-                    }
+                    Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) { Text("HPP / COGS"); Text("-${RupiahFormatter.format(cogs)}") }
                     HorizontalDivider()
-                    Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
-                        Text("Laba Kotor (Gross Profit)", fontWeight = FontWeight.Bold)
+                    Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
+                        Text("Profit Kotor", fontWeight = FontWeight.Bold)
                         Text(RupiahFormatter.format(grossProfit), fontWeight = FontWeight.Bold)
                     }
-                    Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
-                        Text("Total Beban Pengeluaran Operasional")
-                        Text("-${RupiahFormatter.format(totalExpenses)}")
-                    }
+                    Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) { Text("Beban Operasional"); Text("-${RupiahFormatter.format(totalExpenses)}") }
                     HorizontalDivider()
-                    Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
-                        Text("Laba / (Rugi) Bersih Operasional", style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold)
-                        Text(RupiahFormatter.format(netProfit), style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold)
-                    }
-                }
-            }
-        } else {
-            LazyColumn(modifier = Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(10.dp)) {
-                item {
-                    OutlinedCard(modifier = Modifier.fillMaxWidth()) {
-                        Column(Modifier.fillMaxWidth().padding(16.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                            Text("Saldo Modal Kas Saat Ini", style = MaterialTheme.typography.titleMedium)
-                            Text(RupiahFormatter.format(currentCashFundBalance), style = MaterialTheme.typography.headlineMedium, fontWeight = FontWeight.Bold)
-                            Text("Modal awal + isi ulang - pengeluaran tunai", style = MaterialTheme.typography.bodySmall)
-                            HorizontalDivider()
-                            Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) { Text("Modal awal"); Text(RupiahFormatter.format(cashFundTarget)) }
-                            Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) { Text("Isi ulang"); Text("+${RupiahFormatter.format(totalReplenishments)}") }
-                            Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) { Text("Pengeluaran dari modal kas"); Text("-${RupiahFormatter.format(cashFundExpenses)}") }
-                            OutlinedTextField(value = cashFundTargetInput, onValueChange = { cashFundTargetInput = it }, label = { Text("Modal awal tunai (Rp)") }, modifier = Modifier.fillMaxWidth(), singleLine = true, enabled = cashFundTarget <= 0.0)
-                            Button(onClick = {
-                                val value = cashFundTargetInput.filter { it.isDigit() }.toDoubleOrNull() ?: 0.0
-                                if (cashFundTarget <= 0.0) viewModel.saveCashFundTarget(value) else viewModel.showNotice("Modal awal sudah tercatat. Untuk menambah atau mengganti uang yang terpakai, gunakan Isi Ulang Modal Kas.")
-                                cashFundTargetInput = ""
-                            }, modifier = Modifier.fillMaxWidth(), enabled = cashFundTarget <= 0.0) { Text("Simpan Modal Awal") }
-                        }
-                    }
-                }
-                item {
-                    OutlinedCard(modifier = Modifier.fillMaxWidth()) {
-                        Column(Modifier.fillMaxWidth().padding(16.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                            Text("Isi Ulang Modal Kas", style = MaterialTheme.typography.titleMedium)
-                            OutlinedTextField(value = replenishmentAmount, onValueChange = { replenishmentAmount = it }, label = { Text("Nominal isi ulang (Rp)") }, modifier = Modifier.fillMaxWidth(), singleLine = true)
-                            Row(horizontalArrangement = Arrangement.spacedBy(6.dp)) {
-                                FilterChip(selected = replenishmentSource == "sales_cash", onClick = { replenishmentSource = "sales_cash" }, label = { Text("Dari penjualan tunai") })
-                                FilterChip(selected = replenishmentSource == "owner_funds", onClick = { replenishmentSource = "owner_funds" }, label = { Text("Dana tambahan") })
-                            }
-                            OutlinedTextField(value = replenishmentDescription, onValueChange = { replenishmentDescription = it }, label = { Text("Keterangan") }, modifier = Modifier.fillMaxWidth(), singleLine = true)
-                            Button(onClick = {
-                                val value = replenishmentAmount.filter { it.isDigit() }.toDoubleOrNull() ?: 0.0
-                                viewModel.replenishCashFund(value, replenishmentSource, replenishmentDescription)
-                                replenishmentAmount = ""
-                                replenishmentDescription = ""
-                            }, modifier = Modifier.fillMaxWidth()) { Text("Catat Isi Ulang") }
-                            Text("Isi ulang dari penjualan tunai memindahkan uang penjualan ke modal kas. Ini bukan omzet baru.", style = MaterialTheme.typography.bodySmall)
-                            Text("Total isi ulang dari penjualan tunai: ${RupiahFormatter.format(salesCashReplenishments)}", fontWeight = FontWeight.SemiBold)
-                            Text("Pengeluaran dari penjualan tunai: ${RupiahFormatter.format(salesCashExpenses)}", fontWeight = FontWeight.SemiBold)
-                            Text("Saldo modal setelah transaksi: ${RupiahFormatter.format(currentCashFundBalance)}", fontWeight = FontWeight.SemiBold)
-                        }
-                    }
-                }
-                item { Text("Riwayat Modal Kas", style = MaterialTheme.typography.titleMedium) }
-                items(uiState.cashFundEntries, key = { it.id }) { entry ->
-                    OutlinedCard(modifier = Modifier.fillMaxWidth()) {
-                        Column(Modifier.fillMaxWidth().padding(12.dp)) {
-                            Text(if (entry.entryType == "set_target") "Penetapan target modal" else "Isi ulang modal kas", fontWeight = FontWeight.SemiBold)
-                            Text("${entry.description} · ${if (entry.source == "sales_cash") "Penjualan tunai" else if (entry.source == "owner_funds") "Dana tambahan" else "Pengaturan"}")
-                            Text(RupiahFormatter.format(entry.amount), fontWeight = FontWeight.Bold)
-                            Text(entry.createdAt.orEmpty(), style = MaterialTheme.typography.bodySmall)
-                        }
+                    Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
+                        Text(if (netProfit >= 0) "Profit Bersih" else "Loss Bersih", style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold)
+                        Text(RupiahFormatter.format(netProfit), style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold, color = if (netProfit >= 0) Color(0xFF18864B) else MaterialTheme.colorScheme.error)
                     }
                 }
             }

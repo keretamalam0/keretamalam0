@@ -2322,79 +2322,97 @@ private fun HistoryComposeScreen(viewModel: PosViewModel, uiState: PosUiState) {
 @Composable
 private fun ShiftKasirComposeScreen(viewModel: PosViewModel, uiState: PosUiState) {
     val activeShift = uiState.shifts.find { it.status == "open" }
-    val cashSales = uiState.paidOrders.filter { it.paymentMethod == "cash" }.sumOf { it.total }
-    var openingInput by remember { mutableStateOf("300000") }
+    val cashSales = uiState.paidOrders.filter { it.paymentMethod.equals("cash", true) }.sumOf { it.total }
+    var openingInput by remember { mutableStateOf("500000") }
     var closingInput by remember { mutableStateOf("") }
     var closingNotes by remember { mutableStateOf("") }
+    var adjustmentAmount by remember { mutableStateOf("") }
+    var adjustmentDescription by remember { mutableStateOf("") }
+    var expenseAmount by remember { mutableStateOf("") }
+    var expenseDescription by remember { mutableStateOf("") }
 
-    LazyColumn(
-        modifier = Modifier.fillMaxSize(),
-        verticalArrangement = Arrangement.spacedBy(12.dp)
-    ) {
+    val shiftStart = activeShift?.openedAt.orEmpty()
+    val adjustments = uiState.cashFundEntries.filter {
+        it.entryType == "replenishment" && it.source == "owner_funds" &&
+            (shiftStart.isBlank() || (it.createdAt ?: "") >= shiftStart)
+    }.sumOf { it.amount }
+    val cashExpenses = uiState.expenses.filter {
+        it.paymentMethod.equals("cash", true) && it.cashSource == "cash_fund" &&
+            (shiftStart.isBlank() || (it.createdAt ?: "") >= shiftStart)
+    }.sumOf { it.amount }
+    val openingCash = activeShift?.openingCash ?: 0.0
+    val cashFundBalance = (openingCash + adjustments - cashExpenses).coerceAtLeast(0.0)
+    val expectedCash = (openingCash + cashSales + adjustments - cashExpenses).coerceAtLeast(0.0)
+
+    LazyColumn(Modifier.fillMaxSize(), verticalArrangement = Arrangement.spacedBy(12.dp)) {
         item {
             if (activeShift != null) {
-                val expectedCash = activeShift.openingCash + cashSales
-                OutlinedCard(modifier = Modifier.fillMaxWidth()) {
-                    Column(modifier = Modifier.padding(20.dp), verticalArrangement = Arrangement.spacedBy(10.dp)) {
-                        Text("Shift Kasir Sedang Berjalan (OPEN)", style = MaterialTheme.typography.titleLarge)
+                OutlinedCard(Modifier.fillMaxWidth()) {
+                    Column(Modifier.fillMaxWidth().padding(18.dp), verticalArrangement = Arrangement.spacedBy(10.dp)) {
+                        Text("Opening & Closing", style = MaterialTheme.typography.titleLarge, fontWeight = FontWeight.Bold)
                         Text("Kasir: ${activeShift.staffName} · Dibuka: ${activeShift.openedAt}")
-                        Text("Modal Kas Awal: ${RupiahFormatter.format(activeShift.openingCash)}")
-                        Text("Penjualan Tunai Shift Ini: ${RupiahFormatter.format(cashSales)}")
-                        Text("Ekspektasi Kas Laci: ${RupiahFormatter.format(expectedCash)}", fontWeight = FontWeight.Bold)
-
+                        Text("Saldo kas modal", style = MaterialTheme.typography.labelLarge)
+                        Text(RupiahFormatter.format(cashFundBalance), style = MaterialTheme.typography.headlineMedium, fontWeight = FontWeight.Bold)
+                        Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) { Text("Opening / modal awal"); Text(RupiahFormatter.format(openingCash)) }
+                        Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) { Text("Adjustment (+)"); Text("+${RupiahFormatter.format(adjustments)}") }
+                        Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) { Text("Pengeluaran (-)"); Text("-${RupiahFormatter.format(cashExpenses)}") }
                         HorizontalDivider()
-                        OutlinedTextField(
-                            value = closingInput,
-                            onValueChange = { closingInput = it },
-                            label = { Text("Hitung Fisik Kas Akhir (Rp)") },
-                            modifier = Modifier.fillMaxWidth(),
-                            singleLine = true
-                        )
-                        OutlinedTextField(
-                            value = closingNotes,
-                            onValueChange = { closingNotes = it },
-                            label = { Text("Catatan Penutupan Shift") },
-                            modifier = Modifier.fillMaxWidth()
-                        )
+                        Text("Adjustment — Tambah Saldo", style = MaterialTheme.typography.titleMedium)
+                        OutlinedTextField(value = adjustmentAmount, onValueChange = { adjustmentAmount = it.filter(Char::isDigit) }, label = { Text("Nominal penambahan (Rp)") }, modifier = Modifier.fillMaxWidth(), singleLine = true)
+                        OutlinedTextField(value = adjustmentDescription, onValueChange = { adjustmentDescription = it }, label = { Text("Keterangan adjustment") }, modifier = Modifier.fillMaxWidth(), singleLine = true)
                         Button(onClick = {
-                            val actual = closingInput.toDoubleOrNull() ?: expectedCash
-                            viewModel.closeActiveShift(activeShift.id, actual, expectedCash, closingNotes)
-                        }) {
-                            Text("Tutup Shift Sekarang (Closing)")
-                        }
+                            val value = adjustmentAmount.toDoubleOrNull() ?: 0.0
+                            viewModel.replenishCashFund(value, "owner_funds", adjustmentDescription)
+                            adjustmentAmount = ""
+                            adjustmentDescription = ""
+                        }, modifier = Modifier.fillMaxWidth()) { Text("Tambah Saldo Kas") }
+                        HorizontalDivider()
+                        Text("Pengeluaran", style = MaterialTheme.typography.titleMedium)
+                        OutlinedTextField(value = expenseAmount, onValueChange = { expenseAmount = it.filter(Char::isDigit) }, label = { Text("Nominal pengeluaran (Rp)") }, modifier = Modifier.fillMaxWidth(), singleLine = true)
+                        OutlinedTextField(value = expenseDescription, onValueChange = { expenseDescription = it }, label = { Text("Keterangan pengeluaran") }, modifier = Modifier.fillMaxWidth(), singleLine = true)
+                        Button(onClick = {
+                            val value = expenseAmount.toDoubleOrNull() ?: 0.0
+                            viewModel.addExpense(value, "Operasional", java.time.LocalDate.now().toString(), "cash", expenseDescription, "cash_fund")
+                            expenseAmount = ""
+                            expenseDescription = ""
+                        }, modifier = Modifier.fillMaxWidth()) { Text("Simpan Pengeluaran") }
+                        Text("Adjustment menambah saldo kas modal. Pengeluaran mengurangi saldo modal dan tidak menambah omzet.", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                        HorizontalDivider()
+                        Text("Rekap Closing", style = MaterialTheme.typography.titleMedium)
+                        Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) { Text("Penjualan tunai"); Text(RupiahFormatter.format(cashSales)) }
+                        Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) { Text("Kas seharusnya"); Text(RupiahFormatter.format(expectedCash), fontWeight = FontWeight.Bold) }
+                        OutlinedTextField(value = closingInput, onValueChange = { closingInput = it.filter(Char::isDigit) }, label = { Text("Hitung fisik kas akhir (Rp)") }, modifier = Modifier.fillMaxWidth(), singleLine = true)
+                        OutlinedTextField(value = closingNotes, onValueChange = { closingNotes = it }, label = { Text("Catatan closing") }, modifier = Modifier.fillMaxWidth())
+                        Button(onClick = {
+                            val actual = closingInput.toDoubleOrNull()
+                            if (actual == null) viewModel.showNotice("Masukkan nominal kas fisik saat closing.", isError = true)
+                            else viewModel.closeActiveShift(activeShift.id, actual, expectedCash, closingNotes)
+                        }, modifier = Modifier.fillMaxWidth()) { Text("Tutup Shift (Closing)") }
                     }
                 }
             } else {
-                OutlinedCard(modifier = Modifier.fillMaxWidth()) {
-                    Column(modifier = Modifier.padding(20.dp), verticalArrangement = Arrangement.spacedBy(10.dp)) {
-                        Text("Buka Shift Kasir Baru (Opening)", style = MaterialTheme.typography.titleLarge)
-                        OutlinedTextField(
-                            value = openingInput,
-                            onValueChange = { openingInput = it },
-                            label = { Text("Modal Kas Awal (Rp)") },
-                            modifier = Modifier.fillMaxWidth(),
-                            singleLine = true
-                        )
+                OutlinedCard(Modifier.fillMaxWidth()) {
+                    Column(Modifier.fillMaxWidth().padding(18.dp), verticalArrangement = Arrangement.spacedBy(10.dp)) {
+                        Text("Opening — Modal Kas Awal", style = MaterialTheme.typography.titleLarge, fontWeight = FontWeight.Bold)
+                        Text("Masukkan uang modal yang benar-benar tersedia di laci saat mulai operasional.")
+                        OutlinedTextField(value = openingInput, onValueChange = { openingInput = it.filter(Char::isDigit) }, label = { Text("Modal awal (Rp)") }, modifier = Modifier.fillMaxWidth(), singleLine = true)
                         Button(onClick = {
-                            viewModel.openNewShift(openingInput.toDoubleOrNull() ?: 0.0)
-                        }) {
-                            Text("Buka Shift Kasir")
-                        }
+                            val value = openingInput.toDoubleOrNull() ?: 0.0
+                            if (value <= 0.0) viewModel.showNotice("Modal awal harus lebih dari Rp0.", isError = true)
+                            else viewModel.openNewShift(value)
+                        }, modifier = Modifier.fillMaxWidth()) { Text("Mulai Operasional (Opening)") }
                     }
                 }
             }
         }
-
-        item {
-            Text("Riwayat Shift Kasir", style = MaterialTheme.typography.titleMedium)
-        }
-
-        items(uiState.shifts, key = { it.id }) { sh ->
-            OutlinedCard(modifier = Modifier.fillMaxWidth()) {
-                Column(modifier = Modifier.padding(14.dp), verticalArrangement = Arrangement.spacedBy(4.dp)) {
-                    Text("${sh.staffName} · ${sh.status.uppercase()}", fontWeight = FontWeight.Bold)
-                    Text("Dibuka: ${sh.openedAt}${sh.closedAt?.let { " · Ditutup: $it" } ?: ""}")
-                    Text("Modal Awal: ${RupiahFormatter.format(sh.openingCash)} · Kas Akhir: ${sh.closingCash?.let { RupiahFormatter.format(it) } ?: "-"}")
+        item { Text("Riwayat Shift", style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.SemiBold) }
+        items(uiState.shifts, key = { it.id }) { shift ->
+            OutlinedCard(Modifier.fillMaxWidth()) {
+                Column(Modifier.padding(14.dp), verticalArrangement = Arrangement.spacedBy(4.dp)) {
+                    Text("${shift.staffName} · ${shift.status.uppercase()}", fontWeight = FontWeight.Bold)
+                    Text("Opening: ${shift.openedAt}")
+                    Text("Modal awal: ${RupiahFormatter.format(shift.openingCash)} · Kas fisik akhir: ${shift.closingCash?.let { RupiahFormatter.format(it) } ?: "-"}")
+                    Text("Closing: ${shift.closedAt ?: "Belum ditutup"}")
                 }
             }
         }

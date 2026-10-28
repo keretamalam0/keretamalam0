@@ -2344,7 +2344,6 @@ class PosViewModel(application: Application) : AndroidViewModel(application) {
 
 
     fun saveCashFundTarget(amount: Double) {
-        if (_uiState.value.cashFundEntries.any { it.entryType == "set_target" }) { showNotice("Modal awal sudah tercatat. Gunakan isi ulang atau penyesuaian kas untuk perubahan saldo.", isError = true); return }
         if (amount <= 0.0) { showNotice("Modal awal harus lebih dari Rp0.", isError = true); return }
         if (_uiState.value.backendStatus != BackendIntegrationStatus.ACTIVE_VERIFIED) {
             showNotice("Modal kas hanya bisa disimpan saat terhubung ke Supabase.", isError = true); return

@@ -490,8 +490,25 @@ private fun DashboardComposeScreen(
         }
     }
     val allPaidOrders = uiState.orders.filter { it.isPaid && it.status != OrderStatus.CANCELLED && it.returnedAt == null }
-    // Lifetime comparison: recorded sales history versus the remaining balance after adjustments.
-    fun historySales(method: String): Double = allPaidOrders.filter { paymentGroup(it) == method }.sumOf { it.total }
+    fun paymentGroupForMethod(rawInput: String): String {
+        val raw = rawInput.lowercase().replace("-", "_").trim()
+        return when {
+            raw == "cash" || raw == "tunai" || raw.contains("cash") -> "cash"
+            raw.contains("ewallet") || raw.contains("e_wallet") || raw.contains("e wallet") || raw.contains("gopay") || raw.contains("go pay") || raw.contains("ovo") || raw.contains("dana") || raw.contains("shopeepay") || raw.contains("linkaja") -> "ewallet"
+            raw.contains("qris") -> "qris"
+            raw.contains("transfer") || raw.contains("bank_transfer") || raw.contains("bank transfer") || raw.contains("bca") || raw.contains("bni") || raw.contains("bri") || raw.contains("mandiri") || raw.contains("permata") || raw.contains("bank") -> "transfer"
+            raw.contains("debit") || raw.contains("card") || raw.contains("kartu") -> "debit"
+            else -> "other"
+        }
+    }
+    // Source-account balances must use saved payment amounts, not order totals.
+    // Legacy paid orders without payment rows retain their saved order total as fallback.
+    fun historySales(method: String): Double = allPaidOrders.sumOf { order ->
+        if (order.payments.isNotEmpty()) order.payments
+            .filter { paymentGroupForMethod(it.method) == method }
+            .sumOf { it.amount }
+        else if (paymentGroup(order) == method) order.total else 0.0
+    }
     fun allocated(method: String): Double {
         val source = when (method) {
             "cash" -> "sales_cash"

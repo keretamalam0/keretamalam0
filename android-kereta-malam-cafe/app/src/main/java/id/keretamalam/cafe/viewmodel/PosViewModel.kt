@@ -2393,7 +2393,7 @@ class PosViewModel(application: Application) : AndroidViewModel(application) {
                     category = category.trim(),
                     expenseDate = date,
                     paymentMethod = method.ifBlank { "cash" },
-                    cashSource = if (method.equals("cash", true)) cashSource else "other_funds",
+                    cashSource = cashSource.ifBlank { "cash_fund" },
                     description = description.trim(),
                     createdAt = nowString()
                 )
@@ -2440,6 +2440,7 @@ class PosViewModel(application: Application) : AndroidViewModel(application) {
             expenseDate = date,
             paymentMethod = method.ifBlank { "cash" },
             description = description.trim(),
+            cashSource = cashSource.ifBlank { "cash_fund" },
             createdAt = nowString()
         )
         _uiState.update {

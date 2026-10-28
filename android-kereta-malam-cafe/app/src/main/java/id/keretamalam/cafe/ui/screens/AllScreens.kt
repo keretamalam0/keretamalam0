@@ -2381,202 +2381,73 @@ private fun HistoryComposeScreen(viewModel: PosViewModel, uiState: PosUiState) {
 }
 
 // ============================================================================
-// 6. OPENING & CLOSING (SHIFT KASIR) SCREEN
+// 6. KAS MODAL & PENGELUARAN (CATATAN KASIR)
 // ============================================================================
 @Composable
 private fun ShiftKasirComposeScreen(viewModel: PosViewModel, uiState: PosUiState) {
-    val activeShift = uiState.shifts.find { it.status.equals("open", true) && it.staffUserId == uiState.staffProfile.userId }
-    val cashSales = activeShift?.let { uiState.cashSalesForShift(it) } ?: 0.0
-    var openingInput by remember { mutableStateOf("500000") }
-    var closingInput by remember { mutableStateOf("") }
-    var closingNotes by remember { mutableStateOf("") }
+    var openingInput by remember { mutableStateOf("") }
     var adjustmentAmount by remember { mutableStateOf("") }
     var adjustmentDescription by remember { mutableStateOf("") }
-    var adjustmentSource by remember { mutableStateOf("owner_funds") }
-    var adjustmentSourceMenuOpen by remember { mutableStateOf(false) }
     var expenseAmount by remember { mutableStateOf("") }
     var expenseDescription by remember { mutableStateOf("") }
     var expenseSource by remember { mutableStateOf("cash_fund") }
     var expenseSourceMenuOpen by remember { mutableStateOf(false) }
-
-    val shiftStart = activeShift?.openedAt.orEmpty()
-    fun parseCashTimestamp(raw: String?): java.time.Instant? {
-        if (raw.isNullOrBlank()) return null
-        return runCatching { java.time.Instant.parse(raw) }.getOrNull()
-            ?: runCatching { java.time.OffsetDateTime.parse(raw).toInstant() }.getOrNull()
-            ?: runCatching { java.time.LocalDateTime.parse(raw.replace(' ', 'T')).atZone(java.time.ZoneId.systemDefault()).toInstant() }.getOrNull()
-    }
-    val shiftStartInstant = parseCashTimestamp(activeShift?.openedAt)
-    val shiftEndInstant = parseCashTimestamp(activeShift?.closedAt)
-    fun happenedDuringActiveShift(raw: String?): Boolean {
-        val time = parseCashTimestamp(raw) ?: return false
-        return shiftStartInstant != null && time >= shiftStartInstant && (shiftEndInstant == null || time <= shiftEndInstant)
-    }
-    val adjustments = uiState.cashFundEntries.filter {
-        it.entryType == "replenishment" && it.source in setOf("owner_funds", "sales_cash", "sales_qris", "sales_transfer") &&
-            (shiftStart.isBlank() || happenedDuringActiveShift(it.createdAt))
-    }.sumOf { it.amount }
-    val cashExpenses = uiState.expenses.filter {
-        it.cashSource == "cash_fund" &&
-            (shiftStart.isBlank() || happenedDuringActiveShift(it.createdAt))
-    }.sumOf { it.amount }
-    val targetCashFund = uiState.cashFundEntries.filter { it.entryType == "set_target" }.sumOf { it.amount }
-    val allCashFundReplenishments = uiState.cashFundEntries.filter { it.entryType == "replenishment" }.sumOf { it.amount }
-    val allCashFundExpenses = uiState.expenses.filter { it.cashSource == "cash_fund" }.sumOf { it.amount }
-    val cashFundBalance = (targetCashFund + allCashFundReplenishments - allCashFundExpenses).coerceAtLeast(0.0)
-    val openingCash = activeShift?.openingCash ?: 0.0
-    val expectedCash = activeShift?.let { uiState.expectedDrawerCashForShift(it) } ?: 0.0
-
+    val latestSession = uiState.cashFundEntries.filter { it.entryType == "set_target" }.maxByOrNull { it.createdAt ?: "" }
+    val sessionStart = latestSession?.createdAt.orEmpty()
+    fun isAfterSession(timestamp: String?): Boolean = sessionStart.isNotBlank() && timestamp.orEmpty() >= sessionStart
+    val sessionAdjustments = uiState.cashFundEntries.filter { it.entryType == "replenishment" && isAfterSession(it.createdAt) }.sumOf { it.amount }
+    val sessionModalExpenses = uiState.expenses.filter { it.cashSource == "cash_fund" && isAfterSession(it.createdAt) }.sumOf { it.amount }
+    val openingFund = latestSession?.amount ?: 0.0
+    val currentFund = (openingFund + sessionAdjustments - sessionModalExpenses).coerceAtLeast(0.0)
+    val recentExpenses = uiState.expenses.sortedByDescending { it.createdAt ?: "" }.take(20)
+    val recentAdjustments = uiState.cashFundEntries.filter { it.entryType == "replenishment" }.sortedByDescending { it.createdAt ?: "" }.take(20)
     LazyColumn(Modifier.fillMaxSize(), verticalArrangement = Arrangement.spacedBy(12.dp)) {
         item {
-            if (activeShift != null) {
-                OutlinedCard(Modifier.fillMaxWidth()) {
-                    Column(Modifier.fillMaxWidth().padding(18.dp), verticalArrangement = Arrangement.spacedBy(10.dp)) {
-                        Text("Opening & Closing", style = MaterialTheme.typography.titleLarge, fontWeight = FontWeight.Bold)
-                        Text("Kasir: ${activeShift.staffName} · Dibuka: ${activeShift.openedAt}")
-                        Text("Saldo kas modal", style = MaterialTheme.typography.labelLarge)
-                        Text(RupiahFormatter.format(cashFundBalance), style = MaterialTheme.typography.headlineMedium, fontWeight = FontWeight.Bold)
-                        Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) { Text("Target modal tetap"); Text(RupiahFormatter.format(targetCashFund)) }
-                        Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) { Text("Pengisian kembali shift ini"); Text("+${RupiahFormatter.format(adjustments)}") }
-                        Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) { Text("Pengeluaran modal shift ini"); Text("-${RupiahFormatter.format(cashExpenses)}") }
-                        Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) { Text("Kas penjualan awal shift"); Text(RupiahFormatter.format(openingCash)) }
-                        HorizontalDivider()
-                        Text("Pengembalian Modal", style = MaterialTheme.typography.titleMedium)
-                        Box {
-                            OutlinedButton(onClick = { adjustmentSourceMenuOpen = true }, modifier = Modifier.fillMaxWidth()) {
-                                Text("Sumber: " + when (adjustmentSource) {
-                                    "sales_cash" -> "Penjualan Tunai"
-                                    "sales_qris" -> "Penjualan QRIS"
-                                    "sales_transfer" -> "Transfer Bank"
-                                    "owner_funds" -> "Top-up Owner"
-                                    else -> "Lainnya"
-                                })
-                            }
-                            DropdownMenu(expanded = adjustmentSourceMenuOpen, onDismissRequest = { adjustmentSourceMenuOpen = false }) {
-                                listOf(
-                                    "sales_cash" to "Penjualan Tunai",
-                                    "sales_qris" to "Penjualan QRIS",
-                                    "sales_transfer" to "Transfer Bank",
-                                    "owner_funds" to "Top-up Owner",
-                                    "other" to "Lainnya"
-                                ).forEach { option ->
-                                    DropdownMenuItem(text = { Text(option.second) }, onClick = {
-                                        adjustmentSource = option.first
-                                        adjustmentSourceMenuOpen = false
-                                    })
-                                }
-                            }
-                        }
-                        OutlinedTextField(value = adjustmentAmount, onValueChange = { adjustmentAmount = it.filter(Char::isDigit) }, label = { Text("Nominal penambahan (Rp)") }, modifier = Modifier.fillMaxWidth(), singleLine = true)
-                        OutlinedTextField(value = adjustmentDescription, onValueChange = { adjustmentDescription = it }, label = { Text("Keterangan adjustment") }, modifier = Modifier.fillMaxWidth(), singleLine = true)
-                        Button(onClick = {
-                            val value = adjustmentAmount.toDoubleOrNull() ?: 0.0
-                            viewModel.replenishCashFund(value, adjustmentSource, adjustmentDescription)
-                            adjustmentAmount = ""
-                            adjustmentDescription = ""
-                        }, modifier = Modifier.fillMaxWidth()) { Text("Tambah Saldo Kas") }
-                        HorizontalDivider()
-                        Text("Pengeluaran", style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.SemiBold)
-                        Box {
-                            OutlinedButton(onClick = { expenseSourceMenuOpen = true }, modifier = Modifier.fillMaxWidth()) {
-                                Text("Sumber uang: " + when (expenseSource) {
-                                    "cash_fund" -> "Modal Kas"
-                                    "sales_cash" -> "Penjualan Cash"
-                                    "sales_qris" -> "Penjualan QRIS"
-                                    "sales_transfer" -> "Transfer Bank"
-                                    else -> "Modal Kas"
-                                })
-                            }
-                            DropdownMenu(expanded = expenseSourceMenuOpen, onDismissRequest = { expenseSourceMenuOpen = false }) {
-                                listOf(
-                                    "cash_fund" to "Modal Kas",
-                                    "sales_cash" to "Penjualan Cash",
-                                    "sales_qris" to "Penjualan QRIS",
-                                    "sales_transfer" to "Transfer Bank"
-                                ).forEach { option ->
-                                    DropdownMenuItem(text = { Text(option.second) }, onClick = {
-                                        expenseSource = option.first
-                                        expenseSourceMenuOpen = false
-                                    })
-                                }
-                            }
-                        }
-                        OutlinedTextField(value = expenseAmount, onValueChange = { expenseAmount = it.filter(Char::isDigit) }, label = { Text("Nominal pengeluaran (Rp)") }, modifier = Modifier.fillMaxWidth(), singleLine = true)
-                        OutlinedTextField(value = expenseDescription, onValueChange = { expenseDescription = it }, label = { Text("Keterangan pengeluaran") }, modifier = Modifier.fillMaxWidth(), singleLine = true)
-                        Button(onClick = {
-                            val value = expenseAmount.toDoubleOrNull() ?: 0.0
-                            val paymentMethod = when (expenseSource) {
-                                "sales_qris" -> "qris"
-                                "sales_transfer" -> "transfer"
-                                else -> "cash"
-                            }
-                            viewModel.addExpense(value, "Operasional", java.time.LocalDate.now().toString(), paymentMethod, expenseDescription, expenseSource)
-                            expenseAmount = ""
-                            expenseDescription = ""
-                        }, modifier = Modifier.fillMaxWidth()) { Text("Simpan Pengeluaran") }
-                        val recentExpenses = uiState.expenses.sortedByDescending { it.createdAt ?: "" }.take(5)
-                        if (recentExpenses.isNotEmpty()) {
-                            Text("Pengeluaran Terbaru", style = MaterialTheme.typography.titleSmall, fontWeight = FontWeight.SemiBold)
-                            recentExpenses.forEach { expense ->
-                                Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween, verticalAlignment = Alignment.Top) {
-                                    Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(2.dp)) {
-                                        Text(expense.description.ifBlank { "Tanpa keterangan" }, fontWeight = FontWeight.Medium)
-                                        Text("${expense.expenseDate} · ${expense.category}", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
-                                    }
-                                    Text(RupiahFormatter.format(expense.amount), fontWeight = FontWeight.SemiBold)
-                                }
-                            }
-                        }
-                        Text("Adjustment memindahkan alokasi sumber dana; bukan penjualan baru. Pengeluaran tidak menambah omzet.", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
-                        HorizontalDivider()
-                        Text("Rekap Closing", style = MaterialTheme.typography.titleMedium)
-                        Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) { Text("Penjualan tunai"); Text(RupiahFormatter.format(cashSales)) }
-                        Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) { Text("Kas seharusnya"); Text(RupiahFormatter.format(expectedCash), fontWeight = FontWeight.Bold) }
-                        OutlinedTextField(value = closingInput, onValueChange = { closingInput = it.filter(Char::isDigit) }, label = { Text("Hitung fisik kas akhir (Rp)") }, modifier = Modifier.fillMaxWidth(), singleLine = true)
-                        OutlinedTextField(value = closingNotes, onValueChange = { closingNotes = it }, label = { Text("Catatan closing") }, modifier = Modifier.fillMaxWidth())
-                        Button(onClick = {
-                            val actual = closingInput.toDoubleOrNull()
-                            if (actual == null) viewModel.showNotice("Masukkan nominal kas fisik saat closing.", isError = true)
-                            else viewModel.closeActiveShift(activeShift.id, actual, expectedCash, closingNotes)
-                        }, modifier = Modifier.fillMaxWidth()) { Text("Tutup Shift (Closing)") }
-                    }
-                }
-            } else {
-                OutlinedCard(Modifier.fillMaxWidth()) {
-                    Column(Modifier.fillMaxWidth().padding(18.dp), verticalArrangement = Arrangement.spacedBy(10.dp)) {
-                        Text("Opening — Modal Kas Awal", style = MaterialTheme.typography.titleLarge, fontWeight = FontWeight.Bold)
-                        Text("Masukkan uang modal yang benar-benar tersedia di laci saat mulai operasional.")
-                        OutlinedTextField(value = openingInput, onValueChange = { openingInput = it.filter(Char::isDigit) }, label = { Text("Modal awal (Rp)") }, modifier = Modifier.fillMaxWidth(), singleLine = true)
-                        Button(onClick = {
-                            val value = openingInput.toDoubleOrNull() ?: 0.0
-                            if (value <= 0.0) viewModel.showNotice("Modal awal harus lebih dari Rp0.", isError = true)
-                            else viewModel.openNewShift(value)
-                        }, modifier = Modifier.fillMaxWidth()) { Text("Mulai Operasional (Opening)") }
-                    }
-                }
-            }
-        }
-        item { Text("Riwayat Shift", style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.SemiBold) }
-        items(uiState.shifts, key = { it.id }) { shift ->
             OutlinedCard(Modifier.fillMaxWidth()) {
-                Column(Modifier.padding(14.dp), verticalArrangement = Arrangement.spacedBy(4.dp)) {
-                    Text("${shift.staffName} · ${shift.status.uppercase()}", fontWeight = FontWeight.Bold)
-                    Text("Opening: ${shift.openedAt}")
-                    Text("Kas penjualan awal: ${RupiahFormatter.format(shift.openingCash)} · Kas fisik akhir: ${shift.closingCash?.let { RupiahFormatter.format(it) } ?: "-"}")
-                    if (shift.expectedCash != null) {
-                        Text("Kas seharusnya: ${RupiahFormatter.format(shift.expectedCash)}")
-                        val variance = shift.cashDifference ?: (shift.closingCash ?: 0.0) - shift.expectedCash
-                        Text("Selisih kas: ${RupiahFormatter.format(variance)}", color = if (variance == 0.0) Color(0xFF15803D) else MaterialTheme.colorScheme.error, fontWeight = FontWeight.SemiBold)
+                Column(Modifier.fillMaxWidth().padding(18.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
+                    Text("Kas Modal & Pengeluaran", style = MaterialTheme.typography.titleLarge, fontWeight = FontWeight.Bold)
+                    Text("Catatan kasir untuk laporan manual kepada owner. Tidak mengubah dashboard penjualan.", style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                    HorizontalDivider()
+                    Text("KAS MODAL", style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold)
+                    if (latestSession == null) { Text("Masukkan nominal kas modal sebelum mulai mencatat transaksi.") } else {
+                        Text("Saldo kas modal saat ini", style = MaterialTheme.typography.labelLarge, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                        Text(RupiahFormatter.format(currentFund), style = MaterialTheme.typography.headlineMedium, fontWeight = FontWeight.Bold)
+                        Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) { Text("Modal awal sesi"); Text(RupiahFormatter.format(openingFund), fontWeight = FontWeight.SemiBold) }
+                        Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) { Text("Adjustment / pengembalian"); Text("+" + RupiahFormatter.format(sessionAdjustments), fontWeight = FontWeight.SemiBold) }
+                        Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) { Text("Pengeluaran dari modal"); Text("-" + RupiahFormatter.format(sessionModalExpenses), fontWeight = FontWeight.SemiBold) }
+                        Text("Sesi dimulai: " + (latestSession.createdAt ?: "—"), style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
                     }
-                    if (!shift.discrepancyNote.isNullOrBlank()) Text("Catatan selisih: ${shift.discrepancyNote}")
-                    Text("Closing: ${shift.closedAt ?: "Belum ditutup"}")
+                    OutlinedTextField(value = openingInput, onValueChange = { openingInput = it.filter(Char::isDigit) }, label = { Text(if (latestSession == null) "Nominal kas modal awal (Rp)" else "Nominal kas modal untuk sesi baru (Rp)") }, modifier = Modifier.fillMaxWidth(), singleLine = true)
+                    Button(onClick = { val value = openingInput.toDoubleOrNull() ?: 0.0; if (value <= 0.0) viewModel.showNotice("Nominal kas modal wajib lebih dari Rp0.", isError = true) else { viewModel.saveCashFundTarget(value); openingInput = "" } }, modifier = Modifier.fillMaxWidth()) { Text(if (latestSession == null) "Mulai Sesi & Simpan" else "Mulai Sesi Baru & Simpan") }
+                    HorizontalDivider()
+                    Text("ADJUSTMENT / PENGEMBALIAN MODAL", style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold)
+                    Text("Catat uang yang dikembalikan ke kas modal. Contoh Rp100.000 untuk mengembalikan saldo dari Rp400.000 menjadi Rp500.000.", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                    OutlinedTextField(value = adjustmentAmount, onValueChange = { adjustmentAmount = it.filter(Char::isDigit) }, label = { Text("Nominal adjustment (Rp)") }, modifier = Modifier.fillMaxWidth(), singleLine = true)
+                    OutlinedTextField(value = adjustmentDescription, onValueChange = { adjustmentDescription = it }, label = { Text("Keterangan adjustment") }, modifier = Modifier.fillMaxWidth(), singleLine = true)
+                    Button(onClick = { val value = adjustmentAmount.toDoubleOrNull() ?: 0.0; if (latestSession == null) viewModel.showNotice("Mulai sesi dan simpan kas modal terlebih dahulu.", isError = true) else { viewModel.replenishCashFund(value, "owner_funds", adjustmentDescription.ifBlank { "Adjustment / pengembalian modal" }); adjustmentAmount = ""; adjustmentDescription = "" } }, modifier = Modifier.fillMaxWidth()) { Text("Simpan Adjustment") }
+                    HorizontalDivider()
+                    Text("PENGELUARAN", style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold)
+                    Box {
+                        OutlinedButton(onClick = { expenseSourceMenuOpen = true }, modifier = Modifier.fillMaxWidth()) { Text("Sumber uang: " + when (expenseSource) { "cash_fund" -> "Kas Modal"; "sales_cash" -> "Hasil Penjualan Tunai"; "sales_qris" -> "Hasil Penjualan QRIS"; "sales_transfer" -> "Hasil Penjualan Transfer"; else -> "Kas Modal" }) }
+                        DropdownMenu(expanded = expenseSourceMenuOpen, onDismissRequest = { expenseSourceMenuOpen = false }) {
+                            listOf("cash_fund" to "Kas Modal", "sales_cash" to "Hasil Penjualan Tunai", "sales_qris" to "Hasil Penjualan QRIS", "sales_transfer" to "Hasil Penjualan Transfer").forEach { option -> DropdownMenuItem(text = { Text(option.second) }, onClick = { expenseSource = option.first; expenseSourceMenuOpen = false }) }
+                        }
+                    }
+                    OutlinedTextField(value = expenseAmount, onValueChange = { expenseAmount = it.filter(Char::isDigit) }, label = { Text("Nominal pengeluaran (Rp)") }, modifier = Modifier.fillMaxWidth(), singleLine = true)
+                    OutlinedTextField(value = expenseDescription, onValueChange = { expenseDescription = it }, label = { Text("Pengeluaran untuk apa?") }, modifier = Modifier.fillMaxWidth(), singleLine = true)
+                    Button(onClick = { val value = expenseAmount.toDoubleOrNull() ?: 0.0; if (latestSession == null) viewModel.showNotice("Mulai sesi dan simpan kas modal terlebih dahulu.", isError = true) else { val method = when (expenseSource) { "sales_qris" -> "qris"; "sales_transfer" -> "transfer"; else -> "cash" }; viewModel.addExpense(value, "Operasional", java.time.LocalDate.now().toString(), method, expenseDescription, expenseSource); expenseAmount = ""; expenseDescription = "" } }, modifier = Modifier.fillMaxWidth()) { Text("Simpan Pengeluaran") }
                 }
             }
         }
+        item { Text("HISTORY KASIR", style = MaterialTheme.typography.titleLarge, fontWeight = FontWeight.Bold) }
+        item { Text("Riwayat adjustment / pengembalian modal", style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.SemiBold) }
+        if (recentAdjustments.isEmpty()) item { Text("Belum ada riwayat adjustment.", color = MaterialTheme.colorScheme.onSurfaceVariant) }
+        items(recentAdjustments, key = { "adj-" + it.id }) { entry -> OutlinedCard(Modifier.fillMaxWidth()) { Column(Modifier.fillMaxWidth().padding(12.dp), verticalArrangement = Arrangement.spacedBy(4.dp)) { Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween, verticalAlignment = Alignment.Top) { Text(entry.description.ifBlank { "Adjustment kas modal" }, modifier = Modifier.weight(1f), fontWeight = FontWeight.SemiBold); Text("+" + RupiahFormatter.format(entry.amount), fontWeight = FontWeight.Bold) }; Text(entry.createdAt ?: "Waktu tidak tersedia", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant) } } }
+        item { Text("Riwayat pengeluaran", style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.SemiBold) }
+        if (recentExpenses.isEmpty()) item { Text("Belum ada riwayat pengeluaran.", color = MaterialTheme.colorScheme.onSurfaceVariant) }
+        items(recentExpenses, key = { "exp-" + it.id }) { expense -> OutlinedCard(Modifier.fillMaxWidth()) { Column(Modifier.fillMaxWidth().padding(12.dp), verticalArrangement = Arrangement.spacedBy(4.dp)) { Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween, verticalAlignment = Alignment.Top) { Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(3.dp)) { Text(expense.description.ifBlank { "Tanpa keterangan" }, fontWeight = FontWeight.SemiBold); Text("Sumber: " + when (expense.cashSource) { "cash_fund" -> "Kas Modal"; "sales_cash" -> "Hasil Penjualan Tunai"; "sales_qris" -> "Hasil Penjualan QRIS"; "sales_transfer" -> "Hasil Penjualan Transfer"; else -> expense.cashSource }, style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant) }; Text("-" + RupiahFormatter.format(expense.amount), fontWeight = FontWeight.Bold) }; Text(expense.expenseDate + " · " + (expense.createdAt ?: "Waktu tidak tersedia"), style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant) } } }
     }
 }
-
-// ============================================================================
 // 7. AUDIT SHIFT SCREEN
 // ============================================================================
 @Composable

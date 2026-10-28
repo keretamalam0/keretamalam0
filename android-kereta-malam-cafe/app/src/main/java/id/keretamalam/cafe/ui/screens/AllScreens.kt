@@ -465,7 +465,9 @@ private fun DashboardComposeScreen(
     }
     val paid = orders.filter { it.isPaid && it.status != OrderStatus.CANCELLED && it.returnedAt == null }
 
-    val revenue = paid.sumOf { it.total }
+    fun paidAmount(order: OrderWithItems): Double =
+        if (order.payments.isNotEmpty()) order.payments.sumOf { it.amount } else order.total
+    val revenue = paid.sumOf { paidAmount(it) }
     val average = if (paid.isEmpty()) 0.0 else revenue / paid.size
     val activeCount = uiState.orders.count { it.status == OrderStatus.NEW || it.status == OrderStatus.PREPARING || it.status == OrderStatus.READY }
     val hours = (0..23).map { h -> orders.count { dateOf(it.createdAt)?.hour == h }.toFloat() }
@@ -535,7 +537,7 @@ private fun DashboardComposeScreen(
     }.filter { it.second > 0.0 }
     val trend = (0..6).map { i ->
         val d = today.minusDays((6 - i).toLong())
-        paid.filter { dateOf(it.createdAt)?.toLocalDate() == d }.sumOf { it.total }.toFloat()
+        paid.filter { dateOf(it.createdAt)?.toLocalDate() == d }.sumOf { paidAmount(it) }.toFloat()
     }
     val labels = (0..6).map { today.minusDays((6 - it).toLong()).format(java.time.format.DateTimeFormatter.ofPattern("dd/MM")) }
     val rangeLabel = when (range) { "today" -> "Hari ini"; "7days" -> "7 hari terakhir"; "30days" -> "1 bulan"; "custom" -> "Periode kustom"; else -> "Semua data" }
@@ -591,9 +593,9 @@ private fun DashboardComposeScreen(
             OutlinedCard(Modifier.fillMaxWidth()) {
                 Column(Modifier.fillMaxWidth().padding(16.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
                     Text("Ringkasan Penjualan", style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold)
-                    val totalHistorySales = allPaidOrders.sumOf { it.total }
+                    val totalHistorySales = allPaidOrders.sumOf { paidAmount(it) }
                     val totalOperationalExpenses = uiState.expenses.sumOf { it.amount }
-                    val salesAfterOperations = (totalHistorySales - totalOperationalExpenses).coerceAtLeast(0.0)
+                    val salesAfterOperations = totalHistorySales - totalOperationalExpenses
                     Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                         Column(Modifier.weight(1f).padding(12.dp), verticalArrangement = Arrangement.spacedBy(4.dp)) {
                             Text("Total Penjualan (History)", style = MaterialTheme.typography.labelMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)

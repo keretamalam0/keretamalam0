@@ -2382,7 +2382,7 @@ private fun ShiftKasirComposeScreen(viewModel: PosViewModel, uiState: PosUiState
 
     val shiftStart = activeShift?.openedAt.orEmpty()
     val adjustments = uiState.cashFundEntries.filter {
-        it.entryType == "replenishment" && it.source in setOf("owner_funds", "sales_cash") &&
+        it.entryType == "replenishment" && it.source in setOf("owner_funds", "sales_cash", "sales_qris", "sales_transfer") &&
             (shiftStart.isBlank() || (it.createdAt ?: "") >= shiftStart)
     }.sumOf { it.amount }
     val cashExpenses = uiState.expenses.filter {

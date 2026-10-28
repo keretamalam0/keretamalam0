@@ -2373,11 +2373,11 @@ class PosViewModel(application: Application) : AndroidViewModel(application) {
         viewModelScope.launch {
             runCatching {
                 repository.createCashFundEntry("close_session", 0.0, "setting", "Akhiri sesi kasir", state.staffProfile.ownerId)
-            }.onSuccess {
+            }.onSuccess { closedEntry ->
                 runCatching { repository.fetchCashFundEntries() }.onSuccess { rows ->
                     _uiState.update { it.copy(cashFundEntries = rows, successMessage = "Sesi kasir berhasil diakhiri dan saldo akhir tersimpan.") }
                 }.onFailure {
-                    _uiState.update { current -> current.copy(cashFundEntries = listOf(it) + current.cashFundEntries, successMessage = "Sesi kasir berhasil diakhiri.") }
+                    _uiState.update { current -> current.copy(cashFundEntries = listOf(closedEntry) + current.cashFundEntries, successMessage = "Sesi kasir berhasil diakhiri.") }
                 }
             }.onFailure { err -> showNotice(err.message ?: "Gagal mengakhiri sesi kasir.", isError = true) }
         }

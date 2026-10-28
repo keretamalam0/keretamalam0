@@ -2562,7 +2562,13 @@ private fun ShiftKasirComposeScreen(viewModel: PosViewModel, uiState: PosUiState
                 Column(Modifier.padding(14.dp), verticalArrangement = Arrangement.spacedBy(4.dp)) {
                     Text("${shift.staffName} · ${shift.status.uppercase()}", fontWeight = FontWeight.Bold)
                     Text("Opening: ${shift.openedAt}")
-                    Text("Modal awal: ${RupiahFormatter.format(shift.openingCash)} · Kas fisik akhir: ${shift.closingCash?.let { RupiahFormatter.format(it) } ?: "-"}")
+                    Text("Kas penjualan awal: ${RupiahFormatter.format(shift.openingCash)} · Kas fisik akhir: ${shift.closingCash?.let { RupiahFormatter.format(it) } ?: "-"}")
+                    if (shift.expectedCash != null) {
+                        Text("Kas seharusnya: ${RupiahFormatter.format(shift.expectedCash)}")
+                        val variance = shift.cashDifference ?: (shift.closingCash ?: 0.0) - shift.expectedCash
+                        Text("Selisih kas: ${RupiahFormatter.format(variance)}", color = if (variance == 0.0) Color(0xFF15803D) else MaterialTheme.colorScheme.error, fontWeight = FontWeight.SemiBold)
+                    }
+                    if (!shift.discrepancyNote.isNullOrBlank()) Text("Catatan selisih: ${shift.discrepancyNote}")
                     Text("Closing: ${shift.closedAt ?: "Belum ditutup"}")
                 }
             }

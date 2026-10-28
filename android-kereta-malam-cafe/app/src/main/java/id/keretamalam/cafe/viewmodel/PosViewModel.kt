@@ -2358,6 +2358,31 @@ class PosViewModel(application: Application) : AndroidViewModel(application) {
         }
     }
 
+    fun endCashFundSession() {
+        val state = _uiState.value
+        if (state.backendStatus != BackendIntegrationStatus.ACTIVE_VERIFIED) {
+            showNotice("Akhiri sesi hanya bisa disimpan saat terhubung ke Supabase.", isError = true)
+            return
+        }
+        val latestStart = state.cashFundEntries.filter { it.entryType == "set_target" }.maxByOrNull { it.createdAt ?: "" }
+        val latestClose = state.cashFundEntries.filter { it.entryType == "close_session" }.maxByOrNull { it.createdAt ?: "" }
+        if (latestStart == null || (latestClose != null && (latestClose.createdAt ?: "") > (latestStart.createdAt ?: ""))) {
+            showNotice("Tidak ada sesi kasir yang aktif.", isError = true)
+            return
+        }
+        viewModelScope.launch {
+            runCatching {
+                repository.createCashFundEntry("close_session", 0.0, "setting", "Akhiri sesi kasir", state.staffProfile.ownerId)
+            }.onSuccess {
+                runCatching { repository.fetchCashFundEntries() }.onSuccess { rows ->
+                    _uiState.update { it.copy(cashFundEntries = rows, successMessage = "Sesi kasir berhasil diakhiri dan saldo akhir tersimpan.") }
+                }.onFailure {
+                    _uiState.update { current -> current.copy(cashFundEntries = listOf(it) + current.cashFundEntries, successMessage = "Sesi kasir berhasil diakhiri.") }
+                }
+            }.onFailure { err -> showNotice(err.message ?: "Gagal mengakhiri sesi kasir.", isError = true) }
+        }
+    }
+
     fun replenishCashFund(amount: Double, source: String, description: String) {
         if (amount <= 0.0 || source !in listOf("sales_cash", "sales_qris", "sales_transfer", "owner_funds", "other") || description.isBlank()) {
             showNotice("Nominal, sumber isi ulang, dan keterangan wajib benar.", isError = true); return

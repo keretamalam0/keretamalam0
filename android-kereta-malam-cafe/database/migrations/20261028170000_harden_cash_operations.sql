@@ -142,3 +142,5 @@ begin
 end; $$;
 drop trigger if exists expenses_require_active_shift on public.expenses;
 create trigger expenses_require_active_shift before insert on public.expenses for each row execute function public.km_validate_expense_shift();
+
+revoke all on function public.km_validate_expense_shift() from public, anon, authenticated;

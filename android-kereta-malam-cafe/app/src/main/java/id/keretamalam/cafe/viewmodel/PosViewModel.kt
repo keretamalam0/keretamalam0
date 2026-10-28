@@ -190,11 +190,12 @@ data class PosUiState(
             method in setOf("cash", "tunai") &&
                 created != null && created >= opened && (closed == null || created <= closed)
         }.sumOf { it.amount }
-        val ownerCashTopUps = cashFundEntries.filter { entry ->
-            entry.entryType == "replenishment" && entry.source == "owner_funds" &&
+        val cashAddedFromOutsideDrawer = cashFundEntries.filter { entry ->
+            entry.entryType == "replenishment" &&
+                entry.source in setOf("owner_funds", "sales_qris", "sales_transfer") &&
                 (parseShiftTimestamp(entry.createdAt)?.let { it >= opened && (closed == null || it <= closed) } == true)
         }.sumOf { it.amount }
-        return (shift.openingCash + cashSalesForShift(shift) + ownerCashTopUps - cashExpenses).coerceAtLeast(0.0)
+        return (shift.openingCash + cashSalesForShift(shift) + cashAddedFromOutsideDrawer - cashExpenses).coerceAtLeast(0.0)
     }
 
     private fun parseShiftTimestamp(value: String?): java.time.Instant? {

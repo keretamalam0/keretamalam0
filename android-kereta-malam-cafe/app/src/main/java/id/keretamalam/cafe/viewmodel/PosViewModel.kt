@@ -184,18 +184,41 @@ data class PosUiState(
     fun expectedDrawerCashForShift(shift: StaffShift): Double {
         val opened = parseShiftTimestamp(shift.openedAt) ?: return shift.openingCash
         val closed = parseShiftTimestamp(shift.closedAt)
-        val cashExpenses = expenses.filter { expense ->
-            val method = expense.paymentMethod.lowercase()
-            val created = parseShiftTimestamp(expense.createdAt)
-            method in setOf("cash", "tunai") &&
-                created != null && created >= opened && (closed == null || created <= closed)
+        fun beforeOpening(timestamp: String?): Boolean =
+            parseShiftTimestamp(timestamp)?.let { it < opened } == true
+        fun duringShift(timestamp: String?): Boolean =
+            parseShiftTimestamp(timestamp)?.let { it >= opened && (closed == null || it <= closed) } == true
+
+        // A single physical drawer may contain both the fixed fund and sales cash.
+        // Start with the fund balance at opening; internal sales->fund transfers do
+        // not change total physical cash and therefore must not be counted as inflows.
+        val targetAtOpening = cashFundEntries.filter { entry ->
+            entry.entryType == "set_target" &&
+                (parseShiftTimestamp(entry.createdAt)?.let { it <= opened } ?: true)
         }.sumOf { it.amount }
+        val fundReplenishmentsBeforeOpening = cashFundEntries.filter { entry ->
+            entry.entryType == "replenishment" && beforeOpening(entry.createdAt)
+        }.sumOf { it.amount }
+        val fundExpensesBeforeOpening = expenses.filter { expense ->
+            expense.cashSource == "cash_fund" && beforeOpening(expense.createdAt)
+        }.sumOf { it.amount }
+        val modalBalanceAtOpening = (targetAtOpening + fundReplenishmentsBeforeOpening - fundExpensesBeforeOpening)
+            .coerceAtLeast(0.0)
+
+        // Only money physically added from outside the drawer counts as an inflow.
+        // QRIS/bank allocations can add physical cash when funds are withdrawn;
+        // sales_cash -> cash_fund is an internal transfer, not a new inflow.
         val cashAddedFromOutsideDrawer = cashFundEntries.filter { entry ->
             entry.entryType == "replenishment" &&
                 entry.source in setOf("owner_funds", "sales_qris", "sales_transfer") &&
-                (parseShiftTimestamp(entry.createdAt)?.let { it >= opened && (closed == null || it <= closed) } == true)
+                duringShift(entry.createdAt)
         }.sumOf { it.amount }
-        return (shift.openingCash + cashSalesForShift(shift) + cashAddedFromOutsideDrawer - cashExpenses).coerceAtLeast(0.0)
+        val physicalCashExpenses = expenses.filter { expense ->
+            expense.cashSource in setOf("cash_fund", "sales_cash") && duringShift(expense.createdAt)
+        }.sumOf { it.amount }
+
+        return (modalBalanceAtOpening + shift.openingCash + cashSalesForShift(shift) +
+            cashAddedFromOutsideDrawer - physicalCashExpenses).coerceAtLeast(0.0)
     }
 
     private fun parseShiftTimestamp(value: String?): java.time.Instant? {

@@ -1387,7 +1387,7 @@ class CafeFlowRepository(private val context: Context) {
             ?: throw IllegalStateException("Supabase tidak mengembalikan shift yang dibuat.")
     }
 
-    suspend fun closeStaffShift(shift: StaffShift, closingCash: Double, notes: String): StaffShift {
+    suspend fun closeStaffShift(shift: StaffShift, closingCash: Double, expectedCash: Double, notes: String): StaffShift {
         val creds = requireVerifiedCredentials()
         require(shift.id.isNotBlank()) { "ID shift tidak valid." }
         require(shift.ownerId.isNotBlank() && !shift.ownerId.startsWith("usr-")) { "ID owner outlet tidak valid. Muat ulang sesi outlet." }
@@ -1396,6 +1396,9 @@ class CafeFlowRepository(private val context: Context) {
         val owner = URLEncoder.encode(shift.ownerId, "UTF-8")
         val payload = buildJsonObject {
             put("closing_cash", closingCash)
+            put("expected_cash", expectedCash)
+            put("cash_difference", closingCash - expectedCash)
+            put("discrepancy_note", notes)
             put("closed_at", java.time.Instant.now().toString())
             put("status", "closed")
             put("closed_by_user_id", creds.authenticatedUserId)

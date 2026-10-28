@@ -574,7 +574,7 @@ private fun DashboardComposeScreen(
             OutlinedCard(Modifier.fillMaxWidth()) {
                 Column(Modifier.fillMaxWidth().padding(16.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
                     Text("Ringkasan Penjualan", style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold)
-                    val totalHistorySales = historyCash + historyQris + historyTransfer
+                    val totalHistorySales = allPaidOrders.sumOf { it.total }
                     val totalOperationalExpenses = uiState.expenses.sumOf { it.amount }
                     val salesAfterOperations = (totalHistorySales - totalOperationalExpenses).coerceAtLeast(0.0)
                     Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {

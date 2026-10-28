@@ -1451,7 +1451,7 @@ class CafeFlowRepository(private val context: Context) {
 
     suspend fun createCashFundEntry(type: String, amount: Double, replenishmentSource: String, description: String, ownerId: String): CashFundEntry {
         val creds = requireVerifiedCredentials()
-        require(type in listOf("set_target", "replenishment")) { "Jenis transaksi modal kas tidak valid." }
+        require(type in listOf("set_target", "replenishment", "close_session")) { "Jenis transaksi modal kas tidak valid." }
         require(amount > 0.0 && description.isNotBlank()) { "Nominal dan keterangan wajib diisi." }
         require(replenishmentSource in listOf("setting", "sales_cash", "sales_qris", "sales_transfer", "owner_funds", "other")) { "Sumber modal kas tidak valid." }
         val resolvedOwnerId = ownerId.takeIf { it.isNotBlank() && !it.startsWith("usr-") } ?: creds.authenticatedUserId

@@ -2381,7 +2381,19 @@ class PosViewModel(application: Application) : AndroidViewModel(application) {
                 }
             }
             val targetMethod = when (source) { "sales_cash" -> "cash"; "sales_qris" -> "qris"; else -> "transfer" }
-            val sales = state.orders.filter { it.isPaid && it.status != OrderStatus.CANCELLED && it.returnedAt == null && methodGroup(it) == targetMethod }.sumOf { it.total }
+            fun paymentSource(method: String): String {
+                val raw = method.lowercase().replace("-", "_").trim()
+                return when {
+                    raw == "cash" || raw == "tunai" || raw.contains("cash") -> "cash"
+                    raw.contains("qris") -> "qris"
+                    raw.contains("transfer") || raw.contains("bank") || raw.contains("bca") || raw.contains("bni") || raw.contains("bri") || raw.contains("mandiri") || raw.contains("permata") -> "transfer"
+                    else -> "other"
+                }
+            }
+            val sales = state.orders.filter { it.isPaid && it.status != OrderStatus.CANCELLED && it.returnedAt == null }.sumOf { order ->
+                if (order.payments.isNotEmpty()) order.payments.filter { paymentSource(it.method) == targetMethod }.sumOf { it.amount }
+                else if (methodGroup(order) == targetMethod) order.total else 0.0
+            }
             val alreadyAllocated = state.cashFundEntries.filter { it.entryType == "replenishment" && it.source == source }.sumOf { it.amount }
             val paidOut = state.expenses.filter { it.cashSource == source }.sumOf { it.amount }
             val available = (sales - alreadyAllocated - paidOut).coerceAtLeast(0.0)

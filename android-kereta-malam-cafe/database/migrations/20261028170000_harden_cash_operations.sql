@@ -126,3 +126,19 @@ drop trigger if exists audit_capture on public.expenses;
 create trigger audit_capture after insert or update or delete on public.expenses for each row execute function public.capture_audit_log();
 drop trigger if exists audit_capture on public.cash_fund_entries;
 create trigger audit_capture after insert or update or delete on public.cash_fund_entries for each row execute function public.capture_audit_log();
+
+
+-- Cashier expenses must be linked to their own active shift.
+create or replace function public.km_validate_expense_shift()
+returns trigger language plpgsql security definer set search_path='' as $$
+declare v_role text;
+begin
+ select lower(role) into v_role from public.staff_profiles where user_id=(select auth.uid()) and owner_id=new.owner_id and is_active=true limit 1;
+ if v_role='cashier' and new.shift_id is null then raise exception 'Pengeluaran kasir wajib terhubung dengan shift aktif.' using errcode='23514'; end if;
+ if new.shift_id is not null and not exists(select 1 from public.staff_shifts s where s.id=new.shift_id and s.owner_id=new.owner_id and s.status='open' and s.staff_user_id=(select auth.uid())) then
+  raise exception 'Shift pengeluaran tidak aktif atau tidak dimiliki kasir ini.' using errcode='42501';
+ end if;
+ return new;
+end; $$;
+drop trigger if exists expenses_require_active_shift on public.expenses;
+create trigger expenses_require_active_shift before insert on public.expenses for each row execute function public.km_validate_expense_shift();

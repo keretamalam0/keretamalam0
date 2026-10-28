@@ -1426,47 +1426,49 @@ class CafeFlowRepository(private val context: Context) {
             ?: creds.authenticatedUserId
         require(ownerId.isNotBlank()) { "Akun pemilik outlet tidak ditemukan." }
         val payload = buildJsonObject {
-            put("owner_id", ownerId)
-            put("amount", expense.amount)
-            put("category", expense.category.trim())
-            put("description", expense.description.trim())
-            put("expense_date", expense.expenseDate)
-            put("payment_method", expense.paymentMethod.ifBlank { "cash" })
-            put("cash_source", expense.cashSource.ifBlank { "cash_fund" })
+            put("p_owner_id", ownerId)
+            put("p_amount", expense.amount)
+            put("p_category", expense.category.trim())
+            put("p_description", expense.description.trim())
+            put("p_expense_date", expense.expenseDate)
+            put("p_payment_method", expense.paymentMethod.ifBlank { "cash" })
+            put("p_cash_source", expense.cashSource.ifBlank { "cash_fund" })
+            put("p_idempotency_key", expense.idempotencyKey ?: UUID.randomUUID().toString())
+            put("p_shift_id", null as String?)
         }
         val raw = executeJsonRequest(
             "POST",
-            "${creds.supabaseUrl}/rest/v1/expenses",
-            buildHeaders(creds, "return=representation"),
+            "${creds.supabaseUrl}/rest/v1/rpc/km_record_operational_expense",
+            buildHeaders(creds),
             json.encodeToString(JsonObject.serializer(), payload)
         )
         return json.decodeFromString<List<Expense>>(raw).firstOrNull()
-            ?: throw IllegalStateException("Supabase tidak mengembalikan data pengeluaran yang tersimpan.")
+            ?: throw IllegalStateException("Server tidak mengembalikan transaksi pengeluaran yang tersimpan.")
     }
-
 
     suspend fun createCashFundEntry(type: String, amount: Double, replenishmentSource: String, description: String, ownerId: String): CashFundEntry {
         val creds = requireVerifiedCredentials()
         require(type in listOf("set_target", "replenishment")) { "Jenis transaksi modal kas tidak valid." }
         require(amount > 0.0 && description.isNotBlank()) { "Nominal dan keterangan wajib diisi." }
-        require(replenishmentSource in listOf("setting", "sales_cash", "owner_funds")) { "Sumber modal kas tidak valid." }
+        require(replenishmentSource in listOf("setting", "sales_cash", "sales_qris", "sales_transfer", "owner_funds", "other")) { "Sumber modal kas tidak valid." }
         val resolvedOwnerId = ownerId.takeIf { it.isNotBlank() && !it.startsWith("usr-") } ?: creds.authenticatedUserId
         require(resolvedOwnerId.isNotBlank()) { "Akun pengguna tidak ditemukan." }
         val payload = buildJsonObject {
-            put("owner_id", resolvedOwnerId)
-            put("entry_type", type)
-            put("amount", amount)
-            put("source", replenishmentSource)
-            put("description", description.trim())
+            put("p_owner_id", resolvedOwnerId)
+            put("p_entry_type", type)
+            put("p_amount", amount)
+            put("p_source", replenishmentSource)
+            put("p_description", description.trim())
+            put("p_idempotency_key", UUID.randomUUID().toString())
         }
         val raw = executeJsonRequest(
             "POST",
-            "${creds.supabaseUrl}/rest/v1/cash_fund_entries",
-            buildHeaders(creds, "return=representation"),
+            "${creds.supabaseUrl}/rest/v1/rpc/km_record_cash_fund_entry",
+            buildHeaders(creds),
             json.encodeToString(JsonObject.serializer(), payload)
         )
         return json.decodeFromString<List<CashFundEntry>>(raw).firstOrNull()
-            ?: throw IllegalStateException("Supabase tidak mengembalikan catatan modal kas.")
+            ?: throw IllegalStateException("Server tidak mengembalikan catatan modal kas.")
     }
 
     suspend fun fetchCashFundEntries(): List<CashFundEntry> {

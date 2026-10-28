@@ -576,7 +576,6 @@ private fun DashboardComposeScreen(
                 if (uiState.staffProfile.canAccessDashboardMetric("dashboard.paid_orders")) add(Triple("Pesanan Lunas", paid.size.toString(), "Transaksi berhasil") to PosModuleRoute.PESANAN)
                 if (uiState.staffProfile.canAccessDashboardMetric("dashboard.average_transaction")) add(Triple("Rata-rata Pesanan", RupiahFormatter.format(average), "Per transaksi lunas") to PosModuleRoute.LAPORAN)
                 if (uiState.staffProfile.canAccessDashboardMetric("dashboard.peak_hour")) add(Triple("Jam Tersibuk", peak?.let { "%02d.00–%02d.00".format(it, (it + 1) % 24) } ?: "—", if (peak == null) "Belum ada pesanan" else hours[peak].toInt().toString() + " pesanan") to PosModuleRoute.LAPORAN)
-                add(Triple("Kas Penjualan Tersedia", RupiahFormatter.format(availableSalesCash), "Penjualan tunai setelah adjustment") to PosModuleRoute.LAPORAN)
             }
             Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
                 metrics.chunked(if (isTabletOrWide) 4 else 2).forEach { row ->
@@ -586,33 +585,6 @@ private fun DashboardComposeScreen(
                         }
                         repeat((if (isTabletOrWide) 4 else 2) - row.size) { Spacer(Modifier.weight(1f)) }
                     }
-                }
-            }
-        }
-        item {
-            OutlinedCard(Modifier.fillMaxWidth()) {
-                Column(Modifier.fillMaxWidth().padding(16.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
-                    Text("Ringkasan Penjualan", style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold)
-                    val totalHistorySales = allPaidOrders.sumOf { paidAmount(it) }
-                    val totalOperationalExpenses = uiState.expenses.sumOf { it.amount }
-                    val salesAfterOperations = totalHistorySales - totalOperationalExpenses
-                    Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                        Column(Modifier.weight(1f).padding(12.dp), verticalArrangement = Arrangement.spacedBy(4.dp)) {
-                            Text("Total Penjualan (History)", style = MaterialTheme.typography.labelMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
-                            Text(RupiahFormatter.format(totalHistorySales), style = MaterialTheme.typography.titleLarge, fontWeight = FontWeight.Bold)
-                            Text("Tidak berubah oleh pengeluaran", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
-                        }
-                        Column(Modifier.weight(1f).padding(12.dp), verticalArrangement = Arrangement.spacedBy(4.dp)) {
-                            Text("Penjualan Setelah Operasional", style = MaterialTheme.typography.labelMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
-                            Text(RupiahFormatter.format(salesAfterOperations), style = MaterialTheme.typography.titleLarge, fontWeight = FontWeight.Bold)
-                            Text("Penjualan dikurangi biaya operasional", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
-                        }
-                    }
-                    HorizontalDivider()
-                    Text("Saldo penjualan tersedia", style = MaterialTheme.typography.titleSmall, fontWeight = FontWeight.SemiBold)
-                    Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) { Text("Cash"); Text(RupiahFormatter.format(remainingCash), fontWeight = FontWeight.SemiBold) }
-                    Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) { Text("QRIS"); Text(RupiahFormatter.format(remainingQris), fontWeight = FontWeight.SemiBold) }
-                    Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) { Text("Transfer Bank"); Text(RupiahFormatter.format(remainingTransfer), fontWeight = FontWeight.SemiBold) }
                 }
             }
         }

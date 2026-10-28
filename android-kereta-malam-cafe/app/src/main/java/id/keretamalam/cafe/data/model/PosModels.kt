@@ -333,6 +333,7 @@ data class Expense(
     @SerialName("expense_date") val expenseDate: String,
     @SerialName("payment_method") val paymentMethod: String = "cash",
     @SerialName("cash_source") val cashSource: String = "cash_fund",
+    @SerialName("idempotency_key") val idempotencyKey: String? = null,
     @SerialName("created_at") val createdAt: String? = null
 )
 

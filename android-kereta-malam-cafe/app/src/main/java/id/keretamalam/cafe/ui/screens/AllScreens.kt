@@ -2375,6 +2375,34 @@ private fun ShiftKasirComposeScreen(viewModel: PosViewModel, uiState: PosUiState
     val sessionModalExpenses = if (active) uiState.expenses.filter { it.cashSource == "cash_fund" && (it.createdAt ?: "") >= sessionStart }.sumOf { it.amount } else 0.0
     val currentFund = ((latestStart?.amount ?: 0.0) + sessionAdjustments - sessionModalExpenses).coerceAtLeast(0.0)
     val sessions = starts
+    // Saldo sumber penjualan dihitung dari transaksi lunas aktual, bukan angka contoh.
+    fun sourcePaymentGroup(rawInput: String): String {
+        val raw = rawInput.lowercase().replace("-", "_").trim()
+        return when {
+            raw == "cash" || raw == "tunai" || raw.contains("cash") -> "cash"
+            raw.contains("qris") -> "qris"
+            raw.contains("transfer") || raw.contains("bank") || raw.contains("bca") || raw.contains("bni") || raw.contains("bri") || raw.contains("mandiri") || raw.contains("permata") -> "transfer"
+            else -> "other"
+        }
+    }
+    val paidOrdersForBalance = uiState.orders.filter { it.isPaid && it.status != OrderStatus.CANCELLED && it.returnedAt == null }
+    fun salesBalance(method: String): Double {
+        val gross = paidOrdersForBalance.sumOf { order ->
+            if (order.payments.isNotEmpty()) order.payments.filter { sourcePaymentGroup(it.method) == method }.sumOf { it.amount }
+            else {
+                val raw = (order.paymentMethod?.takeIf { it.isNotBlank() }
+                    ?: order.customerPaymentMethod?.takeIf { it.isNotBlank() } ?: "cash")
+                if (sourcePaymentGroup(raw) == method) order.total else 0.0
+            }
+        }
+        val source = when (method) { "cash" -> "sales_cash"; "qris" -> "sales_qris"; else -> "sales_transfer" }
+        val spent = uiState.expenses.filter { it.cashSource == source }.sumOf { it.amount }
+        val movedToModal = uiState.cashFundEntries.filter { it.entryType == "replenishment" && it.source == source }.sumOf { it.amount }
+        return (gross - spent - movedToModal).coerceAtLeast(0.0)
+    }
+    val availableSalesCash = salesBalance("cash")
+    val availableSalesQris = salesBalance("qris")
+    val availableSalesTransfer = salesBalance("transfer")
     if (confirmClose) AlertDialog(onDismissRequest = { confirmClose = false }, title = { Text("Akhiri sesi kasir?") }, text = { Text("Sesi akan disimpan dengan saldo akhir kas modal ${RupiahFormatter.format(currentFund)}. Setelah itu, catatan baru harus dimulai dengan nominal modal awal.") }, confirmButton = { TextButton(onClick = { confirmClose = false; viewModel.endCashFundSession() }) { Text("Akhiri Sesi") } }, dismissButton = { TextButton(onClick = { confirmClose = false }) { Text("Batal") } })
     LazyColumn(Modifier.fillMaxSize(), verticalArrangement = Arrangement.spacedBy(10.dp), contentPadding = PaddingValues(bottom = 20.dp)) {
         item {
@@ -2399,6 +2427,27 @@ private fun ShiftKasirComposeScreen(viewModel: PosViewModel, uiState: PosUiState
                         Text("BELUM ADA SESI AKTIF", style = MaterialTheme.typography.labelLarge, fontWeight = FontWeight.Bold)
                         OutlinedTextField(value = openingInput, onValueChange = { openingInput = it.filter(Char::isDigit) }, label = { Text("Nominal kas modal awal (Rp)") }, modifier = Modifier.fillMaxWidth(), singleLine = true)
                         Button(onClick = { val amount = openingInput.toDoubleOrNull() ?: 0.0; if (amount <= 0.0) viewModel.showNotice("Nominal kas modal wajib lebih dari Rp0.", isError = true) else { viewModel.saveCashFundTarget(amount); openingInput = "" } }, modifier = Modifier.fillMaxWidth()) { Text("Mulai Sesi & Simpan") }
+                    }
+                }
+            }
+        }
+        if (active) item {
+            OutlinedCard(Modifier.fillMaxWidth()) {
+                Column(Modifier.fillMaxWidth().padding(14.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                    Text("Saldo Hasil Penjualan", style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold)
+                    Text("Dihitung dari transaksi lunas yang tersimpan, dikurangi pengeluaran dan dana yang dipindahkan ke modal.", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                    HorizontalDivider()
+                    Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
+                        Text("Tunai")
+                        Text(RupiahFormatter.format(availableSalesCash), fontWeight = FontWeight.SemiBold)
+                    }
+                    Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
+                        Text("QRIS")
+                        Text(RupiahFormatter.format(availableSalesQris), fontWeight = FontWeight.SemiBold)
+                    }
+                    Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
+                        Text("Transfer Bank")
+                        Text(RupiahFormatter.format(availableSalesTransfer), fontWeight = FontWeight.SemiBold)
                     }
                 }
             }

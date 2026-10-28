@@ -2381,13 +2381,25 @@ private fun ShiftKasirComposeScreen(viewModel: PosViewModel, uiState: PosUiState
     var expenseSourceMenuOpen by remember { mutableStateOf(false) }
 
     val shiftStart = activeShift?.openedAt.orEmpty()
+    fun parseCashTimestamp(raw: String?): java.time.Instant? {
+        if (raw.isNullOrBlank()) return null
+        return runCatching { java.time.Instant.parse(raw) }.getOrNull()
+            ?: runCatching { java.time.OffsetDateTime.parse(raw).toInstant() }.getOrNull()
+            ?: runCatching { java.time.LocalDateTime.parse(raw.replace(' ', 'T')).atZone(java.time.ZoneId.systemDefault()).toInstant() }.getOrNull()
+    }
+    val shiftStartInstant = parseCashTimestamp(activeShift?.openedAt)
+    val shiftEndInstant = parseCashTimestamp(activeShift?.closedAt)
+    fun happenedDuringActiveShift(raw: String?): Boolean {
+        val time = parseCashTimestamp(raw) ?: return false
+        return shiftStartInstant != null && time >= shiftStartInstant && (shiftEndInstant == null || time <= shiftEndInstant)
+    }
     val adjustments = uiState.cashFundEntries.filter {
         it.entryType == "replenishment" && it.source in setOf("owner_funds", "sales_cash", "sales_qris", "sales_transfer") &&
-            (shiftStart.isBlank() || (it.createdAt ?: "") >= shiftStart)
+            (shiftStart.isBlank() || happenedDuringActiveShift(it.createdAt))
     }.sumOf { it.amount }
     val cashExpenses = uiState.expenses.filter {
         it.cashSource == "cash_fund" &&
-            (shiftStart.isBlank() || (it.createdAt ?: "") >= shiftStart)
+            (shiftStart.isBlank() || happenedDuringActiveShift(it.createdAt))
     }.sumOf { it.amount }
     val targetCashFund = uiState.cashFundEntries.filter { it.entryType == "set_target" }.sumOf { it.amount }
     val allCashFundReplenishments = uiState.cashFundEntries.filter { it.entryType == "replenishment" }.sumOf { it.amount }

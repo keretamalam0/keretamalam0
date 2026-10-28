@@ -210,7 +210,7 @@ data class PosUiState(
         // sales_cash -> cash_fund is an internal transfer, not a new inflow.
         val cashAddedFromOutsideDrawer = cashFundEntries.filter { entry ->
             entry.entryType == "replenishment" &&
-                entry.source in setOf("owner_funds", "sales_qris", "sales_transfer") &&
+                entry.source in setOf("owner_funds", "sales_qris", "sales_transfer", "other") &&
                 duringShift(entry.createdAt)
         }.sumOf { it.amount }
         val physicalCashExpenses = expenses.filter { expense ->

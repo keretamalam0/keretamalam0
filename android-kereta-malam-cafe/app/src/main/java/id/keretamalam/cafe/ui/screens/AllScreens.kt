@@ -2366,7 +2366,7 @@ private fun HistoryComposeScreen(viewModel: PosViewModel, uiState: PosUiState) {
 // ============================================================================
 @Composable
 private fun ShiftKasirComposeScreen(viewModel: PosViewModel, uiState: PosUiState) {
-    val activeShift = uiState.shifts.find { it.status == "open" }
+    val activeShift = uiState.shifts.find { it.status.equals("open", true) && it.staffUserId == uiState.staffProfile.userId }
     val cashSales = activeShift?.let { uiState.cashSalesForShift(it) } ?: 0.0
     var openingInput by remember { mutableStateOf("500000") }
     var closingInput by remember { mutableStateOf("") }
@@ -2386,11 +2386,14 @@ private fun ShiftKasirComposeScreen(viewModel: PosViewModel, uiState: PosUiState
             (shiftStart.isBlank() || (it.createdAt ?: "") >= shiftStart)
     }.sumOf { it.amount }
     val cashExpenses = uiState.expenses.filter {
-        it.paymentMethod.equals("cash", true) && it.cashSource == "cash_fund" &&
+        it.cashSource == "cash_fund" &&
             (shiftStart.isBlank() || (it.createdAt ?: "") >= shiftStart)
     }.sumOf { it.amount }
+    val targetCashFund = uiState.cashFundEntries.filter { it.entryType == "set_target" }.sumOf { it.amount }
+    val allCashFundReplenishments = uiState.cashFundEntries.filter { it.entryType == "replenishment" }.sumOf { it.amount }
+    val allCashFundExpenses = uiState.expenses.filter { it.cashSource == "cash_fund" }.sumOf { it.amount }
+    val cashFundBalance = (targetCashFund + allCashFundReplenishments - allCashFundExpenses).coerceAtLeast(0.0)
     val openingCash = activeShift?.openingCash ?: 0.0
-    val cashFundBalance = (openingCash + adjustments - cashExpenses).coerceAtLeast(0.0)
     val expectedCash = activeShift?.let { uiState.expectedDrawerCashForShift(it) } ?: 0.0
 
     LazyColumn(Modifier.fillMaxSize(), verticalArrangement = Arrangement.spacedBy(12.dp)) {
@@ -2402,9 +2405,10 @@ private fun ShiftKasirComposeScreen(viewModel: PosViewModel, uiState: PosUiState
                         Text("Kasir: ${activeShift.staffName} · Dibuka: ${activeShift.openedAt}")
                         Text("Saldo kas modal", style = MaterialTheme.typography.labelLarge)
                         Text(RupiahFormatter.format(cashFundBalance), style = MaterialTheme.typography.headlineMedium, fontWeight = FontWeight.Bold)
-                        Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) { Text("Opening / modal awal"); Text(RupiahFormatter.format(openingCash)) }
-                        Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) { Text("Adjustment (+)"); Text("+${RupiahFormatter.format(adjustments)}") }
-                        Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) { Text("Pengeluaran (-)"); Text("-${RupiahFormatter.format(cashExpenses)}") }
+                        Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) { Text("Target modal tetap"); Text(RupiahFormatter.format(targetCashFund)) }
+                        Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) { Text("Pengisian kembali shift ini"); Text("+${RupiahFormatter.format(adjustments)}") }
+                        Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) { Text("Pengeluaran modal shift ini"); Text("-${RupiahFormatter.format(cashExpenses)}") }
+                        Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) { Text("Kas penjualan awal shift"); Text(RupiahFormatter.format(openingCash)) }
                         HorizontalDivider()
                         Text("Pengembalian Modal", style = MaterialTheme.typography.titleMedium)
                         Box {

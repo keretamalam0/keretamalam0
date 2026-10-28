@@ -1437,7 +1437,7 @@ class CafeFlowRepository(private val context: Context) {
             put("p_payment_method", expense.paymentMethod.ifBlank { "cash" })
             put("p_cash_source", expense.cashSource.ifBlank { "cash_fund" })
             put("p_idempotency_key", expense.idempotencyKey ?: UUID.randomUUID().toString())
-            put("p_shift_id", null as String?)
+            put("p_shift_id", expense.shiftId)
         }
         val raw = executeJsonRequest(
             "POST",

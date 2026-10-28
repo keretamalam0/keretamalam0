@@ -112,3 +112,17 @@ alter table public.staff_shifts
   add column if not exists closing_approved_by uuid references auth.users(id) on delete restrict;
 revoke insert, update, delete on public.expenses from authenticated;
 revoke insert, update, delete on public.cash_fund_entries from authenticated;
+
+
+-- Persist expected closing and protect direct table mutations.
+alter table public.staff_shifts
+  add column if not exists expected_cash numeric check (expected_cash is null or expected_cash >= 0),
+  add column if not exists cash_difference numeric,
+  add column if not exists discrepancy_note text,
+  add column if not exists closing_approved_by uuid references auth.users(id) on delete restrict;
+revoke insert, update, delete on public.expenses from authenticated;
+revoke insert, update, delete on public.cash_fund_entries from authenticated;
+drop trigger if exists audit_capture on public.expenses;
+create trigger audit_capture after insert or update or delete on public.expenses for each row execute function public.capture_audit_log();
+drop trigger if exists audit_capture on public.cash_fund_entries;
+create trigger audit_capture after insert or update or delete on public.cash_fund_entries for each row execute function public.capture_audit_log();

@@ -2395,6 +2395,7 @@ class PosViewModel(application: Application) : AndroidViewModel(application) {
                     expenseDate = date,
                     paymentMethod = method.ifBlank { "cash" },
                     cashSource = cashSource.ifBlank { "cash_fund" },
+                    shiftId = state.shifts.firstOrNull { it.staffUserId == state.staffProfile.userId && it.status.equals("open", true) }?.id,
                     idempotencyKey = UUID.randomUUID().toString(),
                     description = description.trim(),
                     createdAt = nowString()
@@ -2443,6 +2444,7 @@ class PosViewModel(application: Application) : AndroidViewModel(application) {
             paymentMethod = method.ifBlank { "cash" },
             description = description.trim(),
             cashSource = cashSource.ifBlank { "cash_fund" },
+            shiftId = _uiState.value.shifts.firstOrNull { it.staffUserId == _uiState.value.staffProfile.userId && it.status.equals("open", true) }?.id,
             idempotencyKey = UUID.randomUUID().toString(),
             createdAt = nowString()
         )

@@ -2379,7 +2379,11 @@ private fun ShiftKasirComposeScreen(viewModel: PosViewModel, uiState: PosUiState
     fun sourcePaymentGroup(rawInput: String): String {
         val raw = rawInput.lowercase().replace("-", "_").trim()
         return when {
-            raw == "cash" || raw == "tunai" || raw.contains("cash") -> "cash"
+            raw == "cash" || raw == "tunai" || raw.contains("cash") || raw.contains("tunai") -> "cash"
+            // Untuk saldo sumber dana, E-Wallet diarahkan ke kas tunai sesuai alur operasional outlet.
+            raw.contains("ewallet") || raw.contains("e_wallet") || raw.contains("e wallet") ||
+                raw.contains("gopay") || raw.contains("go pay") || raw.contains("ovo") ||
+                raw.contains("dana") || raw.contains("shopeepay") || raw.contains("linkaja") -> "cash"
             raw.contains("qris") -> "qris"
             raw.contains("transfer") || raw.contains("bank") || raw.contains("bca") || raw.contains("bni") || raw.contains("bri") || raw.contains("mandiri") || raw.contains("permata") -> "transfer"
             else -> "other"

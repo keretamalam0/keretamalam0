@@ -2439,7 +2439,9 @@ private fun ShiftKasirComposeScreen(viewModel: PosViewModel, uiState: PosUiState
                             viewModel.replenishCashFund(value, adjustmentSource, adjustmentDescription)
                             adjustmentAmount = ""
                             adjustmentDescription = ""
-                                 Text("Pengeluaran", style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.SemiBold)
+                        }, modifier = Modifier.fillMaxWidth()) { Text("Tambah Saldo Kas") }
+                        HorizontalDivider()
+                        Text("Pengeluaran", style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.SemiBold)
                         Box {
                             OutlinedButton(onClick = { expenseSourceMenuOpen = true }, modifier = Modifier.fillMaxWidth()) {
                                 Text("Sumber uang: " + when (expenseSource) {
@@ -2476,8 +2478,6 @@ private fun ShiftKasirComposeScreen(viewModel: PosViewModel, uiState: PosUiState
                             viewModel.addExpense(value, "Operasional", java.time.LocalDate.now().toString(), paymentMethod, expenseDescription, expenseSource)
                             expenseAmount = ""
                             expenseDescription = ""
-                        }, modifier = Modifier.fillMaxWidth()) { Text("Simpan Pengeluaran") }
-         expenseDescription = ""
                         }, modifier = Modifier.fillMaxWidth()) { Text("Simpan Pengeluaran") }
                         val recentExpenses = uiState.expenses.sortedByDescending { it.createdAt ?: "" }.take(5)
                         if (recentExpenses.isNotEmpty()) {

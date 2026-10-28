@@ -2395,6 +2395,7 @@ class PosViewModel(application: Application) : AndroidViewModel(application) {
                     expenseDate = date,
                     paymentMethod = method.ifBlank { "cash" },
                     cashSource = cashSource.ifBlank { "cash_fund" },
+                    idempotencyKey = UUID.randomUUID().toString(),
                     description = description.trim(),
                     createdAt = nowString()
                 )
@@ -2442,6 +2443,7 @@ class PosViewModel(application: Application) : AndroidViewModel(application) {
             paymentMethod = method.ifBlank { "cash" },
             description = description.trim(),
             cashSource = cashSource.ifBlank { "cash_fund" },
+            idempotencyKey = UUID.randomUUID().toString(),
             createdAt = nowString()
         )
         _uiState.update {

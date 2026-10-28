@@ -1696,7 +1696,7 @@ class PosViewModel(application: Application) : AndroidViewModel(application) {
             if (state.backendStatus == BackendIntegrationStatus.ACTIVE_VERIFIED) {
                 _uiState.update { it.copy(isLoading = true, errorMessage = null, successMessage = null) }
                 runCatching {
-                    repository.closeStaffShift(shift, closingCash, notes)
+                    repository.closeStaffShift(shift, closingCash, calculatedExpectedCash, notes)
                     repository.fetchStaffShifts()
                 }.onSuccess { refreshed ->
                     _uiState.update { current ->

@@ -102,3 +102,13 @@ revoke all on function public.km_record_cash_fund_entry(uuid,text,numeric,text,t
 grant execute on function public.km_record_cash_fund_entry(uuid,text,numeric,text,text,uuid) to authenticated;
 revoke delete on public.expenses from authenticated;
 revoke delete on public.cash_fund_entries from authenticated;
+
+
+-- Closing reconciliation and table-level write protection (all writes go through the RPCs).
+alter table public.staff_shifts
+  add column if not exists expected_cash numeric check (expected_cash is null or expected_cash >= 0),
+  add column if not exists cash_difference numeric,
+  add column if not exists discrepancy_note text,
+  add column if not exists closing_approved_by uuid references auth.users(id) on delete restrict;
+revoke insert, update, delete on public.expenses from authenticated;
+revoke insert, update, delete on public.cash_fund_entries from authenticated;

@@ -1564,10 +1564,6 @@ fun PegawaiComposeScreen(viewModel: PosViewModel, uiState: PosUiState) {
         "inventory.view_stock" to "Lihat stok",
         "inventory.adjust_stock" to "Tambah / kurangi stok",
         "inventory.purchase_order" to "Kelola pembelian stok",
-        "customers.create" to "Tambah pelanggan",
-        "customers.edit" to "Edit pelanggan",
-        "customers.delete" to "Hapus pelanggan",
-        "customers.export" to "Ekspor / download data pelanggan",
         "promotions.create" to "Tambah promosi",
         "promotions.edit" to "Edit promosi",
         "promotions.manage" to "Aktifkan / nonaktifkan promosi",
@@ -1587,6 +1583,13 @@ fun PegawaiComposeScreen(viewModel: PosViewModel, uiState: PosUiState) {
         "export.download" to "Download file hasil ekspor",
         "data.export" to "Ekspor data aplikasi",
         "payments.manage_methods" to "Tambah / edit metode pembayaran",
+        "reports.daily_summary" to "Lihat ringkasan penjualan harian",
+        "reports.category_sales" to "Lihat penjualan per kategori",
+        "reports.product_sales" to "Lihat penjualan per produk",
+        "reports.hourly_sales" to "Lihat penjualan per jam",
+        "reports.payment_methods" to "Lihat laporan pembayaran",
+        "reports.channels" to "Lihat laporan kanal",
+        "reports.order_details" to "Lihat detail pesanan",
         "printer.manage" to "Kelola printer"
     )
     pendingDelete?.let { target -> AlertDialog(onDismissRequest = { pendingDelete = null }, title = { Text("Hapus profil staf?") }, text = { Text("Profil ${target.fullName} akan dihapus dari daftar pegawai aplikasi. Lanjutkan?") }, confirmButton = { Button(onClick = { viewModel.deleteStaffProfile(target.userId); pendingDelete = null }, enabled = isOwner && !uiState.isLoading) { Text("Hapus profil") } }, dismissButton = { OutlinedButton(onClick = { pendingDelete = null }) { Text("Batal") } }) }
@@ -1648,7 +1651,7 @@ fun PegawaiComposeScreen(viewModel: PosViewModel, uiState: PosUiState) {
                             PermissionToggleRow(label, allowed, isOwner && !isCurrent && st.role != StaffRole.OWNER) { enabled -> viewModel.toggleStaffPermission(st.userId, key, enabled) }
                         }
                         else -> actionPermissions.forEach { (key, label) ->
-                            PermissionToggleRow(label, st.permissions[key] == true, isOwner && !isCurrent && st.role != StaffRole.OWNER && !uiState.isLoading) { viewModel.toggleStaffPermission(st.userId, key) }
+                            PermissionToggleRow(label, st.permissions[key] == true, isOwner && !isCurrent && st.role != StaffRole.OWNER) { enabled -> viewModel.toggleStaffPermission(st.userId, key, enabled) }
                         }
                     }
                 }

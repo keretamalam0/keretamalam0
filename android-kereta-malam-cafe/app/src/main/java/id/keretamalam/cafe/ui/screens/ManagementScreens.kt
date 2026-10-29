@@ -1518,6 +1518,7 @@ fun PegawaiComposeScreen(viewModel: PosViewModel, uiState: PosUiState) {
     var pendingDelete by remember { mutableStateOf<StaffProfile?>(null) }
     var expandedAccessStaff by remember { mutableStateOf<String?>(null) }
     var selectedAccessGroup by remember { mutableStateOf("MENU") }
+    var expandedPermissionMenu by remember { mutableStateOf<String?>(null) }
     val isOwner = uiState.staffProfile.role == StaffRole.OWNER && uiState.staffProfile.isActive
     val modules = listOf(
         "dashboard" to "Dashboard",

@@ -2392,15 +2392,31 @@ class PosViewModel(application: Application) : AndroidViewModel(application) {
         }
         if (source in setOf("sales_cash", "sales_qris", "sales_transfer")) {
             val state = _uiState.value
+            val sessionStart = state.cashFundEntries
+                .filter { it.entryType == "set_target" }
+                .maxByOrNull { it.createdAt ?: "" }
+            val lastClose = state.cashFundEntries
+                .filter { it.entryType == "close_session" }
+                .maxByOrNull { it.createdAt ?: "" }
+            val sessionStartAt = sessionStart?.createdAt.orEmpty()
+            if (sessionStart == null || sessionStartAt.isBlank() ||
+                (lastClose?.createdAt ?: "") >= sessionStartAt) {
+                showNotice("Mulai sesi kasir terlebih dahulu sebelum memindahkan saldo penjualan.", isError = true)
+                return
+            }
             fun methodGroup(order: OrderWithItems): String {
                 val raw = (order.paymentMethod?.takeIf { it.isNotBlank() }
                     ?: order.customerPaymentMethod?.takeIf { it.isNotBlank() }
                     ?: order.payments.firstOrNull()?.method?.takeIf { it.isNotBlank() }
                     ?: "cash").lowercase().replace("-", "_").trim()
                 return when {
-                    raw == "cash" || raw == "tunai" || raw.contains("cash") -> "cash"
+                    raw == "cash" || raw == "tunai" || raw.contains("cash") || raw.contains("tunai") ||
+                        raw.contains("ewallet") || raw.contains("e_wallet") || raw.contains("e wallet") ||
+                        raw.contains("dana") || raw.contains("gopay") || raw.contains("go pay") ||
+                        raw.contains("ovo") || raw.contains("shopeepay") || raw.contains("linkaja") -> "cash"
                     raw.contains("qris") -> "qris"
-                    raw.contains("transfer") || raw.contains("bank_transfer") || raw.contains("bca") || raw.contains("bni") || raw.contains("bri") || raw.contains("mandiri") || raw.contains("permata") -> "transfer"
+                    raw.contains("transfer") || raw.contains("bank") || raw.contains("bca") || raw.contains("bni") ||
+                        raw.contains("bri") || raw.contains("mandiri") || raw.contains("permata") -> "transfer"
                     else -> "other"
                 }
             }
@@ -2408,18 +2424,28 @@ class PosViewModel(application: Application) : AndroidViewModel(application) {
             fun paymentSource(method: String): String {
                 val raw = method.lowercase().replace("-", "_").trim()
                 return when {
-                    raw == "cash" || raw == "tunai" || raw.contains("cash") -> "cash"
+                    raw == "cash" || raw == "tunai" || raw.contains("cash") || raw.contains("tunai") ||
+                        raw.contains("ewallet") || raw.contains("e_wallet") || raw.contains("e wallet") ||
+                        raw.contains("dana") || raw.contains("gopay") || raw.contains("go pay") ||
+                        raw.contains("ovo") || raw.contains("shopeepay") || raw.contains("linkaja") -> "cash"
                     raw.contains("qris") -> "qris"
-                    raw.contains("transfer") || raw.contains("bank") || raw.contains("bca") || raw.contains("bni") || raw.contains("bri") || raw.contains("mandiri") || raw.contains("permata") -> "transfer"
+                    raw.contains("transfer") || raw.contains("bank") || raw.contains("bca") || raw.contains("bni") ||
+                        raw.contains("bri") || raw.contains("mandiri") || raw.contains("permata") -> "transfer"
                     else -> "other"
                 }
             }
-            val sales = state.orders.filter { it.isPaid && it.status != OrderStatus.CANCELLED && it.returnedAt == null }.sumOf { order ->
+            val sales = state.orders.filter {
+                it.createdAt >= sessionStartAt && it.isPaid && it.status != OrderStatus.CANCELLED && it.returnedAt == null
+            }.sumOf { order ->
                 if (order.payments.isNotEmpty()) order.payments.filter { paymentSource(it.method) == targetMethod }.sumOf { it.amount }
                 else if (methodGroup(order) == targetMethod) order.total else 0.0
             }
-            val alreadyAllocated = state.cashFundEntries.filter { it.entryType == "replenishment" && it.source == source }.sumOf { it.amount }
-            val paidOut = state.expenses.filter { it.cashSource == source }.sumOf { it.amount }
+            val alreadyAllocated = state.cashFundEntries.filter {
+                it.entryType == "replenishment" && it.source == source && (it.createdAt ?: "") >= sessionStartAt
+            }.sumOf { it.amount }
+            val paidOut = state.expenses.filter {
+                it.cashSource == source && (it.createdAt ?: "") >= sessionStartAt
+            }.sumOf { it.amount }
             val available = (sales - alreadyAllocated - paidOut).coerceAtLeast(0.0)
             if (amount > available) {
                 val label = when (source) { "sales_cash" -> "tunai"; "sales_qris" -> "QRIS"; else -> "transfer bank" }

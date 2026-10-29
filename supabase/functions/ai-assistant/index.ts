@@ -13,7 +13,8 @@ const admin = createClient(supabaseUrl, serviceRoleKey, {
   },
 });
 
-const MODEL = "qwen/qwen3.8-27b";
+const MODEL = "openai/gpt-oss-120b";
+const FALLBACK_MODEL = "openai/gpt-oss-20b";
 
 const json = (data: unknown, status = 200) =>
   new Response(JSON.stringify(data), {
@@ -72,10 +73,10 @@ TUJUAN
 - Membantu pengguna memahami menu, fungsi, istilah, dan alur penggunaan Cafe Flow.
 - Memberikan panduan langkah demi langkah hanya jika langkahnya didukung dokumentasi.
 - Menjawab dengan bahasa Indonesia yang santai, jelas, sopan, dan praktis.
-- Periksa konteks percakapan dan nama menu terbaru sebelum memberi langkah.
-- Jika informasi backend, nominal, atau status transaksi tidak tersedia dalam konteks, katakan dengan jujur dan minta pengguna memeriksa halaman terkait; jangan mengarang angka atau mengaku telah melakukan tindakan.
-- Untuk error, jelaskan penyebab paling mungkin, langkah pemeriksaan yang aman, dan kapan harus berhenti agar tidak membuat transaksi duplikat.
-- Semua waktu yang ditampilkan atau dijelaskan untuk operasional Kereta Malam Cafe menggunakan WIB (Asia/Jakarta).
+- Gunakan nama menu dan alur terbaru yang ada dalam konteks, bukan asumsi dari versi lama.
+- Jika data transaksi atau status server tidak tersedia, katakan dengan jelas; jangan mengarang angka atau mengklaim tindakan berhasil.
+- Untuk error, berikan penyebab yang paling mungkin dan langkah pemeriksaan aman; cegah transaksi duplikat.
+- Semua waktu operasional Kereta Malam Cafe ditampilkan sebagai WIB (Asia/Jakarta).
 - Jika pengguna menggunakan bahasa Inggris, kamu boleh menjawab dalam bahasa Inggris.
 - Jangan bertindak sebagai general-purpose chatbot.
 
@@ -165,7 +166,7 @@ Batasan:
 
 3A. KAS MODAL & PENGELUARAN
 Menu: Kas Modal & Pengeluaran (/shift-kasir).
-Menu ini mengelola pencatatan modal kas awal, penyesuaian/pengisian kembali modal, serta pengeluaran operasional yang sumber dananya dipilih dengan jelas. Sumber Non-tunai adalah gabungan QRIS, transfer bank, dan e-wallet; Tunai hanya dari penjualan cash. Saldo harus dihitung sesuai sesi yang aktif, bukan seluruh riwayat global. Jangan mengklaim transaksi tersimpan jika server mengembalikan error. Jika saldo ditolak, periksa sumber dana, sesi aktif, nominal pengeluaran, dan pesan server; jangan menyarankan mengulang transaksi berkali-kali tanpa mengecek apakah transaksi sebelumnya sudah tercatat.
+Menu ini mengelola modal kas awal, penyesuaian/pengisian kembali modal, dan pengeluaran operasional. Sumber Tunai berarti penjualan cash. Sumber Non-tunai menggabungkan QRIS, transfer bank, dan e-wallet. Saldo harus dihitung pada sesi aktif, bukan seluruh riwayat global. Jangan mengklaim transaksi tersimpan jika server mengembalikan error. Jika saldo ditolak, periksa sumber dana, sesi aktif, nominal, dan pesan server; jangan menyuruh pengguna mengulang transaksi berkali-kali tanpa memastikan apakah transaksi sebelumnya tercatat.
 Untuk mengelola akun kasir, buka Pegawai & Shift (/pegawai).
 
 3B. LOG AKTIVITAS
@@ -709,38 +710,61 @@ PROTOKOL PENALARAN DAN KUALITAS JAWABAN
       }),
     ];
 
-    const groqResponse = await fetch(
-      "https://api.groq.com/openai/v1/chat/completions",
-      {
-        method: "POST",
-        headers: {
-          Authorization: `Bearer ${groqKey}`,
-          "Content-Type": "application/json",
+    const callGroq = async (model: string, maxTokens: number) => {
+      const response = await fetch(
+        "https://api.groq.com/openai/v1/chat/completions",
+        {
+          method: "POST",
+          headers: {
+            Authorization: `Bearer ${groqKey}`,
+            "Content-Type": "application/json",
+          },
+          body: JSON.stringify({
+            model,
+            messages: groqMessages,
+            temperature: 0.2,
+            top_p: 0.8,
+            reasoning_effort: "medium",
+            max_completion_tokens: maxTokens,
+            stream: false,
+          }),
         },
-        body: JSON.stringify({
-          model: MODEL,
-          messages: groqMessages,
-          temperature: 0.2,
-          top_p: 0.8,
-          reasoning_effort: "medium",
-          reasoning_format: "hidden",
-          max_completion_tokens: 1600,
-          stream: false,
-        }),
-      },
-    );
+      );
+      const data = await response.json().catch(() => ({}));
+      return { response, data };
+    };
 
-    const groqData = await groqResponse.json();
+    // Try the stronger model first. If its model-specific limit is reached,
+    // retry once with the smaller model to keep customer support responsive.
+    let activeModel = MODEL;
+    let { response: groqResponse, data: groqData } = await callGroq(MODEL, 1200);
+    if (groqResponse.status === 429) {
+      console.warn("Groq primary model rate-limited; retrying with fallback model.");
+      activeModel = FALLBACK_MODEL;
+      const fallback = await callGroq(FALLBACK_MODEL, 900);
+      groqResponse = fallback.response;
+      groqData = fallback.data;
+    }
 
     if (!groqResponse.ok) {
-      console.error("Groq API error:", groqData);
-
-      return json(
-        {
-          error: `Groq gagal (${groqResponse.status}). Coba kirim pesan lagi.`,
-        },
-        502,
-      );
+      console.error("Groq API error:", {
+        status: groqResponse.status,
+        code: groqData?.error?.code,
+        type: groqData?.error?.type,
+        message: groqData?.error?.message,
+      });
+      const providerMessage = String(groqData?.error?.message ?? "");
+      let userMessage = `Layanan AI Groq sedang bermasalah (HTTP ${groqResponse.status}). Coba lagi sebentar.`;
+      if (groqResponse.status === 429) {
+        userMessage = /quota|billing|limit.*day|daily/i.test(providerMessage)
+          ? "Kuota harian Groq untuk API key ini habis. Periksa Usage dan Limits di dashboard Groq atau gunakan API key dengan kuota tersedia."
+          : "Batas permintaan Groq sedang tercapai untuk kedua model. Tunggu sebentar lalu coba lagi; jika berulang, periksa Usage dan Rate Limits di dashboard Groq.";
+      } else if (groqResponse.status === 401 || groqResponse.status === 403) {
+        userMessage = "Groq menolak API key yang tersimpan di Supabase. Periksa secret GROQ_API_KEY pada project ini dan pastikan key masih aktif.";
+      } else if (groqResponse.status === 400) {
+        userMessage = "Permintaan ditolak oleh Groq. Model atau format permintaan perlu diperiksa.";
+      }
+      return json({ error: userMessage, provider_status: groqResponse.status }, 502);
     }
 
     const content = groqData?.choices?.[0]?.message?.content;
@@ -769,7 +793,7 @@ PROTOKOL PENALARAN DAN KUALITAS JAWABAN
 
     return json({
       message: reply,
-      model: groqData.model ?? MODEL,
+      model: groqData.model ?? activeModel,
       sources: [],
       server_time: clock.full,
     });

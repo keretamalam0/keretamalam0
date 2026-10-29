@@ -2372,16 +2372,21 @@ private fun ShiftKasirComposeScreen(viewModel: PosViewModel, uiState: PosUiState
     val latestClose = closes.firstOrNull()
     val active = latestStart != null && (latestClose == null || (latestClose.createdAt ?: "") < (latestStart.createdAt ?: ""))
     val sessionStart = latestStart?.createdAt.orEmpty()
+    val activeStaffShiftId = uiState.shifts.firstOrNull {
+        it.staffUserId == uiState.staffProfile.userId && it.status.equals("open", true)
+    }?.id
     val sessionAdjustments = if (active) uiState.cashFundEntries.filter { it.entryType == "replenishment" && (it.createdAt ?: "") >= sessionStart }.sumOf { it.amount } else 0.0
-    val sessionModalExpenses = if (active) uiState.expenses.filter { it.cashSource == "cash_fund" && (it.createdAt ?: "") >= sessionStart }.sumOf { it.amount } else 0.0
+    val sessionExpenses = if (active) uiState.expenses.filter {
+        val createdAt = it.createdAt ?: ""
+        createdAt.isNotBlank() && if (activeStaffShiftId != null) it.shiftId == activeStaffShiftId else createdAt >= sessionStart
+    } else emptyList()
+    val sessionModalExpenses = sessionExpenses.filter { it.cashSource == "cash_fund" }.sumOf { it.amount }
     val currentFund = ((latestStart?.amount ?: 0.0) + sessionAdjustments - sessionModalExpenses).coerceAtLeast(0.0)
-    val sessionRecentExpenses = if (active) uiState.expenses.filter {
-        (it.createdAt ?: "") >= sessionStart && (it.createdAt ?: "").isNotBlank()
-    }.sortedByDescending { it.createdAt ?: "" } else emptyList()
+    val sessionRecentExpenses = sessionExpenses.sortedByDescending { it.createdAt ?: "" }
     val sessionRecentFundEntries = if (active) uiState.cashFundEntries.filter {
         it.entryType == "replenishment" && (it.createdAt ?: "") >= sessionStart
     }.sortedByDescending { it.createdAt ?: "" } else emptyList()
-    val hasSessionNotes = sessionRecentExpenses.isNotEmpty() || sessionRecentFundEntries.isNotEmpty()
+    val hasSessionNotes = sessionRecentExpenses.isNotEmpty()
     val sessions = starts
     // Saldo sumber penjualan dihitung dari transaksi lunas aktual, bukan angka contoh.
     fun sourcePaymentGroup(rawInput: String): String {
@@ -2413,7 +2418,7 @@ private fun ShiftKasirComposeScreen(viewModel: PosViewModel, uiState: PosUiState
             }
         }
         val source = when (method) { "cash" -> "sales_cash"; "qris" -> "sales_qris"; else -> "sales_transfer" }
-        val spent = uiState.expenses.filter { it.cashSource == source && (it.createdAt ?: "") >= sessionStart }.sumOf { it.amount }
+        val spent = sessionExpenses.filter { it.cashSource == source }.sumOf { it.amount }
         val movedToModal = uiState.cashFundEntries.filter {
             it.entryType == "replenishment" && it.source == source && (it.createdAt ?: "") >= sessionStart
         }.sumOf { it.amount }

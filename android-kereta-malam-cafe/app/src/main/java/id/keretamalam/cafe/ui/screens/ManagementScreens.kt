@@ -1484,31 +1484,47 @@ fun PegawaiComposeScreen(viewModel: PosViewModel, uiState: PosUiState) {
     var expandedAccessStaff by remember { mutableStateOf<String?>(null) }
     var selectedAccessGroup by remember { mutableStateOf("MENU") }
     val isOwner = uiState.staffProfile.role == StaffRole.OWNER && uiState.staffProfile.isActive
-    val modules = listOf("dashboard" to "Dashboard", "ai_assistant" to "AI Assistant & Riwayat Chat", "orders" to "Kasir & Pesanan", "sales_history" to "Riwayat Transaksi & Retur", "cashier_report" to "Laporan Kasir", "cash_fund" to "Kas Modal, Tunai & Non-tunai", "payments" to "Pembayaran", "shift_management" to "Buka / Tutup Shift", "shift_audit" to "Audit Shift, filter tanggal & ekspor", "activity_log" to "Log Aktivitas & Audit Perubahan", "products" to "Produk & Stok", "inventory" to "Inventory", "tables" to "Meja & QR Menu", "reports" to "Laporan Penjualan", "expenses" to "Pengeluaran & Laba Rugi", "customers" to "Pelanggan & Loyalitas", "promotions" to "Promosi & Diskon", "printer_management" to "Printer", "settings" to "Pengaturan Outlet", "staff_management" to "Manajemen Pegawai", "export_data" to "Ekspor / Download Data (CSV)")
+    val modules = listOf("dashboard" to "Dashboard", "ai_assistant" to "AI Assistant & Riwayat Chat", "orders" to "Kasir & Pesanan", "sales_history" to "Riwayat Transaksi", "cashier_report" to "Laporan Kasir", "cash_fund" to "Kas Modal, Tunai & Non-tunai", "payments" to "Pembayaran", "shift_audit" to "Audit Shift", "activity_log" to "Log Aktivitas & Audit Perubahan", "products" to "Produk & Stok", "inventory" to "Inventory", "tables" to "Meja & QR Menu", "reports" to "Laporan Penjualan", "expenses" to "Pengeluaran & Laba Rugi", "customers" to "Pelanggan & Loyalitas", "promotions" to "Promosi & Diskon", "printer_management" to "Printer", "settings" to "Pengaturan Outlet", "staff_management" to "Manajemen Pegawai")
     val metrics = listOf("dashboard.total_sales" to "Total penjualan", "dashboard.paid_orders" to "Jumlah transaksi lunas", "dashboard.average_transaction" to "Rata-rata transaksi", "dashboard.peak_hour" to "Jam tersibuk", "dashboard.trend_chart" to "Grafik tren omzet", "dashboard.hourly_activity" to "Aktivitas per jam", "dashboard.best_sellers" to "Menu terlaris", "dashboard.quick_actions" to "Akses cepat")
     val actionPermissions = listOf(
-        "products.edit" to "Tambah / edit produk",
-        "products.delete" to "Hapus produk",
-        "inventory.edit" to "Penyesuaian stok",
+        "orders.update_status" to "Ubah status pesanan",
         "payments" to "Lihat / proses pembayaran",
+        "payments.confirm" to "Konfirmasi pembayaran",
+        "sales_history.return" to "Retur transaksi (pengembalian penuh)",
         "history.delete" to "Hapus transaksi / detail riwayat",
-        "staff.manage" to "Kelola pegawai dan hak akses",
-        "shift.manage" to "Buka / tutup dan kelola shift",
-        "audit.view" to "Lihat audit shift & rentang tanggal",
-        "settings.manage" to "Ubah pengaturan outlet",
-        "pos.manual_discount" to "Diskon manual di kasir",
+        "pos.manual_discount" to "Terapkan diskon manual di kasir",
         "pos.void_transaction" to "Batalkan transaksi",
         "pos.open_drawer" to "Buka laci kas",
-        "shift.view_cash" to "Lihat nominal kas shift",
+        "products.create" to "Tambah produk",
+        "products.edit" to "Edit produk",
+        "products.delete" to "Hapus produk",
         "inventory.view_stock" to "Lihat stok",
         "inventory.adjust_stock" to "Tambah / kurangi stok",
         "inventory.purchase_order" to "Kelola pembelian stok",
+        "customers.create" to "Tambah pelanggan",
+        "customers.edit" to "Edit pelanggan",
+        "customers.delete" to "Hapus pelanggan",
+        "customers.export" to "Ekspor / download data pelanggan",
+        "promotions.create" to "Tambah promosi",
+        "promotions.edit" to "Edit promosi",
+        "promotions.manage" to "Aktifkan / nonaktifkan promosi",
+        "promotions.delete" to "Hapus promosi",
+        "expenses.create" to "Catat pengeluaran",
+        "expenses.edit" to "Edit pengeluaran",
+        "expenses.delete" to "Hapus pengeluaran",
+        "tables.create" to "Tambah meja / QR",
+        "tables.edit" to "Edit meja / QR",
+        "tables.delete" to "Hapus meja / QR",
+        "staff.manage" to "Kelola pegawai dan hak akses",
+        "audit.view" to "Lihat audit shift & rentang tanggal",
+        "shift.view_cash" to "Lihat nominal kas shift",
+        "settings.manage" to "Ubah pengaturan outlet",
         "report.view" to "Lihat laporan",
-        "report.export" to "Ekspor laporan (CSV)",
-        "customers.export" to "Ekspor data pelanggan",
-        "payments.manage_methods" to "Kelola metode pembayaran",
-        "printer.manage" to "Kelola printer",
-        "promotions.manage" to "Kelola promosi"
+        "report.export" to "Ekspor / download laporan (CSV)",
+        "export.download" to "Download file hasil ekspor",
+        "data.export" to "Ekspor data aplikasi",
+        "payments.manage_methods" to "Tambah / edit metode pembayaran",
+        "printer.manage" to "Kelola printer"
     )
     pendingDelete?.let { target -> AlertDialog(onDismissRequest = { pendingDelete = null }, title = { Text("Hapus profil staf?") }, text = { Text("Profil ${target.fullName} akan dihapus dari daftar pegawai aplikasi. Lanjutkan?") }, confirmButton = { Button(onClick = { viewModel.deleteStaffProfile(target.userId); pendingDelete = null }, enabled = isOwner && !uiState.isLoading) { Text("Hapus profil") } }, dismissButton = { OutlinedButton(onClick = { pendingDelete = null }) { Text("Batal") } }) }
     LazyColumn(Modifier.fillMaxSize(), verticalArrangement = Arrangement.spacedBy(10.dp)) {

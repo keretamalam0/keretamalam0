@@ -316,10 +316,13 @@ class CafeFlowRepository(private val context: Context) {
 
     suspend fun fetchStaffProfiles(): List<StaffProfile> {
         val creds = requireVerifiedCredentials()
-        val ownerId = URLEncoder.encode(creds.authenticatedUserId, "UTF-8")
-        val raw = executeJsonRequest("GET",
-            "${creds.supabaseUrl}/rest/v1/staff_profiles?select=user_id,owner_id,full_name,role,is_active,permissions&owner_id=eq.$ownerId&order=created_at.asc",
-            buildHeaders(creds))
+        // Single-app setup: an active Owner can see every registered staff profile,
+        // regardless of the profile's owner_id. RLS enforces the Owner-only boundary.
+        val raw = executeJsonRequest(
+            "GET",
+            "${creds.supabaseUrl}/rest/v1/staff_profiles?select=user_id,owner_id,full_name,role,is_active,permissions&order=created_at.asc",
+            buildHeaders(creds)
+        )
         return json.decodeFromString(raw)
     }
 
@@ -1261,9 +1264,10 @@ class CafeFlowRepository(private val context: Context) {
         }
         require(payload.isNotEmpty()) { "Tidak ada perubahan untuk disimpan." }
         val user = URLEncoder.encode(userId, "UTF-8")
-        val owner = URLEncoder.encode(creds.authenticatedUserId, "UTF-8")
+        // In the single-app model, Owners manage staff profiles across the app.
+        // The global Owner-only RLS policy is the authorization boundary.
         val raw = executeJsonRequest("PATCH",
-            "${creds.supabaseUrl}/rest/v1/staff_profiles?user_id=eq.$user&owner_id=eq.$owner&select=user_id,owner_id,full_name,role,is_active,permissions",
+            "${creds.supabaseUrl}/rest/v1/staff_profiles?user_id=eq.$user&select=user_id,owner_id,full_name,role,is_active,permissions",
             buildHeaders(creds, "return=representation"),
             json.encodeToString(JsonObject.serializer(), payload))
         return json.decodeFromString<List<StaffProfile>>(raw).firstOrNull()
@@ -1274,9 +1278,9 @@ class CafeFlowRepository(private val context: Context) {
         val creds = requireVerifiedCredentials()
         require(userId.isNotBlank() && userId != creds.authenticatedUserId) { "ID staf tidak valid atau merupakan akun owner." }
         val user = URLEncoder.encode(userId, "UTF-8")
-        val owner = URLEncoder.encode(creds.authenticatedUserId, "UTF-8")
+        // Authorization is enforced by the active-Owner RLS policy.
         executeJsonRequest("DELETE",
-            "${creds.supabaseUrl}/rest/v1/staff_profiles?user_id=eq.$user&owner_id=eq.$owner",
+            "${creds.supabaseUrl}/rest/v1/staff_profiles?user_id=eq.$user",
             buildHeaders(creds, "return=minimal"))
     }
 

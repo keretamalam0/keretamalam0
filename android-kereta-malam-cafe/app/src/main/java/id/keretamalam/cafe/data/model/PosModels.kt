@@ -68,6 +68,11 @@ data class StaffProfile(
         if (key == PermissionKey.OWNER_MANAGEMENT.key) return role == StaffRole.SUPER_ADMIN
         if (role == StaffRole.SUPER_ADMIN) return false
         if (role == StaffRole.OWNER) return true
+        // A child permission can never override an explicitly disabled parent menu.
+        if (key.contains(".")) {
+            val parentKey = key.substringBefore(".")
+            if (permissions.containsKey(parentKey) && permissions[parentKey] != true) return false
+        }
         if (permissions.containsKey(key)) return permissions[key] == true
         val legacyKey = when {
             key == PermissionKey.POS.key || key == PermissionKey.CASHIER_CHAT.key -> PermissionKey.ORDERS.key

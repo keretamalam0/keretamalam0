@@ -52,10 +52,12 @@ import androidx.compose.material.icons.outlined.Delete
 import androidx.compose.material.icons.outlined.DeleteSweep
 import androidx.compose.material.icons.outlined.FileDownload
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.draw.shadow
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.graphics.Brush
+import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.drawscope.Stroke
@@ -100,39 +102,87 @@ fun LoginComposeScreen(
     var email by remember { mutableStateOf("") }
     var password by remember { mutableStateOf("") }
     var passwordVisible by remember { mutableStateOf(false) }
+    val infiniteTransition = rememberInfiniteTransition(label = "loginGlow")
+    val logoScale by infiniteTransition.animateFloat(
+        initialValue = 0.97f,
+        targetValue = 1.03f,
+        animationSpec = androidx.compose.animation.core.infiniteRepeatable(
+            animation = androidx.compose.animation.core.tween(1800),
+            repeatMode = androidx.compose.animation.core.RepeatMode.Reverse
+        ),
+        label = "logoScale"
+    )
 
     Box(
         modifier = Modifier
             .fillMaxSize()
-            .background(Color(0xFFF3F5FA))
+            .background(
+                Brush.linearGradient(
+                    colors = listOf(Color(0xFF087E83), Color(0xFF005052), Color(0xFF003B3D))
+                )
+            )
             .imePadding()
-            .padding(horizontal = if (isTabletOrWide) 32.dp else 20.dp, vertical = 20.dp),
+            .padding(horizontal = if (isTabletOrWide) 32.dp else 22.dp, vertical = 20.dp),
         contentAlignment = Alignment.Center
     ) {
+        // Soft background glow gives the screen depth without slowing app startup.
+        Box(
+            Modifier
+                .size(if (isTabletOrWide) 340.dp else 260.dp)
+                .align(Alignment.TopEnd)
+                .offset(x = 90.dp, y = (-80).dp)
+                .background(
+                    Brush.radialGradient(
+                        colors = listOf(Color(0x5539C5C5), Color.Transparent)
+                    ),
+                    shape = RoundedCornerShape(200.dp)
+                )
+        )
         Column(
             modifier = Modifier
                 .fillMaxWidth()
                 .widthIn(max = 440.dp)
-                .verticalScroll(rememberScrollState()),
-            verticalArrangement = Arrangement.spacedBy(16.dp),
-            horizontalAlignment = Alignment.CenterHorizontally
+                .verticalScroll(rememberScrollState())
+                .shadow(26.dp, RoundedCornerShape(34.dp))
+                .background(Color(0xFFFFFCFD), RoundedCornerShape(34.dp))
+                .padding(horizontal = if (isTabletOrWide) 34.dp else 25.dp, vertical = 30.dp),
+            horizontalAlignment = Alignment.CenterHorizontally,
+            verticalArrangement = Arrangement.spacedBy(0.dp)
         ) {
+            Box(
+                modifier = Modifier
+                    .size(64.dp)
+                    .graphicsLayer(scaleX = logoScale, scaleY = logoScale)
+                    .shadow(10.dp, RoundedCornerShape(18.dp))
+                    .background(
+                        Brush.linearGradient(listOf(Color(0xFF087E83), Color(0xFF003F42))),
+                        RoundedCornerShape(18.dp)
+                    ),
+                contentAlignment = Alignment.Center
+            ) {
+                Text("✳", color = Color.White, style = MaterialTheme.typography.headlineLarge, fontWeight = FontWeight.Black)
+            }
+            Spacer(Modifier.height(20.dp))
             Text(
-                text = "KERETA MALAM CAFE",
-                style = MaterialTheme.typography.headlineMedium.copy(color = Color(0xFF172033)),
-                fontWeight = FontWeight.ExtraBold
+                "Kereta Malam Cafe",
+                style = MaterialTheme.typography.headlineSmall,
+                fontWeight = FontWeight.ExtraBold,
+                color = Color(0xFF151719)
             )
+            Spacer(Modifier.height(7.dp))
             Text(
-                text = "Masuk ke akun staf untuk melanjutkan",
+                "Masuk untuk mengelola operasional cafe",
                 style = MaterialTheme.typography.bodyMedium,
-                color = Color(0xFF667085)
+                color = Color(0xFF6F7075),
+                textAlign = androidx.compose.ui.text.style.TextAlign.Center
             )
+            Spacer(Modifier.height(28.dp))
 
             val activeMsg = uiState.errorMessage ?: uiState.successMessage
             if (activeMsg != null) {
                 Surface(
-                    shape = RoundedCornerShape(12.dp),
-                    color = if (uiState.errorMessage != null) MaterialTheme.colorScheme.errorContainer else MaterialTheme.colorScheme.primary,
+                    shape = RoundedCornerShape(14.dp),
+                    color = if (uiState.errorMessage != null) Color(0xFFFFE8E8) else Color(0xFFE0F5EF),
                     modifier = Modifier.fillMaxWidth()
                 ) {
                     Row(
@@ -140,76 +190,92 @@ fun LoginComposeScreen(
                         verticalAlignment = Alignment.CenterVertically
                     ) {
                         Text(
-                            text = activeMsg,
-                            color = if (uiState.errorMessage != null) MaterialTheme.colorScheme.onErrorContainer else MaterialTheme.colorScheme.onPrimary,
+                            activeMsg,
+                            color = if (uiState.errorMessage != null) Color(0xFF9D2020) else Color(0xFF12684D),
                             modifier = Modifier.weight(1f)
                         )
-                        OutlinedButton(onClick = { viewModel.clearBannerMessages() }) {
-                            Text("Tutup")
-                        }
+                        TextButton(onClick = { viewModel.clearBannerMessages() }) { Text("Tutup") }
                     }
                 }
+                Spacer(Modifier.height(14.dp))
             }
 
-            OutlinedCard(
-                modifier = Modifier.fillMaxWidth(),
-                colors = CardDefaults.outlinedCardColors(containerColor = Color.White),
-                border = androidx.compose.foundation.BorderStroke(1.dp, Color(0xFFE2E7F0))
+            Text("Email", modifier = Modifier.fillMaxWidth(), fontWeight = FontWeight.SemiBold, color = Color(0xFF17191B))
+            Spacer(Modifier.height(7.dp))
+            OutlinedTextField(
+                value = email,
+                onValueChange = { email = it },
+                placeholder = { Text("Masukkan email staf", color = Color(0xFF9A9A9E)) },
+                modifier = Modifier.fillMaxWidth().shadow(4.dp, RoundedCornerShape(18.dp)),
+                singleLine = true,
+                shape = RoundedCornerShape(18.dp),
+                colors = OutlinedTextFieldDefaults.colors(
+                    focusedTextColor = Color(0xFF17191B),
+                    unfocusedTextColor = Color(0xFF17191B),
+                    focusedBorderColor = Color(0xFF087E83),
+                    unfocusedBorderColor = Color(0xFFD6D2D3),
+                    focusedContainerColor = Color(0xFFF9F7F7),
+                    unfocusedContainerColor = Color(0xFFF2EFEF),
+                    cursorColor = Color(0xFF087E83)
+                )
+            )
+            Spacer(Modifier.height(14.dp))
+            Text("Password", modifier = Modifier.fillMaxWidth(), fontWeight = FontWeight.SemiBold, color = Color(0xFF17191B))
+            Spacer(Modifier.height(7.dp))
+            OutlinedTextField(
+                value = password,
+                onValueChange = { password = it },
+                placeholder = { Text("Masukkan password", color = Color(0xFF9A9A9E)) },
+                visualTransformation = if (passwordVisible) androidx.compose.ui.text.input.VisualTransformation.None else PasswordVisualTransformation(),
+                modifier = Modifier.fillMaxWidth().shadow(4.dp, RoundedCornerShape(18.dp)),
+                singleLine = true,
+                shape = RoundedCornerShape(18.dp),
+                trailingIcon = {
+                    IconButton(onClick = { passwordVisible = !passwordVisible }) {
+                        Icon(
+                            if (passwordVisible) Icons.Outlined.VisibilityOff else Icons.Outlined.Visibility,
+                            contentDescription = if (passwordVisible) "Sembunyikan password" else "Lihat password",
+                            tint = Color(0xFF17191B)
+                        )
+                    }
+                },
+                colors = OutlinedTextFieldDefaults.colors(
+                    focusedTextColor = Color(0xFF17191B),
+                    unfocusedTextColor = Color(0xFF17191B),
+                    focusedBorderColor = Color(0xFF087E83),
+                    unfocusedBorderColor = Color(0xFFD6D2D3),
+                    focusedContainerColor = Color(0xFFF9F7F7),
+                    unfocusedContainerColor = Color(0xFFF2EFEF),
+                    cursorColor = Color(0xFF087E83)
+                )
+            )
+            Spacer(Modifier.height(26.dp))
+            Button(
+                onClick = { viewModel.loginWithSupabaseAuth(email.trim(), password) },
+                enabled = !uiState.isLoading && email.isNotBlank() && password.isNotBlank(),
+                modifier = Modifier.fillMaxWidth().height(56.dp).shadow(8.dp, RoundedCornerShape(20.dp)),
+                shape = RoundedCornerShape(20.dp),
+                colors = ButtonDefaults.buttonColors(
+                    containerColor = Color(0xFF006D70),
+                    contentColor = Color.White,
+                    disabledContainerColor = Color(0xFF9CB8B8)
+                )
             ) {
-                Column(
-                    modifier = Modifier.padding(22.dp),
-                    verticalArrangement = Arrangement.spacedBy(14.dp)
-                ) {
-                    val loginFieldColors = OutlinedTextFieldDefaults.colors(
-                        focusedTextColor = Color(0xFF172033),
-                        unfocusedTextColor = Color(0xFF172033),
-                        disabledTextColor = Color(0xFF98A2B3),
-                        focusedLabelColor = Color(0xFF4F46E5),
-                        unfocusedLabelColor = Color(0xFF667085),
-                        focusedBorderColor = Color(0xFF4F46E5),
-                        unfocusedBorderColor = Color(0xFFD0D5DD),
-                        cursorColor = Color(0xFF4F46E5),
-                        focusedContainerColor = Color.White,
-                        unfocusedContainerColor = Color.White
-                    )
-                    OutlinedTextField(
-                        value = email,
-                        onValueChange = { email = it },
-                        label = { Text("Email staf") },
-                        modifier = Modifier.fillMaxWidth(),
-                        singleLine = true,
-                        colors = loginFieldColors
-                    )
-                    OutlinedTextField(
-                        value = password,
-                        onValueChange = { password = it },
-                        label = { Text("Password") },
-                        visualTransformation = if (passwordVisible) androidx.compose.ui.text.input.VisualTransformation.None else PasswordVisualTransformation(),
-                        modifier = Modifier.fillMaxWidth(),
-                        singleLine = true,
-                        trailingIcon = {
-                            IconButton(onClick = { passwordVisible = !passwordVisible }) {
-                                Icon(if (passwordVisible) Icons.Outlined.VisibilityOff else Icons.Outlined.Visibility, contentDescription = if (passwordVisible) "Sembunyikan password" else "Lihat password")
-                            }
-                        },
-                        colors = loginFieldColors
-                    )
-                    Button(
-                        onClick = { viewModel.loginWithSupabaseAuth(email.trim(), password) },
-                        enabled = !uiState.isLoading && email.isNotBlank() && password.isNotBlank(),
-                        modifier = Modifier.fillMaxWidth()
-                    ) {
-                        Text(if (uiState.isLoading) "Memproses..." else "Masuk")
-                    }
-                    Text(
-                        text = "Masuk menggunakan email dan password akun staf Anda.",
-                        style = MaterialTheme.typography.bodySmall,
-                        color = Color(0xFF667085)
-                    )
-                }
+                Text(
+                    if (uiState.isLoading) "Memproses..." else "Masuk  →",
+                    style = MaterialTheme.typography.titleMedium,
+                    fontWeight = FontWeight.Bold
+                )
             }
-
-            Text("Kereta Malam Cafe", style = MaterialTheme.typography.labelSmall, color = Color(0xFF98A2B3))
+            Spacer(Modifier.height(20.dp))
+            HorizontalDivider(color = Color(0xFFD8D2D3), thickness = 1.dp)
+            Spacer(Modifier.height(14.dp))
+            Text(
+                "Akses khusus akun Owner dan Kasir Kereta Malam Cafe",
+                style = MaterialTheme.typography.bodySmall,
+                color = Color(0xFF77777B),
+                textAlign = androidx.compose.ui.text.style.TextAlign.Center
+            )
         }
     }
 }

@@ -1272,7 +1272,7 @@ fun LaporanKasirComposeScreen(viewModel: PosViewModel, uiState: PosUiState) {
 // ============================================================================
 private val ReportChartPalette = listOf(androidx.compose.ui.graphics.Color(0xFF6F91C5), androidx.compose.ui.graphics.Color(0xFF6BAF92), androidx.compose.ui.graphics.Color(0xFFE1B36A), androidx.compose.ui.graphics.Color(0xFF9A83C7), androidx.compose.ui.graphics.Color(0xFFD58A8A), androidx.compose.ui.graphics.Color(0xFF6DAAB5))
 private fun reportDate(value: String): java.time.LocalDateTime? {
-    val zone = java.time.ZoneId.systemDefault()
+    val zone = java.time.ZoneId.of("Asia/Jakarta")
     return runCatching { java.time.Instant.parse(value).atZone(zone).toLocalDateTime() }.getOrNull()
         ?: runCatching { java.time.OffsetDateTime.parse(value).atZoneSameInstant(zone).toLocalDateTime() }.getOrNull()
         ?: runCatching { java.time.LocalDateTime.parse(value.take(19)) }.getOrNull()
@@ -1289,8 +1289,8 @@ fun LaporanPenjualanComposeScreen(viewModel: PosViewModel, uiState: PosUiState, 
     var showEndDatePicker by remember { mutableStateOf(false) }
     var customStartMillis by remember { mutableStateOf<Long?>(null) }
     var customEndMillis by remember { mutableStateOf<Long?>(null) }
-    val today = java.time.LocalDate.now()
-    val utc = java.time.ZoneOffset.UTC
+    val today = java.time.LocalDate.now(java.time.ZoneId.of("Asia/Jakarta"))
+    val utc = java.time.ZoneId.of("Asia/Jakarta")
     val customStart = customStartMillis?.let { java.time.Instant.ofEpochMilli(it).atZone(utc).toLocalDate() }
     val customEnd = customEndMillis?.let { java.time.Instant.ofEpochMilli(it).atZone(utc).toLocalDate() }
     val orders = remember(uiState.orders, period, today, customStart, customEnd) {

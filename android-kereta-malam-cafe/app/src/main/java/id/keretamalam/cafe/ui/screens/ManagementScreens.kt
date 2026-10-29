@@ -1322,6 +1322,21 @@ fun LaporanPenjualanComposeScreen(viewModel: PosViewModel, uiState: PosUiState, 
     }
     val daily = dailyDates.map { d -> paid.filter { reportDate(it.createdAt)?.toLocalDate() == d }.sumOf { it.total }.toFloat() }
     val products = paid.flatMap { it.orderItems }.groupBy { it.productName }.map { (n, items) -> Triple(n, items.sumOf { it.quantity }, items.sumOf { it.lineTotal }) }.sortedByDescending { it.third }
+    val productCategoryNames = uiState.products.associate { product ->
+        product.id to (uiState.categories.firstOrNull { it.id == product.categoryId }?.name ?: "Kategori lainnya")
+    }
+    val categorySales = paid.flatMap { order ->
+        order.orderItems.map { item ->
+            val category = item.productId?.let { productCategoryNames[it] } ?: "Kategori tidak diketahui"
+            Triple(category, item.quantity, item.lineTotal)
+        }
+    }.groupBy { it.first }.map { (category, lines) ->
+        val lineItems = paid.flatMap { it.orderItems }.filter { item ->
+            val name = item.productId?.let { productCategoryNames[it] } ?: "Kategori tidak diketahui"
+            name == category
+        }
+        listOf(category, lines.sumOf { it.second }.toString(), lines.sumOf { it.third }.toString(), lineItems.size.toString())
+    }.sortedByDescending { it[2].toDoubleOrNull() ?: 0.0 }
     val hourly = (0..23).map { h -> h to paid.filter { reportDate(it.createdAt)?.hour == h }.sumOf { it.total } }
     val payNames = mapOf("cash" to "Tunai", "qris" to "QRIS", "transfer" to "Transfer", "ewallet" to "E-Wallet")
     val payments = paid.groupBy { (it.paymentMethod ?: "cash").lowercase() }.map { (m, os) -> (payNames[m] ?: m.uppercase()) to os.sumOf { it.total } }.sortedByDescending { it.second }
@@ -1382,6 +1397,26 @@ fun LaporanPenjualanComposeScreen(viewModel: PosViewModel, uiState: PosUiState, 
                     OutlinedCard(Modifier.fillMaxWidth()) { Column(Modifier.padding(14.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) { Text("Diagram Batang · Omzet Harian", style = MaterialTheme.typography.titleMedium); ReportBarChart(daily, Modifier.fillMaxWidth().height(140.dp)); dailyDates.forEachIndexed { i,d -> Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) { Text(d.format(java.time.format.DateTimeFormatter.ofPattern("EEE, dd MMM"))); Text(reportMoney(daily[i].toDouble()), fontWeight = FontWeight.SemiBold) } } } }
                     OutlinedCard(Modifier.fillMaxWidth()) { Column(Modifier.padding(14.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) { Text("Diagram Bulat · Metode Pembayaran", style = MaterialTheme.typography.titleMedium); if (payments.isEmpty()) Text("Belum ada transaksi lunas pada periode ini.") else { ReportDonut(payments.map { it.second.toFloat() }, Modifier.fillMaxWidth().height(150.dp)); payments.forEachIndexed { i,p -> Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) { Surface(Modifier.size(10.dp), shape = RoundedCornerShape(50), color = ReportChartPalette[i % ReportChartPalette.size]) {}; Text(p.first, Modifier.weight(1f)); Text(reportMoney(p.second), fontWeight = FontWeight.SemiBold) } } } } }
                 }
+                "Penjualan Kategori" -> OutlinedCard(Modifier.fillMaxWidth()) { Column(Modifier.padding(14.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                    Text("Penjualan per Kategori · transaksi lunas", style = MaterialTheme.typography.titleMedium)
+                    Text("Diurutkan berdasarkan omzet. Unit menunjukkan jumlah produk yang terjual.", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                    if (categorySales.isEmpty()) Text("Belum ada produk terjual pada periode ini.")
+                    categorySales.forEachIndexed { index, row ->
+                        HorizontalDivider()
+                        Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                            Surface(Modifier.size(34.dp), shape = RoundedCornerShape(10.dp), color = ReportChartPalette[index % ReportChartPalette.size].copy(alpha = 0.14f)) {
+                                Box(contentAlignment = Alignment.Center) { Text("${index + 1}", fontWeight = FontWeight.Bold, color = ReportChartPalette[index % ReportChartPalette.size]) }
+                            }
+                            Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(3.dp)) {
+                                Text(row[0], fontWeight = FontWeight.SemiBold)
+                                Text("${row[1]} unit terjual", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                            }
+                            Text(reportMoney(row[2].toDoubleOrNull() ?: 0.0), fontWeight = FontWeight.Bold)
+                        }
+                    }
+                    HorizontalDivider()
+                    Text("Total omzet kategori: ${reportMoney(categorySales.sumOf { it[2].toDoubleOrNull() ?: 0.0 })}", fontWeight = FontWeight.Bold)
+                } }
                 "Penjualan Harian" -> OutlinedCard(Modifier.fillMaxWidth()) { Column(Modifier.padding(14.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
                     Text("Penjualan per Tanggal", style = MaterialTheme.typography.titleMedium)
                     val byDate = orders.mapNotNull { o -> reportDate(o.createdAt)?.toLocalDate()?.let { it to o } }.groupBy({ it.first }, { it.second }).toSortedMap(compareByDescending { it })

@@ -722,7 +722,7 @@ PROTOKOL PENALARAN DAN KUALITAS JAWABAN
           messages: groqMessages,
           temperature: 0.2,
           top_p: 0.8,
-          reasoning_effort: "none",
+          reasoning_effort: "medium",
           reasoning_format: "hidden",
           max_completion_tokens: 1600,
           stream: false,

@@ -251,6 +251,7 @@ class PosViewModel(application: Application) : AndroidViewModel(application) {
     val printerManager = EscPosBluetoothManager(application)
     private val checkoutMutex = Mutex()
     private val orderRefreshMutex = Mutex()
+    private val staffAccessUpdateMutex = Mutex()
 
     private val _uiState = MutableStateFlow(
         PosUiState(
@@ -655,19 +656,58 @@ class PosViewModel(application: Application) : AndroidViewModel(application) {
         }
     }
 
-    fun toggleStaffPermission(userId: String, permKey: String) {
+    fun toggleStaffPermission(userId: String, permKey: String, enabled: Boolean? = null) {
         val state = _uiState.value
         val target = state.staffList.firstOrNull { it.userId == userId } ?: return
-        if (!canManageStaff(state, target)) { showNotice("Hanya owner yang dapat mengubah hak akses staf lain.", isError = true); return }
-        val next = target.permissions.toMutableMap().apply { put(permKey, target.permissions[permKey] != true) }
+        if (!canManageStaff(state, target)) {
+            showNotice("Hanya Owner yang dapat mengubah hak akses staf lain.", isError = true)
+            return
+        }
+        val nextValue = enabled ?: (target.permissions[permKey] != true)
+        val nextPermissions = target.permissions.toMutableMap().apply { put(permKey, nextValue) }
+        val optimistic = target.copy(permissions = nextPermissions)
         if (state.backendStatus != BackendIntegrationStatus.ACTIVE_VERIFIED) {
-            applyLocalStaffUpdate(target.copy(permissions = next), "Hak akses diperbarui (simulasi)."); return
+            applyLocalStaffUpdate(optimistic, "Hak akses diperbarui (simulasi).")
+            return
+        }
+
+        // Update the switch immediately; persist in the background without locking
+        // the whole screen behind the global loading state.
+        _uiState.update { current ->
+            current.copy(
+                staffList = current.staffList.map { if (it.userId == userId) optimistic else it },
+                errorMessage = null,
+                successMessage = null
+            )
         }
         viewModelScope.launch {
-            _uiState.update { it.copy(isLoading = true, errorMessage = null, successMessage = null) }
-            runCatching { repository.updateStaffProfile(userId, permissions = next) }
-                .onSuccess { saved -> _uiState.update { current -> current.copy(isLoading = false, staffList = current.staffList.map { if (it.userId == saved.userId) saved else it }, successMessage = "Hak akses ${saved.fullName} tersimpan.") } }
-                .onFailure { err -> _uiState.update { it.copy(isLoading = false, errorMessage = "Hak akses gagal disimpan: ${err.message ?: "periksa izin/RLS Supabase"}") }; syncAllDataFromBackend() }
+            staffAccessUpdateMutex.lock()
+            try {
+                // Read the latest optimistic map after waiting so quick consecutive
+                // switches do not overwrite each other's permission changes.
+                val latest = _uiState.value.staffList.firstOrNull { it.userId == userId } ?: optimistic
+                val saved = repository.updateStaffProfile(userId, permissions = latest.permissions)
+                _uiState.update { current ->
+                    current.copy(
+                        staffList = current.staffList.map {
+                            if (it.userId == userId) saved.copy(permissions = latest.permissions) else it
+                        },
+                        successMessage = "Hak akses ${latest.fullName} tersimpan.",
+                        errorMessage = null
+                    )
+                }
+            } catch (err: Exception) {
+                val refreshed = runCatching { repository.fetchStaffProfiles() }.getOrNull()
+                _uiState.update { current ->
+                    current.copy(
+                        staffList = refreshed ?: current.staffList.map { if (it.userId == userId) target else it },
+                        errorMessage = "Hak akses gagal disimpan: ${err.message ?: "periksa izin akun"}",
+                        successMessage = null
+                    )
+                }
+            } finally {
+                staffAccessUpdateMutex.unlock()
+            }
         }
     }
 

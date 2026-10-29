@@ -2364,6 +2364,7 @@ private fun ShiftKasirComposeScreen(viewModel: PosViewModel, uiState: PosUiState
     var entrySource by remember { mutableStateOf("cash_fund") }
     var typeMenuOpen by remember { mutableStateOf(false) }
     var sourceMenuOpen by remember { mutableStateOf(false) }
+    var recentEntriesExpanded by remember { mutableStateOf(true) }
     var confirmClose by remember { mutableStateOf(false) }
     val starts = uiState.cashFundEntries.filter { it.entryType == "set_target" }.sortedByDescending { it.createdAt ?: "" }
     val closes = uiState.cashFundEntries.filter { it.entryType == "close_session" }.sortedByDescending { it.createdAt ?: "" }
@@ -2374,6 +2375,13 @@ private fun ShiftKasirComposeScreen(viewModel: PosViewModel, uiState: PosUiState
     val sessionAdjustments = if (active) uiState.cashFundEntries.filter { it.entryType == "replenishment" && (it.createdAt ?: "") >= sessionStart }.sumOf { it.amount } else 0.0
     val sessionModalExpenses = if (active) uiState.expenses.filter { it.cashSource == "cash_fund" && (it.createdAt ?: "") >= sessionStart }.sumOf { it.amount } else 0.0
     val currentFund = ((latestStart?.amount ?: 0.0) + sessionAdjustments - sessionModalExpenses).coerceAtLeast(0.0)
+    val sessionRecentExpenses = if (active) uiState.expenses.filter {
+        (it.createdAt ?: "") >= sessionStart && (it.createdAt ?: "").isNotBlank()
+    }.sortedByDescending { it.createdAt ?: "" } else emptyList()
+    val sessionRecentFundEntries = if (active) uiState.cashFundEntries.filter {
+        it.entryType == "replenishment" && (it.createdAt ?: "") >= sessionStart
+    }.sortedByDescending { it.createdAt ?: "" } else emptyList()
+    val hasSessionNotes = sessionRecentExpenses.isNotEmpty() || sessionRecentFundEntries.isNotEmpty()
     val sessions = starts
     // Saldo sumber penjualan dihitung dari transaksi lunas aktual, bukan angka contoh.
     fun sourcePaymentGroup(rawInput: String): String {
@@ -2463,6 +2471,62 @@ private fun ShiftKasirComposeScreen(viewModel: PosViewModel, uiState: PosUiState
                 }
             }
         }
+        if (active && hasSessionNotes) item {
+            OutlinedCard(Modifier.fillMaxWidth()) {
+                Column(Modifier.fillMaxWidth().padding(14.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                    Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween, verticalAlignment = Alignment.CenterVertically) {
+                        Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(2.dp)) {
+                            Text("Catatan Pengeluaran Sesi Ini", style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold)
+                            Text("${sessionRecentExpenses.size + sessionRecentFundEntries.size} catatan terbaru", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                        }
+                        TextButton(onClick = { recentEntriesExpanded = !recentEntriesExpanded }) {
+                            Text(if (recentEntriesExpanded) "Tutup ▴" else "Lihat ▾")
+                        }
+                    }
+                    if (recentEntriesExpanded) {
+                        val recentNotes = (sessionRecentExpenses.map { Triple(it.createdAt ?: "", "expense", it) } +
+                            sessionRecentFundEntries.map { Triple(it.createdAt ?: "", "fund", it) })
+                            .sortedByDescending { it.first }
+                        recentNotes.forEach { note ->
+                            HorizontalDivider()
+                            if (note.second == "expense") {
+                                val expense = note.third as Expense
+                                Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween, verticalAlignment = Alignment.Top) {
+                                    Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(2.dp)) {
+                                        Text(expense.description, fontWeight = FontWeight.SemiBold)
+                                        Text("${expense.category} • " + when (expense.cashSource) {
+                                            "cash_fund" -> "Kas Modal"
+                                            "sales_cash" -> "Tunai"
+                                            "sales_qris" -> "QRIS"
+                                            "sales_transfer" -> "Transfer Bank"
+                                            else -> expense.cashSource
+                                        }, style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                                        Text(expense.createdAt ?: expense.expenseDate, style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                                    }
+                                    Text("−${RupiahFormatter.format(expense.amount)}", fontWeight = FontWeight.Bold, color = MaterialTheme.colorScheme.error)
+                                }
+                            } else {
+                                val fund = note.third as CashFundEntry
+                                Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween, verticalAlignment = Alignment.Top) {
+                                    Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(2.dp)) {
+                                        Text(fund.description, fontWeight = FontWeight.SemiBold)
+                                        Text("Adjustment • " + when (fund.source) {
+                                            "owner_funds" -> "Dari Owner"
+                                            "sales_cash" -> "Dari Tunai"
+                                            "sales_qris" -> "Dari QRIS"
+                                            "sales_transfer" -> "Dari Transfer Bank"
+                                            else -> fund.source
+                                        }, style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                                        Text(fund.createdAt ?: "Waktu tidak tersedia", style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                                    }
+                                    Text("+${RupiahFormatter.format(fund.amount)}", fontWeight = FontWeight.Bold, color = MaterialTheme.colorScheme.primary)
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        }
         if (active) item {
             OutlinedCard(Modifier.fillMaxWidth()) {
                 Column(Modifier.fillMaxWidth().padding(14.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
@@ -2475,9 +2539,9 @@ private fun ShiftKasirComposeScreen(viewModel: PosViewModel, uiState: PosUiState
                         }
                     }
                     Box {
-                        OutlinedButton(onClick = { sourceMenuOpen = true }, modifier = Modifier.fillMaxWidth()) { Text("Sumber: " + when (entrySource) { "cash_fund" -> "Kas Modal"; "sales_cash" -> "Hasil Penjualan Tunai"; "sales_qris" -> "Hasil Penjualan QRIS"; "sales_transfer" -> "Hasil Penjualan Transfer"; "owner_funds" -> "Uang pengembalian lain"; else -> "Kas Modal" }) }
+                        OutlinedButton(onClick = { sourceMenuOpen = true }, modifier = Modifier.fillMaxWidth()) { Text("Sumber: " + when (entrySource) { "cash_fund" -> "Kas Modal"; "sales_cash" -> "Hasil Penjualan Tunai"; "sales_qris" -> "Hasil Penjualan QRIS"; "sales_transfer" -> "Hasil Penjualan Transfer"; "owner_funds" -> "Dari Owner — Top Up Modal"; else -> "Kas Modal" }) }
                         DropdownMenu(expanded = sourceMenuOpen, onDismissRequest = { sourceMenuOpen = false }) {
-                            val options = if (entryType == "expense") listOf("cash_fund" to "Kas Modal", "sales_cash" to "Hasil Penjualan Tunai", "sales_qris" to "Hasil Penjualan QRIS", "sales_transfer" to "Hasil Penjualan Transfer") else listOf("owner_funds" to "Uang dikembalikan ke modal", "sales_cash" to "Dari hasil penjualan tunai", "sales_qris" to "Dari hasil penjualan QRIS", "sales_transfer" to "Dari hasil penjualan transfer", "other" to "Sumber lain")
+                            val options = if (entryType == "expense") listOf("cash_fund" to "Kas Modal", "sales_cash" to "Hasil Penjualan Tunai", "sales_qris" to "Hasil Penjualan QRIS", "sales_transfer" to "Hasil Penjualan Transfer") else listOf("owner_funds" to "Dari Owner — Top Up Modal", "sales_cash" to "Dari hasil penjualan tunai", "sales_qris" to "Dari hasil penjualan QRIS", "sales_transfer" to "Dari hasil penjualan transfer", "other" to "Sumber lain")
                             options.forEach { option -> DropdownMenuItem(text = { Text(option.second) }, onClick = { entrySource = option.first; sourceMenuOpen = false }) }
                         }
                     }

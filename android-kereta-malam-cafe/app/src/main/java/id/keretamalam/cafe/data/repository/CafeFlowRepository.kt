@@ -711,7 +711,11 @@ class CafeFlowRepository(private val context: Context) {
                 // Sandbox IDs (for example "tbl-1") are not UUIDs accepted by public.orders.table_id.
                 val validTableId = tableId?.takeIf { it.matches(Regex("(?i)^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$")) }
                 if (validTableId != null) put("table_id", validTableId) else put("table_id", JsonNull)
-                if (promotionId != null) put("promotion_id", promotionId) else put("promotion_id", JsonNull)
+                // Never send UI labels or sandbox keys (for example "row 01") to UUID columns.
+                val validPromotionId = promotionId?.takeIf {
+                    it.matches(Regex("(?i)^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$"))
+                }
+                if (validPromotionId != null) put("promotion_id", validPromotionId) else put("promotion_id", JsonNull)
                 put("customer_name", customerName ?: "Walk-in Customer")
                 put("notes", notes)
                 put("subtotal", subtotal)
@@ -751,12 +755,31 @@ class CafeFlowRepository(private val context: Context) {
             }
         }
 
-        val raw = executeJsonRequest(
-            method = "POST",
-            url = "${creds.supabaseUrl}/rest/v1/rpc/create_pos_order",
-            headers = buildHeaders(creds),
-            bodyJson = json.encodeToString(JsonObject.serializer(), rpcPayload)
-        )
+        val requestBody = json.encodeToString(JsonObject.serializer(), rpcPayload)
+        // A stale access token must not block checkout. Reuse the same idempotency key
+        // and identical payload after refreshing, so retry cannot intentionally create a second order.
+        val raw = try {
+            executeJsonRequest(
+                method = "POST",
+                url = "${creds.supabaseUrl}/rest/v1/rpc/create_pos_order",
+                headers = buildHeaders(creds),
+                bodyJson = requestBody
+            )
+        } catch (error: IllegalStateException) {
+            val message = error.message.orEmpty()
+            val isExpiredJwt = message.contains("HTTP 401") &&
+                (message.contains("JWT expired", ignoreCase = true) ||
+                 message.contains("token expired", ignoreCase = true) ||
+                 message.contains("invalid JWT", ignoreCase = true))
+            if (!isExpiredJwt) throw error
+            val refreshed = refreshAuthSession(creds)
+            executeJsonRequest(
+                method = "POST",
+                url = "${refreshed.supabaseUrl}/rest/v1/rpc/create_pos_order",
+                headers = buildHeaders(refreshed),
+                bodyJson = requestBody
+            )
+        }
         val responseObj = json.parseToJsonElement(raw).jsonObject
         val createdOrderId = responseObj["order"]?.jsonObject?.get("id")?.jsonPrimitive?.contentOrNull
             ?: throw IllegalStateException("Transaksi dibuat tetapi respons ID order dari backend tidak valid.")

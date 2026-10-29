@@ -80,6 +80,17 @@ import id.keretamalam.cafe.viewmodel.PosViewModel
 // ============================================================================
 // 0. STAFF LOGIN — keep backend configuration and local sandbox out of this screen.
 // ============================================================================
+private fun formatTimestampWib(raw: String?): String {
+    if (raw.isNullOrBlank()) return "—"
+    val zone = java.time.ZoneId.of("Asia/Jakarta")
+    val formatter = java.time.format.DateTimeFormatter.ofPattern("dd/MM/yyyy HH:mm", java.util.Locale("id", "ID"))
+    val instant = runCatching { java.time.Instant.parse(raw) }.getOrNull()
+        ?: runCatching { java.time.OffsetDateTime.parse(raw).toInstant() }.getOrNull()
+    if (instant != null) return formatter.withZone(zone).format(instant)
+    val local = runCatching { java.time.LocalDateTime.parse(raw.replace(' ', 'T')) }.getOrNull()
+    return local?.format(formatter) ?: raw
+}
+
 @Composable
 fun LoginComposeScreen(
     viewModel: PosViewModel,
@@ -2065,8 +2076,7 @@ private fun PesananComposeScreen(
                                     val tableName = order.restaurantTable?.name ?: "Takeaway"
                                     val customerName = order.customerName ?: "Walk-in"
                                     Text("${order.source.uppercase()} · $tableName · $customerName", style = MaterialTheme.typography.bodyMedium)
-                                    val time = order.createdAt.substringAfter("T", order.createdAt).take(5)
-                                    Text("Jam: $time · ${order.createdAt.take(10)}", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                                    Text("Waktu: ${formatTimestampWib(order.createdAt)} WIB", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
                                 }
                                 Column(horizontalAlignment = Alignment.End) {
                                     Text(order.status.labelId, fontWeight = FontWeight.Bold)
@@ -2326,7 +2336,7 @@ private fun HistoryComposeScreen(viewModel: PosViewModel, uiState: PosUiState) {
                         })
                         Column(modifier = Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(3.dp)) {
                             Text("#${order.orderNo} · ${order.customerName ?: "Walk-in"}", fontWeight = FontWeight.Bold)
-                            Text("Waktu: ${order.createdAt}", style = MaterialTheme.typography.bodySmall)
+                            Text("Waktu: ${formatTimestampWib(order.createdAt)} WIB", style = MaterialTheme.typography.bodySmall)
                             Text("Sumber: ${if (order.source.equals("qr", true)) "QR Meja" else "POS Kasir"} · Meja: ${order.restaurantTable?.name ?: "Takeaway"}", style = MaterialTheme.typography.bodyMedium)
                             Text("Metode: ${order.payments.firstOrNull()?.method ?: order.paymentMethod ?: "Belum ditentukan"} · Status: ${order.status.labelId}", style = MaterialTheme.typography.bodyMedium)
                             if (order.discount > 0) {

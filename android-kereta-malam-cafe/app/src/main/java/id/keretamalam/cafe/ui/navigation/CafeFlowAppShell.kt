@@ -116,9 +116,11 @@ fun CafeFlowAppShell(
         "Laporan Kanal" to "reports.channels",
         "Detail Pesanan" to "reports.order_details"
     )
-    val reportPages = allReportPages.filter { (_, permissionKey) ->
-        uiState.staffProfile.canAccessKey(permissionKey)
-    }.map { it.first }
+    val reportPages = remember(uiState.staffProfile) {
+        allReportPages.filter { (_, permissionKey) ->
+            uiState.staffProfile.canAccessKey(permissionKey)
+        }.map { it.first }
+    }
     LaunchedEffect(reportPages) {
         if (selectedReportPage !in reportPages) selectedReportPage = reportPages.firstOrNull().orEmpty()
     }

@@ -1484,9 +1484,14 @@ fun PegawaiComposeScreen(viewModel: PosViewModel, uiState: PosUiState) {
     var expandedAccessStaff by remember { mutableStateOf<String?>(null) }
     var selectedAccessGroup by remember { mutableStateOf("MENU") }
     val isOwner = uiState.staffProfile.role == StaffRole.OWNER && uiState.staffProfile.isActive
-    val modules = listOf("dashboard" to "Dashboard", "ai_assistant" to "AI Assistant & Riwayat Chat", "orders" to "Kasir & Pesanan", "cashier_report" to "Laporan Kasir", "payments" to "Pembayaran", "shift_management" to "Buka / Tutup Shift", "shift_audit" to "Audit Shift, filter tanggal & ekspor", "activity_log" to "Log Aktivitas & Audit Perubahan", "products" to "Produk & Stok", "inventory" to "Inventory", "tables" to "Meja & QR Menu", "reports" to "Laporan Penjualan", "expenses" to "Pengeluaran & Laba Rugi", "customers" to "Pelanggan & Loyalitas", "promotions" to "Promosi & Diskon", "printer_management" to "Printer", "settings" to "Pengaturan Outlet", "staff_management" to "Manajemen Pegawai", "export_data" to "Ekspor / Download Data (CSV)")
+    val modules = listOf("dashboard" to "Dashboard", "ai_assistant" to "AI Assistant & Riwayat Chat", "orders" to "Kasir & Pesanan", "sales_history" to "Riwayat Transaksi & Retur", "cashier_report" to "Laporan Kasir", "cash_fund" to "Kas Modal, Tunai & Non-tunai", "payments" to "Pembayaran", "shift_management" to "Buka / Tutup Shift", "shift_audit" to "Audit Shift, filter tanggal & ekspor", "activity_log" to "Log Aktivitas & Audit Perubahan", "products" to "Produk & Stok", "inventory" to "Inventory", "tables" to "Meja & QR Menu", "reports" to "Laporan Penjualan", "expenses" to "Pengeluaran & Laba Rugi", "customers" to "Pelanggan & Loyalitas", "promotions" to "Promosi & Diskon", "printer_management" to "Printer", "settings" to "Pengaturan Outlet", "staff_management" to "Manajemen Pegawai", "export_data" to "Ekspor / Download Data (CSV)")
     val metrics = listOf("dashboard.total_sales" to "Total penjualan", "dashboard.paid_orders" to "Jumlah transaksi lunas", "dashboard.average_transaction" to "Rata-rata transaksi", "dashboard.peak_hour" to "Jam tersibuk", "dashboard.trend_chart" to "Grafik tren omzet", "dashboard.hourly_activity" to "Aktivitas per jam", "dashboard.best_sellers" to "Menu terlaris", "dashboard.quick_actions" to "Akses cepat")
     val actionPermissions = listOf(
+        "orders.create" to "Buat pesanan / transaksi",
+        "orders.edit" to "Ubah pesanan sebelum dibayar",
+        "orders.refund" to "Proses retur / pengembalian transaksi",
+        "cash_fund.manage" to "Mulai / akhiri sesi dan catat modal",
+        "expenses.manage" to "Tambah pengeluaran dan adjustment",
         "products.edit" to "Tambah / edit produk",
         "products.delete" to "Hapus produk",
         "inventory.edit" to "Penyesuaian stok",

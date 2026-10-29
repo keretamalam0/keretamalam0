@@ -2378,7 +2378,8 @@ private fun ShiftKasirComposeScreen(viewModel: PosViewModel, uiState: PosUiState
     val sessionAdjustments = if (active) uiState.cashFundEntries.filter { it.entryType == "replenishment" && (it.createdAt ?: "") >= sessionStart }.sumOf { it.amount } else 0.0
     val sessionExpenses = if (active) uiState.expenses.filter {
         val createdAt = it.createdAt ?: ""
-        createdAt.isNotBlank() && if (activeStaffShiftId != null) it.shiftId == activeStaffShiftId else createdAt >= sessionStart
+        createdAt.isNotBlank() && createdAt >= sessionStart &&
+            (activeStaffShiftId == null || it.shiftId == activeStaffShiftId)
     } else emptyList()
     val sessionModalExpenses = sessionExpenses.filter { it.cashSource == "cash_fund" }.sumOf { it.amount }
     val currentFund = ((latestStart?.amount ?: 0.0) + sessionAdjustments - sessionModalExpenses).coerceAtLeast(0.0)

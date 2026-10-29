@@ -596,7 +596,7 @@ fun InventoryComposeScreen(viewModel: PosViewModel, uiState: PosUiState) {
                     Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(4.dp)) {
                         Text(mov.productName, fontWeight = FontWeight.SemiBold)
                         Text("${mov.type.uppercase()} · ${mov.reason}", style = MaterialTheme.typography.bodySmall)
-                        Text("${mov.createdAt} · Oleh ${mov.actorName}", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                        Text("${reportDate(mov.createdAt)?.format(java.time.format.DateTimeFormatter.ofPattern("dd/MM/yyyy HH:mm")) ?: mov.createdAt} WIB · Oleh ${mov.actorName}", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
                     }
                     Text(if (mov.quantity > 0) "+${mov.quantity}" else "${mov.quantity}", fontWeight = FontWeight.Bold, color = if (mov.quantity < 0) MaterialTheme.colorScheme.error else MaterialTheme.colorScheme.primary)
                 }
@@ -1395,7 +1395,7 @@ fun LaporanPenjualanComposeScreen(viewModel: PosViewModel, uiState: PosUiState, 
                 else -> OutlinedCard(Modifier.fillMaxWidth()) { Column(Modifier.padding(12.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
                     Text("Detail Semua Pesanan", style = MaterialTheme.typography.titleMedium)
                     OutlinedTextField(search, { search = it }, Modifier.fillMaxWidth(), label = { Text("Cari nomor order / pelanggan") }, singleLine = true)
-                    val details = orders.filter { search.isBlank() || it.orderNo.toString().contains(search.trim(), true) || (it.customerName ?: "").contains(search.trim(), true) }.sortedByDescending { reportDate(it.createdAt)?.toInstant(java.time.ZoneOffset.UTC)?.toEpochMilli() ?: 0L }
+                    val details = orders.filter { search.isBlank() || it.orderNo.toString().contains(search.trim(), true) || (it.customerName ?: "").contains(search.trim(), true) }.sortedByDescending { reportDate(it.createdAt)?.atZone(java.time.ZoneId.of("Asia/Jakarta"))?.toInstant()?.toEpochMilli() ?: 0L }
                     Text("${details.size} order · ${details.count { it.isPaid }} lunas · ${details.count { it.status == OrderStatus.CANCELLED }} batal", style = MaterialTheme.typography.bodySmall)
                     if (details.isEmpty()) Text("Tidak ada order yang cocok.")
                     details.forEach { o -> HorizontalDivider(); Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.Top, horizontalArrangement = Arrangement.spacedBy(8.dp)) { Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(3.dp)) { Text("Order #${o.orderNo} · ${o.customerName ?: "Walk-in"}", fontWeight = FontWeight.Bold); Text(reportDate(o.createdAt)?.format(java.time.format.DateTimeFormatter.ofPattern("dd MMM yyyy, HH:mm")) ?: o.createdAt, style = MaterialTheme.typography.bodySmall); Text("${if (o.source.equals("qr",true)) "QR Ordering" else "POS Kasir"} · ${o.paymentMethod?.uppercase() ?: "Metode belum ditentukan"}", style = MaterialTheme.typography.bodySmall); Text("${if (o.isPaid) "LUNAS" else if (o.status == OrderStatus.CANCELLED) "DIBATALKAN" else "BELUM LUNAS"} · ${o.status.labelId}", style = MaterialTheme.typography.labelSmall); o.orderItems.forEach { item -> Text("• ${item.quantity}× ${item.productName} — ${reportMoney(item.lineTotal)}", style = MaterialTheme.typography.bodySmall) } }; Text(reportMoney(o.total), fontWeight = FontWeight.Bold) } }

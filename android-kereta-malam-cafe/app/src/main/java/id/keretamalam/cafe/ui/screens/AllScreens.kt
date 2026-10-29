@@ -2389,7 +2389,12 @@ private fun ShiftKasirComposeScreen(viewModel: PosViewModel, uiState: PosUiState
             else -> "other"
         }
     }
-    val paidOrdersForBalance = uiState.orders.filter { it.isPaid && it.status != OrderStatus.CANCELLED && it.returnedAt == null }
+    // Saldo penjualan hanya untuk transaksi yang dibuat sejak sesi ini dimulai.
+    // Transaksi sebelum tombol "Mulai Sesi" tidak boleh ikut saldo sesi aktif.
+    val paidOrdersForBalance = uiState.orders.filter {
+        it.isPaid && it.status != OrderStatus.CANCELLED && it.returnedAt == null &&
+            sessionStart.isNotBlank() && it.createdAt >= sessionStart
+    }
     fun salesBalance(method: String): Double {
         val gross = paidOrdersForBalance.sumOf { order ->
             if (order.payments.isNotEmpty()) order.payments.filter { sourcePaymentGroup(it.method) == method }.sumOf { it.amount }
@@ -2400,8 +2405,10 @@ private fun ShiftKasirComposeScreen(viewModel: PosViewModel, uiState: PosUiState
             }
         }
         val source = when (method) { "cash" -> "sales_cash"; "qris" -> "sales_qris"; else -> "sales_transfer" }
-        val spent = uiState.expenses.filter { it.cashSource == source }.sumOf { it.amount }
-        val movedToModal = uiState.cashFundEntries.filter { it.entryType == "replenishment" && it.source == source }.sumOf { it.amount }
+        val spent = uiState.expenses.filter { it.cashSource == source && (it.createdAt ?: "") >= sessionStart }.sumOf { it.amount }
+        val movedToModal = uiState.cashFundEntries.filter {
+            it.entryType == "replenishment" && it.source == source && (it.createdAt ?: "") >= sessionStart
+        }.sumOf { it.amount }
         return (gross - spent - movedToModal).coerceAtLeast(0.0)
     }
     val availableSalesCash = salesBalance("cash")

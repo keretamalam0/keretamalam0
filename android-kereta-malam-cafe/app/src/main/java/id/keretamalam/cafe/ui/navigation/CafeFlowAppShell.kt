@@ -67,9 +67,9 @@ enum class PosModuleRoute(
 ) {
     DASHBOARD("dashboard", "Dashboard", "UTAMA", PermissionKey.DASHBOARD, Icons.Outlined.Dashboard),
     AI_ASSISTANT("ai", "AI Assistant", "AI", PermissionKey.AI_ASSISTANT, Icons.Outlined.SmartToy),
-    KASIR("kasir", "Kasir", "TRANSAKSI", PermissionKey.ORDERS, Icons.Outlined.PointOfSale),
+    KASIR("kasir", "Kasir", "TRANSAKSI", PermissionKey.POS, Icons.Outlined.PointOfSale),
     PESANAN("pesanan", "Pesanan", "TRANSAKSI", PermissionKey.ORDERS, Icons.Outlined.ReceiptLong),
-    CHAT_KASIR("chat-kasir", "Chat ke Kasir", "TRANSAKSI", PermissionKey.ORDERS, Icons.Outlined.Chat),
+    CHAT_KASIR("chat-kasir", "Chat ke Kasir", "TRANSAKSI", PermissionKey.CASHIER_CHAT, Icons.Outlined.Chat),
     HISTORY("history", "History", "TRANSAKSI", PermissionKey.SALES_HISTORY, Icons.Outlined.History),
     SHIFT_KASIR("shift-kasir", "Kas Modal & Pengeluaran", "TRANSAKSI", PermissionKey.CASH_FUND, Icons.Outlined.Payments),
     AUDIT_SHIFT("audit-shift", "Audit Shift", "TRANSAKSI", PermissionKey.SHIFT_AUDIT, Icons.Outlined.VerifiedUser),
@@ -78,7 +78,7 @@ enum class PosModuleRoute(
     MEJA("meja", "Meja & QR Menu", "PRODUK & OUTLET", PermissionKey.TABLES, Icons.Outlined.QrCode2),
     INVENTORY("inventory", "Inventory", "PRODUK & OUTLET", PermissionKey.INVENTORY, Icons.Outlined.Warehouse),
     PROMOSI("promosi", "Promosi & Diskon", "PEMASARAN", PermissionKey.PROMOTIONS, Icons.Outlined.Percent),
-    KEUANGAN("keuangan", "Profit & Loss", "MANAJEMEN", PermissionKey.EXPENSES, Icons.Outlined.AccountBalanceWallet),
+    KEUANGAN("keuangan", "Profit & Loss", "MANAJEMEN", PermissionKey.PROFIT_LOSS, Icons.Outlined.AccountBalanceWallet),
     LAPORAN("laporan", "Laporan Penjualan", "MANAJEMEN", PermissionKey.REPORTS, Icons.Outlined.BarChart),
     LAPORAN_KASIR("laporan-kasir", "Laporan Kasir", "TRANSAKSI", PermissionKey.CASHIER_REPORT, Icons.Outlined.ReceiptLong),
     PEGAWAI("pegawai", "Pegawai & Shift", "MANAJEMEN", PermissionKey.STAFF_MANAGEMENT, Icons.Outlined.Badge),
@@ -106,7 +106,22 @@ fun CafeFlowAppShell(
     var activeModule by remember { mutableStateOf(PosModuleRoute.DASHBOARD) }
     var reportMenuExpanded by remember { mutableStateOf(false) }
     var selectedReportPage by remember { mutableStateOf("Ringkasan Laporan") }
-    val reportPages = listOf("Ringkasan Laporan", "Penjualan Harian", "Penjualan Kategori", "Penjualan Produk", "Penjualan per Jam", "Laporan Pembayaran", "Laporan Kanal", "Detail Pesanan")
+    val allReportPages = listOf(
+        "Ringkasan Laporan" to "reports.daily_summary",
+        "Penjualan Harian" to "reports.daily_summary",
+        "Penjualan Kategori" to "reports.category_sales",
+        "Penjualan Produk" to "reports.product_sales",
+        "Penjualan per Jam" to "reports.hourly_sales",
+        "Laporan Pembayaran" to "reports.payment_methods",
+        "Laporan Kanal" to "reports.channels",
+        "Detail Pesanan" to "reports.order_details"
+    )
+    val reportPages = allReportPages.filter { (_, permissionKey) ->
+        uiState.staffProfile.canAccessKey(permissionKey)
+    }.map { it.first }
+    LaunchedEffect(reportPages) {
+        if (selectedReportPage !in reportPages) selectedReportPage = reportPages.firstOrNull().orEmpty()
+    }
     val drawerState = rememberDrawerState(initialValue = DrawerValue.Closed)
     val scope = rememberCoroutineScope()
 

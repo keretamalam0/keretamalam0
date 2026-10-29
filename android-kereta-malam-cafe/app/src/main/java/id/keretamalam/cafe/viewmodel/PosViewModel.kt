@@ -227,7 +227,7 @@ data class PosUiState(
             ?: runCatching { java.time.OffsetDateTime.parse(value).toInstant() }.getOrNull()
             ?: runCatching {
                 java.time.LocalDateTime.parse(value.replace(' ', 'T'))
-                    .atZone(java.time.ZoneId.systemDefault()).toInstant()
+                    .atZone(java.time.ZoneId.of("Asia/Jakarta")).toInstant()
             }.getOrNull()
     }
 
@@ -374,7 +374,9 @@ class PosViewModel(application: Application) : AndroidViewModel(application) {
     }
 
     private fun nowString(): String {
-        return SimpleDateFormat("yyyy-MM-dd HH:mm", Locale("id", "ID")).format(Date())
+        return SimpleDateFormat("yyyy-MM-dd HH:mm", Locale("id", "ID")).apply {
+            timeZone = java.util.TimeZone.getTimeZone("Asia/Jakarta")
+        }.format(Date())
     }
 
     private fun formatTimestampWib(raw: String?): String {

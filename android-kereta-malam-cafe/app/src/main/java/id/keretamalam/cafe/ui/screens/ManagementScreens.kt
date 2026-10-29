@@ -1519,7 +1519,35 @@ fun PegawaiComposeScreen(viewModel: PosViewModel, uiState: PosUiState) {
     var expandedAccessStaff by remember { mutableStateOf<String?>(null) }
     var selectedAccessGroup by remember { mutableStateOf("MENU") }
     val isOwner = uiState.staffProfile.role == StaffRole.OWNER && uiState.staffProfile.isActive
-    val modules = listOf("dashboard" to "Dashboard", "ai_assistant" to "AI Assistant & Riwayat Chat", "orders" to "Kasir & Pesanan", "sales_history" to "Riwayat Transaksi", "cashier_report" to "Laporan Kasir", "cash_fund" to "Kas Modal, Tunai & Non-tunai", "payments" to "Pembayaran", "shift_audit" to "Audit Shift", "activity_log" to "Log Aktivitas & Audit Perubahan", "products" to "Produk & Stok", "inventory" to "Inventory", "tables" to "Meja & QR Menu", "reports" to "Laporan Penjualan", "expenses" to "Pengeluaran & Laba Rugi", "customers" to "Pelanggan & Loyalitas", "promotions" to "Promosi & Diskon", "printer_management" to "Printer", "settings" to "Pengaturan Outlet", "staff_management" to "Manajemen Pegawai")
+    val modules = listOf(
+        "dashboard" to "Dashboard",
+        "ai_assistant" to "AI Assistant",
+        "pos" to "Kasir",
+        "orders" to "Pesanan",
+        "cashier_chat" to "Chat ke Kasir",
+        "sales_history" to "History Transaksi",
+        "cash_fund" to "Kas Modal",
+        "expenses" to "Pengeluaran",
+        "shift_audit" to "Audit Shift",
+        "activity_log" to "Log Aktivitas",
+        "cashier_report" to "Laporan Kasir",
+        "products" to "Produk & Stok",
+        "tables" to "Meja & QR Menu",
+        "inventory" to "Inventory",
+        "promotions" to "Promosi & Diskon",
+        "profit_loss" to "Profit & Loss",
+        "reports" to "Laporan Penjualan",
+        "reports.daily_summary" to "Ringkasan Penjualan Harian",
+        "reports.category_sales" to "Penjualan per Kategori",
+        "reports.product_sales" to "Penjualan per Produk",
+        "reports.hourly_sales" to "Penjualan per Jam",
+        "reports.payment_methods" to "Laporan Pembayaran",
+        "reports.channels" to "Laporan Kanal",
+        "reports.order_details" to "Detail Pesanan",
+        "staff_management" to "Pegawai & Shift",
+        "settings" to "Pengaturan Outlet",
+        "printer_management" to "Printer"
+    )
     val metrics = listOf("dashboard.total_sales" to "Total penjualan", "dashboard.paid_orders" to "Jumlah transaksi lunas", "dashboard.average_transaction" to "Rata-rata transaksi", "dashboard.peak_hour" to "Jam tersibuk", "dashboard.trend_chart" to "Grafik tren omzet", "dashboard.hourly_activity" to "Aktivitas per jam", "dashboard.best_sellers" to "Menu terlaris", "dashboard.quick_actions" to "Akses cepat")
     val actionPermissions = listOf(
         "orders.update_status" to "Ubah status pesanan",
@@ -1613,11 +1641,11 @@ fun PegawaiComposeScreen(viewModel: PosViewModel, uiState: PosUiState) {
                     }
                     when (selectedAccessGroup) {
                         "MENU" -> modules.forEach { (key, label) ->
-                            PermissionToggleRow(label, st.permissions[key] == true, isOwner && !isCurrent && st.role != StaffRole.OWNER && !uiState.isLoading) { viewModel.toggleStaffPermission(st.userId, key) }
+                            PermissionToggleRow(label, st.permissions[key] == true, isOwner && !isCurrent && st.role != StaffRole.OWNER) { enabled -> viewModel.toggleStaffPermission(st.userId, key, enabled) }
                         }
                         "DASHBOARD" -> metrics.forEach { (key, label) ->
                             val allowed = if (st.permissions.containsKey(key)) st.permissions[key] == true else st.permissions["dashboard"] == true
-                            PermissionToggleRow(label, allowed, isOwner && !isCurrent && st.role != StaffRole.OWNER && !uiState.isLoading) { viewModel.toggleStaffPermission(st.userId, key) }
+                            PermissionToggleRow(label, allowed, isOwner && !isCurrent && st.role != StaffRole.OWNER) { enabled -> viewModel.toggleStaffPermission(st.userId, key, enabled) }
                         }
                         else -> actionPermissions.forEach { (key, label) ->
                             PermissionToggleRow(label, st.permissions[key] == true, isOwner && !isCurrent && st.role != StaffRole.OWNER && !uiState.isLoading) { viewModel.toggleStaffPermission(st.userId, key) }
@@ -1629,10 +1657,18 @@ fun PegawaiComposeScreen(viewModel: PosViewModel, uiState: PosUiState) {
     }
 }
 @Composable
-private fun PermissionToggleRow(label: String, allowed: Boolean, enabled: Boolean, onToggle: () -> Unit) {
-    Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.SpaceBetween) {
+private fun PermissionToggleRow(label: String, allowed: Boolean, enabled: Boolean, onToggle: (Boolean) -> Unit) {
+    Row(
+        Modifier.fillMaxWidth().heightIn(min = 48.dp),
+        verticalAlignment = Alignment.CenterVertically,
+        horizontalArrangement = Arrangement.spacedBy(12.dp)
+    ) {
         Text(label, Modifier.weight(1f), style = MaterialTheme.typography.bodyMedium)
-        Switch(checked = allowed, onCheckedChange = { onToggle() }, enabled = enabled)
+        Switch(
+            checked = allowed,
+            onCheckedChange = onToggle,
+            enabled = enabled
+        )
     }
 }
 // ============================================================================

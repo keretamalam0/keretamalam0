@@ -6,6 +6,7 @@ import org.json.JSONObject
 import android.util.Base64
 import coil.compose.AsyncImage
 
+import androidx.compose.animation.core.rememberInfiniteTransition
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.Canvas

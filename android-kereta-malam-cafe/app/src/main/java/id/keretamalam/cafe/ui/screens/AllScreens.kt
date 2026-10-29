@@ -2394,10 +2394,10 @@ private fun ShiftKasirComposeScreen(viewModel: PosViewModel, uiState: PosUiState
         val raw = rawInput.lowercase().replace("-", "_").trim()
         return when {
             raw == "cash" || raw == "tunai" || raw.contains("cash") || raw.contains("tunai") -> "cash"
-            // Untuk saldo sumber dana, E-Wallet diarahkan ke kas tunai sesuai alur operasional outlet.
+            // E-Wallet termasuk non-tunai bersama QRIS dan transfer bank.
             raw.contains("ewallet") || raw.contains("e_wallet") || raw.contains("e wallet") ||
                 raw.contains("gopay") || raw.contains("go pay") || raw.contains("ovo") ||
-                raw.contains("dana") || raw.contains("shopeepay") || raw.contains("linkaja") -> "cash"
+                raw.contains("dana") || raw.contains("shopeepay") || raw.contains("linkaja") -> "transfer"
             raw.contains("qris") -> "qris"
             raw.contains("transfer") || raw.contains("bank") || raw.contains("bca") || raw.contains("bni") || raw.contains("bri") || raw.contains("mandiri") || raw.contains("permata") -> "transfer"
             else -> "other"
@@ -2418,10 +2418,10 @@ private fun ShiftKasirComposeScreen(viewModel: PosViewModel, uiState: PosUiState
                 if (sourcePaymentGroup(raw) == method) order.total else 0.0
             }
         }
-        val source = when (method) { "cash" -> "sales_cash"; "qris" -> "sales_qris"; else -> "sales_transfer" }
-        val spent = sessionExpenses.filter { it.cashSource == source }.sumOf { it.amount }
+        val sources = if (method == "cash") setOf("sales_cash") else setOf("sales_qris", "sales_transfer")
+        val spent = sessionExpenses.filter { it.cashSource in sources }.sumOf { it.amount }
         val movedToModal = uiState.cashFundEntries.filter {
-            it.entryType == "replenishment" && it.source == source && (it.createdAt ?: "") >= sessionStart
+            it.entryType == "replenishment" && it.source in sources && (it.createdAt ?: "") >= sessionStart
         }.sumOf { it.amount }
         return (gross - spent - movedToModal).coerceAtLeast(0.0)
     }
@@ -2467,12 +2467,8 @@ private fun ShiftKasirComposeScreen(viewModel: PosViewModel, uiState: PosUiState
                         Text(RupiahFormatter.format(availableSalesCash), fontWeight = FontWeight.SemiBold)
                     }
                     Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
-                        Text("QRIS")
-                        Text(RupiahFormatter.format(availableSalesQris), fontWeight = FontWeight.SemiBold)
-                    }
-                    Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
-                        Text("Transfer Bank")
-                        Text(RupiahFormatter.format(availableSalesTransfer), fontWeight = FontWeight.SemiBold)
+                        Text("Non-tunai (QRIS, transfer bank, e-wallet)")
+                        Text(RupiahFormatter.format(availableSalesQris + availableSalesTransfer), fontWeight = FontWeight.SemiBold)
                     }
                 }
             }
@@ -2553,9 +2549,9 @@ private fun ShiftKasirComposeScreen(viewModel: PosViewModel, uiState: PosUiState
                         }
                     }
                     Box {
-                        OutlinedButton(onClick = { sourceMenuOpen = true }, modifier = Modifier.fillMaxWidth()) { Text("Sumber: " + when (entrySource) { "cash_fund" -> "Kas Modal"; "sales_cash" -> "Hasil Penjualan Tunai"; "sales_qris" -> "Hasil Penjualan QRIS"; "sales_transfer" -> "Hasil Penjualan Transfer"; "owner_funds" -> "Dari Owner — Top Up Modal"; else -> "Kas Modal" }) }
+                        OutlinedButton(onClick = { sourceMenuOpen = true }, modifier = Modifier.fillMaxWidth()) { Text("Sumber: " + when (entrySource) { "cash_fund" -> "Kas Modal"; "sales_cash" -> "Tunai"; "sales_qris", "sales_transfer" -> "Non-tunai"; "owner_funds" -> "Dari Owner — Top Up Modal"; else -> "Kas Modal" }) }
                         DropdownMenu(expanded = sourceMenuOpen, onDismissRequest = { sourceMenuOpen = false }) {
-                            val options = if (entryType == "expense") listOf("cash_fund" to "Kas Modal", "sales_cash" to "Hasil Penjualan Tunai", "sales_qris" to "Hasil Penjualan QRIS", "sales_transfer" to "Hasil Penjualan Transfer") else listOf("owner_funds" to "Dari Owner — Top Up Modal", "sales_cash" to "Dari hasil penjualan tunai", "sales_qris" to "Dari hasil penjualan QRIS", "sales_transfer" to "Dari hasil penjualan transfer", "other" to "Sumber lain")
+                            val options = if (entryType == "expense") listOf("cash_fund" to "Kas Modal", "sales_cash" to "Tunai (hasil penjualan cash)", "sales_transfer" to "Non-tunai (QRIS, transfer bank, e-wallet)") else listOf("owner_funds" to "Dari Owner — Top Up Modal", "sales_cash" to "Dari hasil penjualan tunai", "sales_transfer" to "Dari hasil penjualan non-tunai", "other" to "Sumber lain")
                             options.forEach { option -> DropdownMenuItem(text = { Text(option.second) }, onClick = { entrySource = option.first; sourceMenuOpen = false }) }
                         }
                     }
@@ -2565,7 +2561,7 @@ private fun ShiftKasirComposeScreen(viewModel: PosViewModel, uiState: PosUiState
                         val amount = entryAmount.toDoubleOrNull() ?: 0.0
                         if (amount <= 0.0 || entryDescription.isBlank()) viewModel.showNotice("Nominal dan keterangan wajib diisi.", isError = true)
                         else if (entryType == "expense") {
-                            val method = when (entrySource) { "sales_qris" -> "qris"; "sales_transfer" -> "transfer"; else -> "cash" }
+                            val method = when (entrySource) { "sales_qris", "sales_transfer" -> "transfer"; else -> "cash" }
                             viewModel.addExpense(amount, "Operasional", java.time.LocalDate.now().toString(), method, entryDescription, entrySource)
                             entryAmount = ""; entryDescription = ""
                         } else {

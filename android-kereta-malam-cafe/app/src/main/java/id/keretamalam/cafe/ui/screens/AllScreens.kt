@@ -2540,8 +2540,16 @@ private fun ShiftKasirComposeScreen(viewModel: PosViewModel, uiState: PosUiState
                     Box {
                         OutlinedButton(onClick = { typeMenuOpen = true }, modifier = Modifier.fillMaxWidth()) { Text(if (entryType == "expense") "Jenis: Pengeluaran" else "Jenis: Adjustment / Pengembalian Modal") }
                         DropdownMenu(expanded = typeMenuOpen, onDismissRequest = { typeMenuOpen = false }) {
-                            DropdownMenuItem(text = { Text("Pengeluaran") }, onClick = { entryType = "expense"; typeMenuOpen = false })
-                            DropdownMenuItem(text = { Text("Adjustment / Pengembalian Modal") }, onClick = { entryType = "adjustment"; typeMenuOpen = false })
+                            DropdownMenuItem(text = { Text("Pengeluaran") }, onClick = {
+                                entryType = "expense"
+                                if (entrySource !in listOf("cash_fund", "sales_cash", "sales_qris", "sales_transfer")) entrySource = "cash_fund"
+                                typeMenuOpen = false
+                            })
+                            DropdownMenuItem(text = { Text("Adjustment / Pengembalian Modal") }, onClick = {
+                                entryType = "adjustment"
+                                if (entrySource !in listOf("owner_funds", "sales_cash", "sales_qris", "sales_transfer", "other")) entrySource = "owner_funds"
+                                typeMenuOpen = false
+                            })
                         }
                     }
                     Box {

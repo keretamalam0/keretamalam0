@@ -688,9 +688,11 @@ class PosViewModel(application: Application) : AndroidViewModel(application) {
                 val latest = _uiState.value.staffList.firstOrNull { it.userId == userId } ?: optimistic
                 val saved = repository.updateStaffProfile(userId, permissions = latest.permissions)
                 _uiState.update { current ->
+                    val newestPermissions = current.staffList.firstOrNull { it.userId == userId }?.permissions
+                        ?: latest.permissions
                     current.copy(
                         staffList = current.staffList.map {
-                            if (it.userId == userId) saved.copy(permissions = latest.permissions) else it
+                            if (it.userId == userId) saved.copy(permissions = newestPermissions) else it
                         },
                         successMessage = "Hak akses ${latest.fullName} tersimpan.",
                         errorMessage = null

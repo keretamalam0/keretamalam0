@@ -972,7 +972,7 @@ fun KeuanganComposeScreen(viewModel: PosViewModel, uiState: PosUiState) {
     val csvLauncher = rememberLauncherForActivityResult(ActivityResultContracts.CreateDocument("text/csv")) { uri ->
         if (uri != null) {
             CsvExporter.writeFinancialReportToUri(
-                context, uri, java.time.LocalDate.now().toString(), java.time.LocalDate.now().toString(),
+                context, uri, java.time.LocalDate.now(java.time.ZoneId.of("Asia/Jakarta")).toString(), java.time.LocalDate.now(java.time.ZoneId.of("Asia/Jakarta")).toString(),
                 netSales, cogs, totalExpenses, netProfit, uiState.expenses
             ).onSuccess { viewModel.showNotice("CSV Profit & Loss berhasil disimpan.") }
         }
@@ -1038,7 +1038,7 @@ private fun cashierReportGroup(categoryName: String): String {
 @Composable
 fun LaporanKasirComposeScreen(viewModel: PosViewModel, uiState: PosUiState) {
     val context = LocalContext.current
-    val today = remember { java.time.LocalDate.now() }
+    val today = remember { java.time.LocalDate.now(java.time.ZoneId.of("Asia/Jakarta")) }
     var startDate by remember { mutableStateOf(today) }
     var startTime by remember { mutableStateOf("17:00") }
     var endDate by remember { mutableStateOf(today.plusDays(1)) }

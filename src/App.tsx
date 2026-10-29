@@ -116,7 +116,7 @@ const NAV_GROUPS: NavGroup[] = [
       { id: 'kasir', label: 'Kasir', permission: 'orders', icon: ScanLine },
       { id: 'pesanan', label: 'Pesanan', permission: 'orders', icon: ClipboardList },
       { id: 'history', label: 'History', permission: 'orders', icon: History },
-      { id: 'shift-kasir', label: 'Opening & Closing', permission: 'orders', icon: Banknote },
+      { id: 'shift-kasir', label: 'Kas Modal & Pengeluaran', permission: 'orders', icon: Banknote },
       { id: 'audit-shift', label: 'Audit Shift', permission: 'orders', icon: ShieldCheck },
       { id: 'activity-log', label: 'Log Aktivitas', permission: 'settings', icon: History },
     ],
@@ -1954,7 +1954,7 @@ export default function App() {
                     <tr key={o.id} className="hover:bg-zinc-50/70 dark:hover:bg-zinc-800/40">
                       <td className="num px-4 py-3 font-bold">#{o.order_no}</td>
                       <td className="num px-4 py-3 text-zinc-500">
-                        {new Date(o.created_at).toLocaleString('id-ID')}
+                        {new Date(o.created_at).toLocaleString('id-ID', { timeZone: 'Asia/Jakarta' })}
                       </td>
                       <td className="px-4 py-3">
                         {o.restaurant_tables?.name ?? 'Takeaway'} · {o.source.toUpperCase()}
@@ -2000,12 +2000,12 @@ export default function App() {
                 <h3 className="text-base font-bold">Shift Kasir Sedang Berjalan (OPEN)</h3>
                 <p className="mt-1 text-xs text-zinc-500">
                   Kasir: {activeShift.staff_name} · Dibuka pada{' '}
-                  {new Date(activeShift.opened_at).toLocaleString('id-ID')}
+                  {new Date(activeShift.opened_at).toLocaleString('id-ID', { timeZone: 'Asia/Jakarta' })}
                 </p>
 
                 <div className="mt-4 grid gap-4 sm:grid-cols-3">
                   <div className="rounded-lg border border-zinc-200 p-4 dark:border-zinc-800">
-                    <p className="text-xs text-zinc-500">Modal Kas Awal (Opening)</p>
+                    <p className="text-xs text-zinc-500">Kas Modal Awal</p>
                     <p className="num mt-1 text-lg font-bold">{formatRupiah(activeShift.opening_cash)}</p>
                   </div>
                   <div className="rounded-lg border border-zinc-200 p-4 dark:border-zinc-800">
@@ -2021,7 +2021,7 @@ export default function App() {
                 </div>
 
                 <div className="mt-6 space-y-3 border-t border-zinc-100 pt-4 dark:border-zinc-800">
-                  <h4 className="text-sm font-bold">Form Closing Shift Kasir</h4>
+                  <h4 className="text-sm font-bold">Kas Modal & Pengeluaran</h4>
                   <div className="grid gap-3 sm:grid-cols-2">
                     <div>
                       <label className="block text-xs text-zinc-500">Hitung Fisik Kas Akhir (Rp)</label>

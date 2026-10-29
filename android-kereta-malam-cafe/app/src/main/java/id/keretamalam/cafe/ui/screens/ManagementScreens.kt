@@ -1635,22 +1635,57 @@ fun PegawaiComposeScreen(viewModel: PosViewModel, uiState: PosUiState) {
                     Text(if (expandedAccessStaff == st.userId) "▲" else "▼")
                 }
                 if (expandedAccessStaff == st.userId) {
-                    Text("Pilih kategori, lalu aktifkan hanya akses yang dibutuhkan pegawai.", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
-                    Row(Modifier.fillMaxWidth().horizontalScroll(rememberScrollState()), horizontalArrangement = Arrangement.spacedBy(6.dp)) {
-                        listOf("MENU" to "Menu", "DASHBOARD" to "Dashboard", "TINDAKAN" to "Tindakan").forEach { (key, label) ->
-                            FilterChip(selected = selectedAccessGroup == key, onClick = { selectedAccessGroup = key }, label = { Text(label) })
-                        }
-                    }
-                    when (selectedAccessGroup) {
-                        "MENU" -> modules.forEach { (key, label) ->
-                            PermissionToggleRow(label, st.permissions[key] == true, isOwner && !isCurrent && st.role != StaffRole.OWNER) { enabled -> viewModel.toggleStaffPermission(st.userId, key, enabled) }
-                        }
-                        "DASHBOARD" -> metrics.forEach { (key, label) ->
-                            val allowed = if (st.permissions.containsKey(key)) st.permissions[key] == true else st.permissions["dashboard"] == true
-                            PermissionToggleRow(label, allowed, isOwner && !isCurrent && st.role != StaffRole.OWNER) { enabled -> viewModel.toggleStaffPermission(st.userId, key, enabled) }
-                        }
-                        else -> actionPermissions.forEach { (key, label) ->
-                            PermissionToggleRow(label, st.permissions[key] == true, isOwner && !isCurrent && st.role != StaffRole.OWNER) { enabled -> viewModel.toggleStaffPermission(st.userId, key, enabled) }
+                    Text("Atur akses per menu, halaman, komponen, dan tindakan. Toggle disimpan ke Supabase dan berlaku untuk akun ini.", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                    modules.filterNot { it.first.startsWith("reports.") }.forEach { (key, label) ->
+                        val isExpanded = expandedPermissionMenu == key
+                        OutlinedCard(Modifier.fillMaxWidth()) {
+                            Column(Modifier.padding(horizontal = 12.dp, vertical = 6.dp), verticalArrangement = Arrangement.spacedBy(4.dp)) {
+                                Row(Modifier.fillMaxWidth().clickable { expandedPermissionMenu = if (isExpanded) null else key }.padding(vertical = 6.dp), verticalAlignment = Alignment.CenterVertically) {
+                                    Column(Modifier.weight(1f)) {
+                                        Text(label, fontWeight = FontWeight.SemiBold)
+                                        Text("Akses halaman utama", style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                                    }
+                                    Icon(if (isExpanded) Icons.Outlined.ExpandLess else Icons.Outlined.ExpandMore, contentDescription = null)
+                                }
+                                PermissionToggleRow("Buka halaman $label", st.permissions[key] == true, isOwner && !isCurrent && st.role != StaffRole.OWNER) { enabled -> viewModel.toggleStaffPermission(st.userId, key, enabled) }
+                                if (isExpanded) {
+                                    HorizontalDivider()
+                                    val nested = when (key) {
+                                        "dashboard" -> metrics
+                                        "pos" -> actionPermissions.filter { it.first.startsWith("pos.") || it.first.startsWith("payments") }
+                                        "orders" -> actionPermissions.filter { it.first.startsWith("orders.") }
+                                        "sales_history" -> actionPermissions.filter { it.first.startsWith("sales_history.") || it.first.startsWith("history.") }
+                                        "products" -> actionPermissions.filter { it.first.startsWith("products.") }
+                                        "inventory" -> actionPermissions.filter { it.first.startsWith("inventory.") }
+                                        "tables" -> actionPermissions.filter { it.first.startsWith("tables.") }
+                                        "promotions" -> actionPermissions.filter { it.first.startsWith("promotions.") }
+                                        "cash_fund" -> actionPermissions.filter { it.first.startsWith("expenses.") || it.first.startsWith("shift.") }
+                                        "shift_audit" -> actionPermissions.filter { it.first.startsWith("audit.") }
+                                        "reports" -> actionPermissions.filter { it.first.startsWith("reports.") || it.first.startsWith("report.") || it.first in setOf("export.download", "data.export") }
+                                        "staff_management" -> actionPermissions.filter { it.first.startsWith("staff.") }
+                                        "settings" -> actionPermissions.filter { it.first.startsWith("settings.") || it.first.startsWith("payments.manage_methods") }
+                                        "printer_management" -> actionPermissions.filter { it.first.startsWith("printer.") }
+                                        else -> emptyList()
+                                    }
+                                    val reportPages = if (key == "reports") listOf(
+                                        "reports.daily_summary" to "Halaman · Ringkasan penjualan harian",
+                                        "reports.category_sales" to "Halaman · Penjualan per kategori",
+                                        "reports.product_sales" to "Halaman · Penjualan per produk",
+                                        "reports.hourly_sales" to "Halaman · Penjualan per jam",
+                                        "reports.payment_methods" to "Halaman · Laporan pembayaran",
+                                        "reports.channels" to "Halaman · Laporan kanal",
+                                        "reports.order_details" to "Halaman · Detail pesanan"
+                                    ) else emptyList()
+                                    (nested + reportPages).distinctBy { it.first }.forEach { (permissionKey, permissionLabel) ->
+                                        val parentAllowed = st.permissions[key] == true
+                                        val childAllowed = if (st.permissions.containsKey(permissionKey)) st.permissions[permissionKey] == true else parentAllowed
+                                        PermissionToggleRow(permissionLabel, childAllowed, isOwner && !isCurrent && st.role != StaffRole.OWNER) { enabled -> viewModel.toggleStaffPermission(st.userId, permissionKey, enabled) }
+                                    }
+                                    if (nested.isEmpty() && reportPages.isEmpty()) {
+                                        Text("Menu ini tidak memiliki tindakan tambahan yang dapat diatur.", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant, modifier = Modifier.padding(vertical = 8.dp))
+                                    }
+                                }
+                            }
                         }
                     }
                 }

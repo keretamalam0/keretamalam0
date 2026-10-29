@@ -268,10 +268,13 @@ export default function App() {
   const [newTableCode, setNewTableCode] = useState('');
   const [selectedQrTable, setSelectedQrTable] = useState<RestaurantTable | null>(INITIAL_TABLES[0]);
 
-  // Shift Kasir State
-  const [openingCashInput, setOpeningCashInput] = useState('300000');
-  const [closingCashInput, setClosingCashInput] = useState('');
-  const [closingShiftNotes, setClosingShiftNotes] = useState('');
+  // Kas Modal & Pengeluaran State
+  const [cashFundEntries, setCashFundEntries] = useState<Array<{id:string;entry_type:string;amount:number;source:string;description:string;created_at?:string}>>([]);
+  const [cashFundTargetInput, setCashFundTargetInput] = useState('500000');
+  const [cashFundAmountInput, setCashFundAmountInput] = useState('');
+  const [cashFundSourceInput, setCashFundSourceInput] = useState('owner_funds');
+  const [cashFundDescriptionInput, setCashFundDescriptionInput] = useState('');
+  const [expenseCashSource, setExpenseCashSource] = useState('sales_cash');
 
   // Inventory Form State
   const [invProductId, setInvProductId] = useState(INITIAL_PRODUCTS[0]?.id || '');
@@ -408,7 +411,7 @@ export default function App() {
     }
     setIsSyncingBackend(true);
     try {
-      const [catRes, prodRes, tblRes, ordRes, promoRes, paymentRes, outletRes, staffRes] = await Promise.all([
+      const [catRes, prodRes, tblRes, ordRes, promoRes, paymentRes, outletRes, staffRes, fundRes, expenseRes] = await Promise.all([
         client.from('categories').select('*').order('sort_order'),
         client.from('products').select('*').order('name'),
         client.from('restaurant_tables').select('*').order('code'),
@@ -421,6 +424,8 @@ export default function App() {
         client.from('payment_methods').select('*').order('sort_order'),
         client.from('outlet_settings').select('*').limit(1).maybeSingle(),
         client.from('staff_profiles').select('*').order('created_at'),
+        client.from('cash_fund_entries').select('*').order('created_at', { ascending: false }).limit(100),
+        client.from('expenses').select('*').order('created_at', { ascending: false }).limit(200),
       ]);
 
       if (catRes.error) throw catRes.error;
@@ -454,6 +459,8 @@ export default function App() {
       }
       if (!paymentRes.error && paymentRes.data) setPaymentMethods(paymentRes.data as typeof paymentMethods);
       if (!staffRes.error && staffRes.data) setStaffList(staffRes.data as unknown as StaffProfile[]);
+      if (!fundRes.error && fundRes.data) setCashFundEntries(fundRes.data as Array<{id:string;entry_type:string;amount:number;source:string;description:string;created_at?:string}>);
+      if (!expenseRes.error && expenseRes.data) setExpenses(expenseRes.data as unknown as typeof expenses);
       if (!outletRes.error && outletRes.data) {
         const o = outletRes.data as Record<string, unknown>;
         setOutletSettings(prev => ({...prev, name:String(o.name ?? prev.name), address:String(o.address ?? prev.address), phone:String(o.phone ?? prev.phone), tax_rate:Number(o.tax_rate ?? prev.tax_rate), service_rate:Number(o.service_rate ?? prev.service_rate), tax_enabled:Boolean(o.tax_enabled), service_enabled:Boolean(o.service_enabled), cash_enabled:Boolean(o.cash_enabled), card_enabled:Boolean(o.card_enabled), qris_enabled:Boolean(o.qris_enabled), app_language:(String(o.app_language ?? 'id') as OutletSettings['app_language'])}));
@@ -1988,146 +1995,103 @@ export default function App() {
       // 6. OPENING & CLOSING (SHIFT KASIR)
       // ======================================================================
       case 'shift-kasir': {
-        const activeShift = shifts.find((s) => s.status === 'open');
-        const cashSalesDuringShift = paidOrders
-          .filter((o) => o.payment_method === 'cash')
-          .reduce((s, o) => s + o.total, 0);
-
+        const target = cashFundEntries.find((entry) => entry.entry_type === 'set_target');
+        const targetAmount = Number(target?.amount || 0);
+        const replenished = cashFundEntries.filter((entry) => entry.entry_type === 'replenishment').reduce((sum, entry) => sum + Number(entry.amount || 0), 0);
+        const usedFromFund = expenses.filter((expense) => expense.cash_source === 'cash_fund').reduce((sum, expense) => sum + Number(expense.amount || 0), 0);
+        const balance = Math.max(0, targetAmount + replenished - usedFromFund);
+        const saveFund = async (type: 'set_target' | 'replenishment') => {
+          const amount = Number(type === 'set_target' ? cashFundTargetInput : cashFundAmountInput);
+          const description = cashFundDescriptionInput.trim() || (type === 'set_target' ? 'Penetapan kas modal awal' : 'Penyesuaian / isi ulang modal');
+          if (!Number.isFinite(amount) || amount <= 0) { showNotice('error', 'Nominal kas modal harus lebih dari nol.'); return; }
+          if (type === 'set_target' && currentStaff.role !== 'owner') { showNotice('error', 'Hanya Owner yang boleh menetapkan kas modal awal.'); return; }
+          try {
+            let saved: {id:string;entry_type:string;amount:number;source:string;description:string;created_at?:string};
+            if (backendMode === 'LIVE_SUPABASE') {
+              const client = getVerifiedSupabaseClient(supabaseConfig);
+              if (!client) throw new Error('Koneksi Supabase belum siap.');
+              const { data: ownerId, error: ownerError } = await client.rpc('km_resolve_owner_id');
+              if (ownerError || !ownerId) throw ownerError || new Error('Owner outlet tidak ditemukan.');
+              const { data, error } = await client.rpc('km_record_cash_fund_entry', { p_owner_id: ownerId, p_entry_type: type, p_amount: amount, p_source: type === 'set_target' ? 'setting' : cashFundSourceInput, p_description: description, p_idempotency_key: crypto.randomUUID() });
+              if (error) throw error;
+              const row = Array.isArray(data) ? data[0] : data;
+              if (!row) throw new Error('Server tidak mengembalikan catatan kas modal.');
+              saved = row as typeof saved;
+            } else {
+              saved = { id: crypto.randomUUID(), entry_type: type, amount, source: type === 'set_target' ? 'setting' : cashFundSourceInput, description, created_at: new Date().toISOString() };
+            }
+            setCashFundEntries((prev) => [saved, ...prev]);
+            setCashFundAmountInput(''); setCashFundDescriptionInput('');
+            showNotice('success', type === 'set_target' ? 'Kas modal awal tersimpan.' : 'Penyesuaian kas modal tersimpan.');
+          } catch (error) { showNotice('error', error instanceof Error ? error.message : 'Kas modal gagal disimpan.'); }
+        };
+        const saveExpense = async () => {
+          const amount = Number(expenseAmount);
+          if (!Number.isFinite(amount) || amount <= 0 || !expenseDesc.trim()) { showNotice('error', 'Nominal dan keterangan pengeluaran wajib diisi.'); return; }
+          try {
+            let saved: typeof expenses[number];
+            if (backendMode === 'LIVE_SUPABASE') {
+              const client = getVerifiedSupabaseClient(supabaseConfig);
+              if (!client) throw new Error('Koneksi Supabase belum siap.');
+              const { data: ownerId, error: ownerError } = await client.rpc('km_resolve_owner_id');
+              if (ownerError || !ownerId) throw ownerError || new Error('Owner outlet tidak ditemukan.');
+              const { data, error } = await client.rpc('km_record_operational_expense', { p_owner_id: ownerId, p_amount: amount, p_category: expenseCategory, p_description: expenseDesc.trim(), p_expense_date: expenseDate, p_payment_method: expenseMethod, p_cash_source: expenseCashSource, p_idempotency_key: crypto.randomUUID(), p_shift_id: null });
+              if (error) throw error;
+              const row = Array.isArray(data) ? data[0] : data;
+              if (!row) throw new Error('Server tidak mengembalikan catatan pengeluaran.');
+              saved = row as typeof saved;
+            } else {
+              saved = { id: crypto.randomUUID(), amount, category: expenseCategory, description: expenseDesc.trim(), expense_date: expenseDate, payment_method: expenseMethod, cash_source: expenseCashSource, created_at: new Date().toISOString() } as typeof expenses[number];
+            }
+            setExpenses((prev) => [saved, ...prev]);
+            setExpenseAmount(''); setExpenseDesc('');
+            showNotice('success', 'Pengeluaran berhasil disimpan.');
+          } catch (error) { showNotice('error', error instanceof Error ? error.message : 'Pengeluaran gagal disimpan.'); }
+        };
         return (
-          <div className="mx-auto max-w-4xl space-y-6">
-            {activeShift ? (
-              <div className="rounded-xl border border-zinc-200 bg-white p-6 dark:border-zinc-800 dark:bg-zinc-900">
-                <h3 className="text-base font-bold">Shift Kasir Sedang Berjalan (OPEN)</h3>
-                <p className="mt-1 text-xs text-zinc-500">
-                  Kasir: {activeShift.staff_name} · Dibuka pada{' '}
-                  {new Date(activeShift.opened_at).toLocaleString('id-ID', { timeZone: 'Asia/Jakarta' })}
-                </p>
-
-                <div className="mt-4 grid gap-4 sm:grid-cols-3">
-                  <div className="rounded-lg border border-zinc-200 p-4 dark:border-zinc-800">
-                    <p className="text-xs text-zinc-500">Kas Modal Awal</p>
-                    <p className="num mt-1 text-lg font-bold">{formatRupiah(activeShift.opening_cash)}</p>
-                  </div>
-                  <div className="rounded-lg border border-zinc-200 p-4 dark:border-zinc-800">
-                    <p className="text-xs text-zinc-500">Penjualan Tunai Shift Ini</p>
-                    <p className="num mt-1 text-lg font-bold">{formatRupiah(cashSalesDuringShift)}</p>
-                  </div>
-                  <div className="rounded-lg border border-zinc-200 p-4 dark:border-zinc-800">
-                    <p className="text-xs text-zinc-500">Ekspektasi Kas Laci</p>
-                    <p className="num mt-1 text-lg font-bold">
-                      {formatRupiah(activeShift.opening_cash + cashSalesDuringShift)}
-                    </p>
-                  </div>
-                </div>
-
-                <div className="mt-6 space-y-3 border-t border-zinc-100 pt-4 dark:border-zinc-800">
-                  <h4 className="text-sm font-bold">Kas Modal & Pengeluaran</h4>
-                  <div className="grid gap-3 sm:grid-cols-2">
-                    <div>
-                      <label className="block text-xs text-zinc-500">Hitung Fisik Kas Akhir (Rp)</label>
-                      <input
-                        type="number"
-                        value={closingCashInput}
-                        onChange={(e) => setClosingCashInput(e.target.value)}
-                        placeholder={String(activeShift.opening_cash + cashSalesDuringShift)}
-                        className="num mt-1 w-full rounded-lg border border-zinc-200 bg-zinc-50 px-3 py-2 text-xs dark:border-zinc-800 dark:bg-zinc-950"
-                      />
-                    </div>
-                    <div>
-                      <label className="block text-xs text-zinc-500">Catatan Closing</label>
-                      <input
-                        type="text"
-                        value={closingShiftNotes}
-                        onChange={(e) => setClosingShiftNotes(e.target.value)}
-                        placeholder="Catatan setoran / selisih..."
-                        className="mt-1 w-full rounded-lg border border-zinc-200 bg-zinc-50 px-3 py-2 text-xs dark:border-zinc-800 dark:bg-zinc-950"
-                      />
-                    </div>
-                  </div>
-                  <button
-                    type="button"
-                    onClick={() => {
-                      const actual = Number(closingCashInput) || activeShift.opening_cash + cashSalesDuringShift;
-                      const expected = activeShift.opening_cash + cashSalesDuringShift;
-                      setShifts((prev) =>
-                        prev.map((s) =>
-                          s.id === activeShift.id
-                            ? {
-                                ...s,
-                                status: 'closed',
-                                closing_cash: actual,
-                                expected_cash: expected,
-                                notes: closingShiftNotes || s.notes,
-                                closed_at: new Date().toISOString(),
-                              }
-                            : s
-                        )
-                      );
-                      appendAuditLog('shift.close', 'staff_shifts', activeShift.id, {
-                        closing_cash: actual,
-                        expected_cash: expected,
-                      });
-                      setClosingCashInput('');
-                      setClosingShiftNotes('');
-                      showNotice('success', 'Shift kasir berhasil ditutup dan dikirim ke Audit Shift.');
-                    }}
-                    className="rounded-xl bg-zinc-900 px-5 py-2.5 text-xs font-bold text-white dark:bg-zinc-100 dark:text-zinc-900"
-                  >
-                    Tutup Shift Sekarang (Closing)
-                  </button>
-                </div>
+          <div className="mx-auto max-w-4xl space-y-5">
+            <section className="rounded-xl border border-zinc-200 bg-white p-5 dark:border-zinc-800 dark:bg-zinc-900">
+              <h3 className="text-base font-bold">Kas Modal</h3>
+              <p className="mt-1 text-xs text-zinc-500">Tetapkan target modal, lalu catat penyesuaian atau isi ulang. Waktu ditampilkan dalam WIB.</p>
+              <div className="mt-4 grid gap-3 sm:grid-cols-3">
+                <div className="rounded-lg border p-4 dark:border-zinc-800"><p className="text-xs text-zinc-500">Target Modal</p><p className="num mt-1 text-lg font-bold">{formatRupiah(targetAmount)}</p></div>
+                <div className="rounded-lg border p-4 dark:border-zinc-800"><p className="text-xs text-zinc-500">Total Isi Ulang</p><p className="num mt-1 text-lg font-bold">{formatRupiah(replenished)}</p></div>
+                <div className="rounded-lg border p-4 dark:border-zinc-800"><p className="text-xs text-zinc-500">Saldo Kas Modal</p><p className="num mt-1 text-lg font-bold">{formatRupiah(balance)}</p></div>
               </div>
-            ) : (
-              <div className="rounded-xl border border-zinc-200 bg-white p-6 dark:border-zinc-800 dark:bg-zinc-900">
-                <h3 className="text-base font-bold">Buka Shift Kasir Baru (Opening)</h3>
-                <p className="mt-1 text-xs text-zinc-500">
-                  Masukkan modal uang kembalian awal di laci kasir sebelum memulai transaksi.
-                </p>
-                <div className="mt-4 flex flex-wrap items-end gap-3">
-                  <div>
-                    <label className="block text-xs text-zinc-500">Modal Kas Awal (Rp)</label>
-                    <input
-                      type="number"
-                      value={openingCashInput}
-                      onChange={(e) => setOpeningCashInput(e.target.value)}
-                      className="num mt-1 rounded-lg border border-zinc-200 bg-zinc-50 px-3 py-2 text-xs dark:border-zinc-800 dark:bg-zinc-950"
-                    />
-                  </div>
-                  <button
-                    type="button"
-                    onClick={() => {
-                      const openAmt = Math.max(0, Number(openingCashInput) || 0);
-                      const newShift: StaffShift = {
-                        id: `shf-${Date.now()}`,
-                        staff_user_id: currentStaff.user_id,
-                        staff_name: currentStaff.full_name,
-                        opening_cash: openAmt,
-                        closing_cash: null,
-                        expected_cash: openAmt,
-                        status: 'open',
-                        notes: 'Shift dibuka dari aplikasi Android',
-                        audit_verified: false,
-                        opened_at: new Date().toISOString(),
-                        closed_at: null,
-                      };
-                      setShifts((prev) => [newShift, ...prev]);
-                      appendAuditLog('shift.open', 'staff_shifts', newShift.id, { opening_cash: openAmt });
-                      showNotice('success', `Shift baru dibuka dengan modal awal ${formatRupiah(openAmt)}.`);
-                    }}
-                    className="rounded-xl bg-zinc-900 px-5 py-2.5 text-xs font-bold text-white dark:bg-zinc-100 dark:text-zinc-900"
-                  >
-                    Buka Shift Kasir
-                  </button>
+              {!target ? <div className="mt-5 space-y-3 border-t pt-4 dark:border-zinc-800">
+                <h4 className="text-sm font-bold">Tetapkan Kas Modal Awal</h4>
+                <input type="number" min="1" value={cashFundTargetInput} onChange={(e) => setCashFundTargetInput(e.target.value)} className="num w-full rounded-lg border bg-zinc-50 px-3 py-2 text-xs dark:border-zinc-800 dark:bg-zinc-950" placeholder="Contoh: 500000" />
+                <input value={cashFundDescriptionInput} onChange={(e) => setCashFundDescriptionInput(e.target.value)} className="w-full rounded-lg border bg-zinc-50 px-3 py-2 text-xs dark:border-zinc-800 dark:bg-zinc-950" placeholder="Keterangan modal awal" />
+                <button type="button" disabled={currentStaff.role !== 'owner'} onClick={() => void saveFund('set_target')} className="rounded-xl bg-zinc-900 px-5 py-2.5 text-xs font-bold text-white disabled:opacity-40 dark:bg-zinc-100 dark:text-zinc-900">Simpan Kas Modal Awal</button>
+                {currentStaff.role !== 'owner' && <p className="text-xs text-amber-600">Login sebagai Owner untuk menetapkan modal awal.</p>}
+              </div> : <div className="mt-5 space-y-3 border-t pt-4 dark:border-zinc-800">
+                <h4 className="text-sm font-bold">Penyesuaian / Isi Ulang Modal</h4>
+                <div className="grid gap-3 sm:grid-cols-2">
+                  <input type="number" min="1" value={cashFundAmountInput} onChange={(e) => setCashFundAmountInput(e.target.value)} className="num w-full rounded-lg border bg-zinc-50 px-3 py-2 text-xs dark:border-zinc-800 dark:bg-zinc-950" placeholder="Nominal isi ulang (Rp)" />
+                  <select value={cashFundSourceInput} onChange={(e) => setCashFundSourceInput(e.target.value)} className="w-full rounded-lg border bg-zinc-50 px-3 py-2 text-xs dark:border-zinc-800 dark:bg-zinc-950"><option value="owner_funds">Dana Owner</option><option value="sales_cash">Tunai (penjualan cash)</option><option value="sales_qris">QRIS</option><option value="sales_transfer">Non-tunai (QRIS, transfer bank, e-wallet)</option><option value="other">Lainnya</option></select>
                 </div>
-              </div>
-            )}
+                <input value={cashFundDescriptionInput} onChange={(e) => setCashFundDescriptionInput(e.target.value)} className="w-full rounded-lg border bg-zinc-50 px-3 py-2 text-xs dark:border-zinc-800 dark:bg-zinc-950" placeholder="Keterangan penyesuaian" />
+                <button type="button" onClick={() => void saveFund('replenishment')} className="rounded-xl bg-zinc-900 px-5 py-2.5 text-xs font-bold text-white dark:bg-zinc-100 dark:text-zinc-900">Simpan Penyesuaian</button>
+              </div>}
+              <div className="mt-5 border-t pt-4 dark:border-zinc-800"><h4 className="text-sm font-bold">Riwayat Kas Modal</h4>{cashFundEntries.length ? cashFundEntries.map((entry) => <div key={entry.id} className="flex flex-wrap justify-between gap-2 border-b py-3 text-xs dark:border-zinc-800"><div><p className="font-semibold">{entry.entry_type === 'set_target' ? 'Kas modal awal' : 'Penyesuaian / isi ulang'} · {entry.description}</p><p className="text-zinc-500">{entry.source} · {entry.created_at ? new Date(entry.created_at).toLocaleString('id-ID', {timeZone:'Asia/Jakarta'}) : '—'} WIB</p></div><p className="num font-bold">{formatRupiah(Number(entry.amount || 0))}</p></div>) : <p className="mt-2 text-xs text-zinc-500">Belum ada riwayat kas modal.</p>}</div>
+            </section>
+            <section className="rounded-xl border border-zinc-200 bg-white p-5 dark:border-zinc-800 dark:bg-zinc-900">
+              <h3 className="text-base font-bold">Pengeluaran Operasional</h3><p className="mt-1 text-xs text-zinc-500">Non-tunai mencakup QRIS, transfer bank, dan e-wallet.</p>
+              <form onSubmit={(e) => { e.preventDefault(); void saveExpense(); }} className="mt-4 grid gap-3 sm:grid-cols-2">
+                <div><label className="block text-xs text-zinc-500">Nominal (Rp)</label><input required type="number" min="1" value={expenseAmount} onChange={(e) => setExpenseAmount(e.target.value)} className="num mt-1 w-full rounded-lg border bg-zinc-50 px-3 py-2 text-xs dark:border-zinc-800 dark:bg-zinc-950" /></div>
+                <div><label className="block text-xs text-zinc-500">Kategori</label><select value={expenseCategory} onChange={(e) => setExpenseCategory(e.target.value)} className="mt-1 w-full rounded-lg border bg-zinc-50 px-3 py-2 text-xs dark:border-zinc-800 dark:bg-zinc-950"><option>Bahan baku</option><option>Operasional</option><option>Gaji</option><option>Transportasi</option><option>Gas</option><option>Lainnya</option></select></div>
+                <div><label className="block text-xs text-zinc-500">Tanggal</label><input required type="date" value={expenseDate} onChange={(e) => setExpenseDate(e.target.value)} className="mt-1 w-full rounded-lg border bg-zinc-50 px-3 py-2 text-xs dark:border-zinc-800 dark:bg-zinc-950" /></div>
+                <div><label className="block text-xs text-zinc-500">Sumber Dana</label><select value={expenseCashSource} onChange={(e) => setExpenseCashSource(e.target.value)} className="mt-1 w-full rounded-lg border bg-zinc-50 px-3 py-2 text-xs dark:border-zinc-800 dark:bg-zinc-950"><option value="cash_fund">Kas Modal</option><option value="sales_cash">Tunai (penjualan cash)</option><option value="sales_transfer">Non-tunai (QRIS, transfer bank, e-wallet)</option><option value="other">Lainnya</option></select></div>
+                <div><label className="block text-xs text-zinc-500">Metode Pembayaran</label><select value={expenseMethod} onChange={(e) => setExpenseMethod(e.target.value)} className="mt-1 w-full rounded-lg border bg-zinc-50 px-3 py-2 text-xs dark:border-zinc-800 dark:bg-zinc-950"><option value="cash">Tunai</option><option value="qris">QRIS</option><option value="transfer">Transfer / E-wallet</option></select></div>
+                <div><label className="block text-xs text-zinc-500">Keterangan</label><input required value={expenseDesc} onChange={(e) => setExpenseDesc(e.target.value)} placeholder="Contoh: beli gas" className="mt-1 w-full rounded-lg border bg-zinc-50 px-3 py-2 text-xs dark:border-zinc-800 dark:bg-zinc-950" /></div>
+                <div className="sm:col-span-2"><button type="submit" className="rounded-xl bg-zinc-900 px-5 py-2.5 text-xs font-bold text-white dark:bg-zinc-100 dark:text-zinc-900">Simpan Pengeluaran</button></div>
+              </form>
+              <div className="mt-5 border-t pt-4 dark:border-zinc-800"><h4 className="text-sm font-bold">Pengeluaran Terbaru</h4>{expenses.length ? expenses.slice(0,12).map((expense) => <div key={expense.id} className="flex flex-wrap justify-between gap-2 border-b py-3 text-xs dark:border-zinc-800"><div><p className="font-semibold">{expense.category} · {expense.description}</p><p className="text-zinc-500">{expense.cash_source || expense.payment_method} · {expense.created_at ? new Date(expense.created_at).toLocaleString('id-ID', {timeZone:'Asia/Jakarta'}) : expense.expense_date}</p></div><p className="num font-bold">{formatRupiah(Number(expense.amount || 0))}</p></div>) : <p className="mt-2 text-xs text-zinc-500">Belum ada pengeluaran.</p>}</div>
+            </section>
           </div>
         );
       }
 
-      // ======================================================================
-      // 7. AUDIT SHIFT
-      // ======================================================================
       case 'audit-shift':
         return (
           <div className="space-y-4">
@@ -2160,7 +2124,7 @@ export default function App() {
                         <tr key={s.id}>
                           <td className="px-4 py-3 font-semibold">{s.staff_name}</td>
                           <td className="num px-4 py-3 text-zinc-500">
-                            {new Date(s.opened_at).toLocaleString('id-ID')}
+                            {new Date(s.opened_at).toLocaleString('id-ID', { timeZone: 'Asia/Jakarta' })}
                           </td>
                           <td className="px-4 py-3 uppercase">{s.status}</td>
                           <td className="num px-4 py-3 text-right">{formatRupiah(s.opening_cash)}</td>
@@ -2227,7 +2191,7 @@ export default function App() {
                   <div className="text-right">
                     <p className="font-mono text-[11px] text-zinc-600 dark:text-zinc-400">{log.details}</p>
                     <p className="num text-[11px] text-zinc-400">
-                      {new Date(log.created_at).toLocaleString('id-ID')}
+                      {new Date(log.created_at).toLocaleString('id-ID', { timeZone: 'Asia/Jakarta' })}
                     </p>
                   </div>
                 </div>

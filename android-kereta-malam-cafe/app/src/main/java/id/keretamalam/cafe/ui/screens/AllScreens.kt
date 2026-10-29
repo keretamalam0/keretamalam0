@@ -449,10 +449,10 @@ private fun DashboardComposeScreen(
     var menuOpen by remember { mutableStateOf(false) }
     var customFrom by remember { mutableStateOf("") }
     var customTo by remember { mutableStateOf("") }
-    val today = java.time.LocalDate.now()
+    val today = java.time.LocalDate.now(java.time.ZoneId.of("Asia/Jakarta"))
     fun dateOf(raw: String): java.time.ZonedDateTime? = runCatching {
-        runCatching { java.time.Instant.parse(raw).atZone(java.time.ZoneId.systemDefault()) }
-            .getOrElse { java.time.OffsetDateTime.parse(raw).atZoneSameInstant(java.time.ZoneId.systemDefault()) }
+        runCatching { java.time.Instant.parse(raw).atZone(java.time.ZoneId.of("Asia/Jakarta")) }
+            .getOrElse { java.time.OffsetDateTime.parse(raw).atZoneSameInstant(java.time.ZoneId.of("Asia/Jakarta")) }
     }.getOrNull()
     val orders = uiState.orders.filter { order ->
         val date = dateOf(order.createdAt)?.toLocalDate()
@@ -548,7 +548,7 @@ private fun DashboardComposeScreen(
             OutlinedCard(Modifier.fillMaxWidth()) {
                 Row(Modifier.fillMaxWidth().padding(14.dp), verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.SpaceBetween) {
                     Column(Modifier.weight(1f)) {
-                        Text("Dashboard Outlet", style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold)
+                        Text("Dashboard Kereta Malam", style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold)
                         Text(rangeLabel, style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
                     }
                     Box {
@@ -723,7 +723,7 @@ private fun DashboardComposeScreen(
                         Row(Modifier.fillMaxWidth().padding(vertical = 4.dp), horizontalArrangement = Arrangement.SpaceBetween, verticalAlignment = Alignment.CenterVertically) {
                             Column(Modifier.weight(1f)) {
                                 Text("Pesanan #${order.orderNo}", fontWeight = FontWeight.SemiBold)
-                                Text(dateOf(order.createdAt)?.format(java.time.format.DateTimeFormatter.ofPattern("dd MMM, HH:mm")) ?: order.createdAt, style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                                Text(dateOf(order.createdAt)?.format(java.time.format.DateTimeFormatter.ofPattern("dd MMM, HH:mm", java.util.Locale("id", "ID"))) ?: order.createdAt, style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
                             }
                             Column(horizontalAlignment = Alignment.End) {
                                 Text(RupiahFormatter.format(order.total), fontWeight = FontWeight.Bold)
@@ -2569,7 +2569,7 @@ private fun ShiftKasirComposeScreen(viewModel: PosViewModel, uiState: PosUiState
                         if (amount <= 0.0 || entryDescription.isBlank()) viewModel.showNotice("Nominal dan keterangan wajib diisi.", isError = true)
                         else if (entryType == "expense") {
                             val method = when (entrySource) { "sales_qris", "sales_transfer" -> "transfer"; else -> "cash" }
-                            viewModel.addExpense(amount, "Operasional", java.time.LocalDate.now().toString(), method, entryDescription, entrySource)
+                            viewModel.addExpense(amount, "Operasional", java.time.LocalDate.now(java.time.ZoneId.of("Asia/Jakarta")).toString(), method, entryDescription, entrySource)
                             entryAmount = ""; entryDescription = ""
                         } else {
                             viewModel.replenishCashFund(amount, entrySource, entryDescription)
@@ -2583,8 +2583,8 @@ private fun ShiftKasirComposeScreen(viewModel: PosViewModel, uiState: PosUiState
             Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
                 Text("History Sesi Kasir", style = MaterialTheme.typography.titleLarge, fontWeight = FontWeight.Bold)
                 Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                    OutlinedButton(onClick = { val d = runCatching { java.time.LocalDate.parse(sessionHistoryFrom) }.getOrDefault(java.time.LocalDate.now()); android.app.DatePickerDialog(context, { _, y, m, day -> sessionHistoryFrom = java.time.LocalDate.of(y, m + 1, day).toString() }, d.year, d.monthValue - 1, d.dayOfMonth).show() }, modifier = Modifier.weight(1f)) { Text(if (sessionHistoryFrom.isBlank()) "Dari tanggal ▾" else "Dari: $sessionHistoryFrom") }
-                    OutlinedButton(onClick = { val d = runCatching { java.time.LocalDate.parse(sessionHistoryTo) }.getOrDefault(java.time.LocalDate.now()); android.app.DatePickerDialog(context, { _, y, m, day -> sessionHistoryTo = java.time.LocalDate.of(y, m + 1, day).toString() }, d.year, d.monthValue - 1, d.dayOfMonth).show() }, modifier = Modifier.weight(1f)) { Text(if (sessionHistoryTo.isBlank()) "Sampai tanggal ▾" else "Sampai: $sessionHistoryTo") }
+                    OutlinedButton(onClick = { val d = runCatching { java.time.LocalDate.parse(sessionHistoryFrom) }.getOrDefault(java.time.LocalDate.now(java.time.ZoneId.of("Asia/Jakarta"))); android.app.DatePickerDialog(context, { _, y, m, day -> sessionHistoryFrom = java.time.LocalDate.of(y, m + 1, day).toString() }, d.year, d.monthValue - 1, d.dayOfMonth).show() }, modifier = Modifier.weight(1f)) { Text(if (sessionHistoryFrom.isBlank()) "Dari tanggal ▾" else "Dari: $sessionHistoryFrom") }
+                    OutlinedButton(onClick = { val d = runCatching { java.time.LocalDate.parse(sessionHistoryTo) }.getOrDefault(java.time.LocalDate.now(java.time.ZoneId.of("Asia/Jakarta"))); android.app.DatePickerDialog(context, { _, y, m, day -> sessionHistoryTo = java.time.LocalDate.of(y, m + 1, day).toString() }, d.year, d.monthValue - 1, d.dayOfMonth).show() }, modifier = Modifier.weight(1f)) { Text(if (sessionHistoryTo.isBlank()) "Sampai tanggal ▾" else "Sampai: $sessionHistoryTo") }
                 }
                 if (sessionHistoryFrom.isNotBlank() || sessionHistoryTo.isNotBlank()) TextButton(onClick = { sessionHistoryFrom = ""; sessionHistoryTo = "" }) { Text("Hapus filter tanggal") }
             }
@@ -2744,7 +2744,7 @@ private fun AuditShiftComposeScreen(viewModel: PosViewModel, uiState: PosUiState
         }
         Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp), verticalAlignment = Alignment.CenterVertically) {
             Text("Hasil: ${filtered.size} shift", modifier = Modifier.weight(1f), style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
-            OutlinedButton(onClick = { exportAuditLauncher.launch("audit-shift-${java.time.LocalDate.now()}.csv") }, enabled = filtered.isNotEmpty()) {
+            OutlinedButton(onClick = { exportAuditLauncher.launch("audit-shift-${java.time.LocalDate.now(java.time.ZoneId.of("Asia/Jakarta"))}.csv") }, enabled = filtered.isNotEmpty()) {
                 Icon(Icons.Outlined.FileDownload, contentDescription = null, modifier = Modifier.size(18.dp))
                 Spacer(Modifier.width(6.dp))
                 Text("Export CSV")
@@ -2846,7 +2846,7 @@ private fun ActivityLogComposeScreen(uiState: PosUiState) {
         Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
             Text("Hasil: ${filteredLogs.size} log", modifier = Modifier.weight(1f), style = MaterialTheme.typography.bodySmall)
             TextButton(onClick = { fromDate = ""; toDate = ""; search = ""; category = "SEMUA" }) { Text("Reset") }
-            OutlinedButton(onClick = { exportLogsLauncher.launch("log-aktivitas-${java.time.LocalDate.now()}.csv") }, enabled = filteredLogs.isNotEmpty()) { Text("Export CSV") }
+            OutlinedButton(onClick = { exportLogsLauncher.launch("log-aktivitas-${java.time.LocalDate.now(java.time.ZoneId.of("Asia/Jakarta"))}.csv") }, enabled = filteredLogs.isNotEmpty()) { Text("Export CSV") }
         }
         Row(Modifier.fillMaxWidth().horizontalScroll(rememberScrollState()), horizontalArrangement = Arrangement.spacedBy(6.dp)) {
             listOf("SEMUA" to "Semua", "PEGAWAI" to "Pegawai & akses", "PRODUK" to "Produk", "STOK" to "Stok", "SHIFT" to "Shift & audit", "PEMBAYARAN" to "Pembayaran", "PENGATURAN" to "Pengaturan").forEach { (key, label) ->

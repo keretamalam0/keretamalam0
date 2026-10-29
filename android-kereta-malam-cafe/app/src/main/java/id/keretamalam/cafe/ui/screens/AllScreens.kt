@@ -2592,7 +2592,7 @@ private fun ShiftKasirComposeScreen(viewModel: PosViewModel, uiState: PosUiState
         if (sessions.isEmpty()) item { Text("Tidak ada sesi pada rentang tanggal ini.", color = MaterialTheme.colorScheme.onSurfaceVariant) }
         items(sessions, key = { "session-" + it.id }) { session ->
             val startAt = session.createdAt ?: ""
-            val nextStart = sessions.filter { (it.createdAt ?: "") > startAt }.minByOrNull { it.createdAt ?: "" }?.createdAt
+            val nextStart = starts.filter { (it.createdAt ?: "") > startAt }.minByOrNull { it.createdAt ?: "" }?.createdAt
             val close = closes.firstOrNull { (it.createdAt ?: "") >= startAt && (nextStart == null || (it.createdAt ?: "") < nextStart) }
             val endAt = close?.createdAt ?: nextStart
             val adjustments = uiState.cashFundEntries.filter { it.entryType == "replenishment" && (it.createdAt ?: "") >= startAt && (endAt == null || (it.createdAt ?: "") <= endAt) }.sumOf { it.amount }

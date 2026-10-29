@@ -2634,7 +2634,7 @@ export default function App() {
                         {m.quantity > 0 ? `+${m.quantity}` : m.quantity} unit
                       </p>
                       <p className="num text-[11px] text-zinc-400">
-                        {new Date(m.created_at).toLocaleString('id-ID')}
+                        {new Date(m.created_at).toLocaleString('id-ID', { timeZone: 'Asia/Jakarta' })}
                       </p>
                     </div>
                   </div>

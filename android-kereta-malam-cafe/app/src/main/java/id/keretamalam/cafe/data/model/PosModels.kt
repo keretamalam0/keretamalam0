@@ -16,7 +16,10 @@ enum class StaffRole(val labelId: String) {
 
 enum class PermissionKey(val key: String) {
     DASHBOARD("dashboard"),
+    POS("pos"),
     ORDERS("orders"),
+    CASHIER_CHAT("cashier_chat"),
+    PROFIT_LOSS("profit_loss"),
     SALES_HISTORY("sales_history"),
     CASH_FUND("cash_fund"),
     PAYMENTS("payments"),
@@ -66,10 +69,11 @@ data class StaffProfile(
         if (role == StaffRole.SUPER_ADMIN) return false
         if (role == StaffRole.OWNER) return true
         if (permissions.containsKey(key)) return permissions[key] == true
-        val legacyKey = when (key) {
-            PermissionKey.AI_ASSISTANT.key, PermissionKey.EXPENSES.key -> PermissionKey.REPORTS.key
-            PermissionKey.SHIFT_MANAGEMENT.key, PermissionKey.SHIFT_AUDIT.key, PermissionKey.CASH_FUND.key, PermissionKey.SALES_HISTORY.key -> PermissionKey.ORDERS.key
-            PermissionKey.ACTIVITY_LOG.key, PermissionKey.STAFF_MANAGEMENT.key, PermissionKey.PRINTER_MANAGEMENT.key -> PermissionKey.SETTINGS.key
+        val legacyKey = when {
+            key == PermissionKey.POS.key || key == PermissionKey.CASHIER_CHAT.key -> PermissionKey.ORDERS.key
+            key == PermissionKey.PROFIT_LOSS.key || key == PermissionKey.AI_ASSISTANT.key || key == PermissionKey.EXPENSES.key || key.startsWith("reports.") -> PermissionKey.REPORTS.key
+            key == PermissionKey.SHIFT_MANAGEMENT.key || key == PermissionKey.SHIFT_AUDIT.key || key == PermissionKey.CASH_FUND.key || key == PermissionKey.SALES_HISTORY.key -> PermissionKey.ORDERS.key
+            key == PermissionKey.ACTIVITY_LOG.key || key == PermissionKey.STAFF_MANAGEMENT.key || key == PermissionKey.PRINTER_MANAGEMENT.key -> PermissionKey.SETTINGS.key
             else -> key
         }
         return permissions[legacyKey] == true

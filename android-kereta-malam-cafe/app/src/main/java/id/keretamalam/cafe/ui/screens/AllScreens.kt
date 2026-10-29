@@ -2419,7 +2419,7 @@ private fun ShiftKasirComposeScreen(viewModel: PosViewModel, uiState: PosUiState
                 if (sourcePaymentGroup(raw) == method) order.total else 0.0
             }
         }
-        val sources = if (method == "cash") setOf("sales_cash") else setOf("sales_qris", "sales_transfer")
+        val sources = when (method) { "cash" -> setOf("sales_cash"); "qris" -> setOf("sales_qris"); else -> setOf("sales_transfer") }
         val spent = sessionExpenses.filter { it.cashSource in sources }.sumOf { it.amount }
         val movedToModal = uiState.cashFundEntries.filter {
             it.entryType == "replenishment" && it.source in sources && (it.createdAt ?: "") >= sessionStart

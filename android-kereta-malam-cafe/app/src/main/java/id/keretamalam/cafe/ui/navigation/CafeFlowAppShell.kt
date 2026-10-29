@@ -106,7 +106,7 @@ fun CafeFlowAppShell(
     var activeModule by remember { mutableStateOf(PosModuleRoute.DASHBOARD) }
     var reportMenuExpanded by remember { mutableStateOf(false) }
     var selectedReportPage by remember { mutableStateOf("Ringkasan Laporan") }
-    val reportPages = listOf("Ringkasan Laporan", "Penjualan Harian", "Penjualan Produk", "Penjualan per Jam", "Laporan Pembayaran", "Laporan Kanal", "Detail Pesanan")
+    val reportPages = listOf("Ringkasan Laporan", "Penjualan Harian", "Penjualan Kategori", "Penjualan Produk", "Penjualan per Jam", "Laporan Pembayaran", "Laporan Kanal", "Detail Pesanan")
     val drawerState = rememberDrawerState(initialValue = DrawerValue.Closed)
     val scope = rememberCoroutineScope()
 

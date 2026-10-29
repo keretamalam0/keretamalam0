@@ -445,6 +445,7 @@ private fun DashboardComposeScreen(
     onNavigateModule: (PosModuleRoute) -> Unit
 ) {
     var range by remember { mutableStateOf("today") }
+    val context = LocalContext.current
     var menuOpen by remember { mutableStateOf(false) }
     var customFrom by remember { mutableStateOf("") }
     var customTo by remember { mutableStateOf("") }
@@ -563,10 +564,9 @@ private fun DashboardComposeScreen(
             if (range == "custom") {
                 Column(Modifier.fillMaxWidth().padding(horizontal = 12.dp, vertical = 6.dp), verticalArrangement = Arrangement.spacedBy(6.dp)) {
                     Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                        OutlinedTextField(value = customFrom, onValueChange = { customFrom = it.take(10) }, label = { Text("Dari (YYYY-MM-DD)") }, modifier = Modifier.weight(1f), singleLine = true)
-                        OutlinedTextField(value = customTo, onValueChange = { customTo = it.take(10) }, label = { Text("Sampai (YYYY-MM-DD)") }, modifier = Modifier.weight(1f), singleLine = true)
+                        OutlinedButton(onClick = { val initial = runCatching { java.time.LocalDate.parse(customFrom) }.getOrDefault(today); android.app.DatePickerDialog(context, { _, y, m, d -> customFrom = java.time.LocalDate.of(y, m + 1, d).toString() }, initial.year, initial.monthValue - 1, initial.dayOfMonth).show() }, modifier = Modifier.weight(1f)) { Text(if (customFrom.isBlank()) "Dari tanggal ▾" else "Dari: $customFrom") }
+                        OutlinedButton(onClick = { val initial = runCatching { java.time.LocalDate.parse(customTo) }.getOrDefault(today); android.app.DatePickerDialog(context, { _, y, m, d -> customTo = java.time.LocalDate.of(y, m + 1, d).toString() }, initial.year, initial.monthValue - 1, initial.dayOfMonth).show() }, modifier = Modifier.weight(1f)) { Text(if (customTo.isBlank()) "Sampai tanggal ▾" else "Sampai: $customTo") }
                     }
-                    Text("Masukkan tanggal dengan format YYYY-MM-DD", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
                 }
             }
         }
@@ -2365,6 +2365,7 @@ private fun ShiftKasirComposeScreen(viewModel: PosViewModel, uiState: PosUiState
     var typeMenuOpen by remember { mutableStateOf(false) }
     var sourceMenuOpen by remember { mutableStateOf(false) }
     var recentEntriesExpanded by remember { mutableStateOf(true) }
+    var expandedSessionDetails by remember { mutableStateOf<String?>(null) }
     var confirmClose by remember { mutableStateOf(false) }
     val starts = uiState.cashFundEntries.filter { it.entryType == "set_target" }.sortedByDescending { it.createdAt ?: "" }
     val closes = uiState.cashFundEntries.filter { it.entryType == "close_session" }.sortedByDescending { it.createdAt ?: "" }
@@ -2581,7 +2582,9 @@ private fun ShiftKasirComposeScreen(viewModel: PosViewModel, uiState: PosUiState
             val endAt = close?.createdAt ?: nextStart
             val adjustments = uiState.cashFundEntries.filter { it.entryType == "replenishment" && (it.createdAt ?: "") >= startAt && (endAt == null || (it.createdAt ?: "") <= endAt) }.sumOf { it.amount }
             val modalExpenses = uiState.expenses.filter { it.cashSource == "cash_fund" && (it.createdAt ?: "") >= startAt && (endAt == null || (it.createdAt ?: "") <= endAt) }.sumOf { it.amount }
-            val allExpenses = uiState.expenses.filter { (it.createdAt ?: "") >= startAt && (endAt == null || (it.createdAt ?: "") <= endAt) }.sumOf { it.amount }
+            val sessionExpensesForHistory = uiState.expenses.filter { (it.createdAt ?: "") >= startAt && (endAt == null || (it.createdAt ?: "") <= endAt) }.sortedByDescending { it.createdAt ?: "" }
+            val sessionFundEntriesForHistory = uiState.cashFundEntries.filter { it.entryType == "replenishment" && (it.createdAt ?: "") >= startAt && (endAt == null || (it.createdAt ?: "") <= endAt) }.sortedByDescending { it.createdAt ?: "" }
+            val allExpenses = sessionExpensesForHistory.sumOf { it.amount }
             val closing = close?.amount ?: (session.amount + adjustments - modalExpenses).coerceAtLeast(0.0)
             OutlinedCard(Modifier.fillMaxWidth()) {
                 Column(Modifier.fillMaxWidth().padding(12.dp), verticalArrangement = Arrangement.spacedBy(5.dp)) {
@@ -2594,6 +2597,31 @@ private fun ShiftKasirComposeScreen(viewModel: PosViewModel, uiState: PosUiState
                     Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) { Text("Adjustment modal"); Text(RupiahFormatter.format(adjustments), fontWeight = FontWeight.Medium) }
                     Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) { Text("Saldo akhir"); Text(RupiahFormatter.format(closing), fontWeight = FontWeight.Bold) }
                     if (close != null) Text("Diakhiri: ${close.createdAt ?: "—"}", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                    TextButton(onClick = { expandedSessionDetails = if (expandedSessionDetails == session.id) null else session.id }) { Text(if (expandedSessionDetails == session.id) "Tutup detail ▴" else "Detail sesi ▾") }
+                    if (expandedSessionDetails == session.id) {
+                        HorizontalDivider()
+                        Text("Catatan pengeluaran", fontWeight = FontWeight.SemiBold)
+                        if (sessionExpensesForHistory.isEmpty()) Text("Tidak ada pengeluaran pada sesi ini.", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                        sessionExpensesForHistory.forEach { expense ->
+                            Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween, verticalAlignment = Alignment.Top) {
+                                Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(2.dp)) {
+                                    Text(expense.description, fontWeight = FontWeight.Medium)
+                                    Text("${expense.category} • " + when (expense.cashSource) { "cash_fund" -> "Kas Modal"; "sales_cash" -> "Tunai"; "sales_qris", "sales_transfer" -> "Non-tunai"; else -> expense.cashSource }, style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                                    Text(expense.createdAt ?: expense.expenseDate, style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                                }
+                                Text("−${RupiahFormatter.format(expense.amount)}", fontWeight = FontWeight.SemiBold, color = MaterialTheme.colorScheme.error)
+                            }
+                        }
+                        if (sessionFundEntriesForHistory.isNotEmpty()) {
+                            HorizontalDivider(); Text("Catatan adjustment", fontWeight = FontWeight.SemiBold)
+                            sessionFundEntriesForHistory.forEach { fund ->
+                                Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween, verticalAlignment = Alignment.Top) {
+                                    Column(Modifier.weight(1f)) { Text(fund.description, fontWeight = FontWeight.Medium); Text("Adjustment • " + when (fund.source) { "owner_funds" -> "Dari Owner"; "sales_cash" -> "Dari Tunai"; "sales_qris", "sales_transfer" -> "Dari Non-tunai"; else -> fund.source }, style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant) }
+                                    Text("+${RupiahFormatter.format(fund.amount)}", fontWeight = FontWeight.SemiBold, color = MaterialTheme.colorScheme.primary)
+                                }
+                            }
+                        }
+                    }
                 }
             }
         }

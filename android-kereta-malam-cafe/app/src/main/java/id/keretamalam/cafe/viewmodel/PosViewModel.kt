@@ -1527,7 +1527,11 @@ class PosViewModel(application: Application) : AndroidViewModel(application) {
         viewModelScope.launch {
             if (_uiState.value.backendStatus == BackendIntegrationStatus.ACTIVE_VERIFIED) {
                 runCatching {
-                    repository.confirmOrderPayment(order.id, paymentMethod, cashReceived)
+                    if (order.source.equals("qr", ignoreCase = true)) {
+                        repository.approveQrOrder(order.id, paymentMethod, cashReceived)
+                    } else {
+                        repository.confirmOrderPayment(order.id, paymentMethod, cashReceived)
+                    }
                 }.onSuccess {
                     refreshOrdersSilently()
                     showNotice("Pembayaran Order #${order.orderNo} dikonfirmasi.")

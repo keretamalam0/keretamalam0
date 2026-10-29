@@ -21,3 +21,29 @@ CREATE TRIGGER orders_return_permission_guard
 BEFORE UPDATE OF returned_at ON public.orders
 FOR EACH ROW
 EXECUTE FUNCTION public.enforce_order_return_permission();
+
+-- Parent menu OFF overrides any child action that remains ON.
+CREATE OR REPLACE FUNCTION public.has_permission(permission_key text)
+RETURNS boolean
+LANGUAGE sql
+STABLE
+SECURITY DEFINER
+SET search_path = public
+AS $function$
+  SELECT EXISTS (
+    SELECT 1
+    FROM public.staff_profiles p
+    WHERE p.user_id = auth.uid()
+      AND p.is_active
+      AND (
+        p.role = 'owner'
+        OR (
+          COALESCE((p.permissions ->> permission_key)::boolean, false)
+          AND (
+            position('.' in permission_key) = 0
+            OR COALESCE((p.permissions ->> split_part(permission_key, '.', 1))::boolean, true)
+          )
+        )
+      )
+  );
+$function$;

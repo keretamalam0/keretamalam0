@@ -1526,8 +1526,7 @@ fun PegawaiComposeScreen(viewModel: PosViewModel, uiState: PosUiState) {
         "orders" to "Pesanan",
         "cashier_chat" to "Chat ke Kasir",
         "sales_history" to "History Transaksi",
-        "cash_fund" to "Kas Modal",
-        "expenses" to "Pengeluaran",
+        "cash_fund" to "Kas Modal & Pengeluaran",
         "shift_audit" to "Audit Shift",
         "activity_log" to "Log Aktivitas",
         "cashier_report" to "Laporan Kasir",
@@ -1615,7 +1614,7 @@ fun PegawaiComposeScreen(viewModel: PosViewModel, uiState: PosUiState) {
                 Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween, verticalAlignment = Alignment.CenterVertically) {
                     Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(4.dp)) {
                         Text(st.fullName, fontWeight = FontWeight.Bold)
-                        Text("Role: ${st.role.labelId} · ${st.email}", style = MaterialTheme.typography.bodySmall)
+                        Text("Role: ${st.role.labelId} · ${st.email.ifBlank { "ID akun: ${st.userId.take(8)}…" }}", style = MaterialTheme.typography.bodySmall)
                         Surface(color = when { working -> androidx.compose.ui.graphics.Color(0xFFDCFCE7); st.isActive -> MaterialTheme.colorScheme.secondaryContainer; else -> MaterialTheme.colorScheme.errorContainer }, shape = RoundedCornerShape(50)) {
                             Text(when { working -> "● Sedang bekerja"; st.isActive -> "● Akun aktif · tidak sedang shift"; else -> "● Nonaktif" }, Modifier.padding(horizontal = 9.dp, vertical = 5.dp), color = when { working -> androidx.compose.ui.graphics.Color(0xFF166534); st.isActive -> MaterialTheme.colorScheme.onSecondaryContainer; else -> MaterialTheme.colorScheme.onErrorContainer }, style = MaterialTheme.typography.labelSmall)
                         }

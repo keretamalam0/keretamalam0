@@ -38,10 +38,17 @@ AS $function$
       AND (
         p.role = 'owner'
         OR (
-          COALESCE((p.permissions ->> permission_key)::boolean, false)
+          COALESCE(
+            (p.permissions ->> permission_key)::boolean,
+            CASE
+              WHEN position('.' in permission_key) > 0
+                THEN COALESCE((p.permissions ->> split_part(permission_key, '.', 1))::boolean, false)
+              ELSE false
+            END
+          )
           AND (
             position('.' in permission_key) = 0
-            OR COALESCE((p.permissions ->> split_part(permission_key, '.', 1))::boolean, true)
+            OR COALESCE((p.permissions ->> split_part(permission_key, '.', 1))::boolean, false)
           )
         )
       )

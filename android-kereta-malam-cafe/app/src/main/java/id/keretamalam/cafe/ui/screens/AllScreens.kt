@@ -2357,6 +2357,9 @@ private fun HistoryComposeScreen(viewModel: PosViewModel, uiState: PosUiState) {
 // ============================================================================
 @Composable
 private fun ShiftKasirComposeScreen(viewModel: PosViewModel, uiState: PosUiState) {
+    val context = LocalContext.current
+    var sessionHistoryFrom by remember { mutableStateOf("") }
+    var sessionHistoryTo by remember { mutableStateOf("") }
     var openingInput by remember { mutableStateOf("") }
     var entryAmount by remember { mutableStateOf("") }
     var entryDescription by remember { mutableStateOf("") }
@@ -2389,7 +2392,10 @@ private fun ShiftKasirComposeScreen(viewModel: PosViewModel, uiState: PosUiState
         it.entryType == "replenishment" && (it.createdAt ?: "") >= sessionStart
     }.sortedByDescending { it.createdAt ?: "" } else emptyList()
     val hasSessionNotes = sessionRecentExpenses.isNotEmpty()
-    val sessions = starts
+    val sessions = starts.filter { session ->
+        val day = (session.createdAt ?: "").take(10)
+        (sessionHistoryFrom.isBlank() || day >= sessionHistoryFrom) && (sessionHistoryTo.isBlank() || day <= sessionHistoryTo)
+    }
     // Saldo sumber penjualan dihitung dari transaksi lunas aktual, bukan angka contoh.
     fun sourcePaymentGroup(rawInput: String): String {
         val raw = rawInput.lowercase().replace("-", "_").trim()
@@ -2573,8 +2579,17 @@ private fun ShiftKasirComposeScreen(viewModel: PosViewModel, uiState: PosUiState
                 }
             }
         }
-        item { Text("History Sesi Kasir", style = MaterialTheme.typography.titleLarge, fontWeight = FontWeight.Bold) }
-        if (sessions.isEmpty()) item { Text("Belum ada riwayat sesi.", color = MaterialTheme.colorScheme.onSurfaceVariant) }
+        item {
+            Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                Text("History Sesi Kasir", style = MaterialTheme.typography.titleLarge, fontWeight = FontWeight.Bold)
+                Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                    OutlinedButton(onClick = { val d = runCatching { java.time.LocalDate.parse(sessionHistoryFrom) }.getOrDefault(java.time.LocalDate.now()); android.app.DatePickerDialog(context, { _, y, m, day -> sessionHistoryFrom = java.time.LocalDate.of(y, m + 1, day).toString() }, d.year, d.monthValue - 1, d.dayOfMonth).show() }, modifier = Modifier.weight(1f)) { Text(if (sessionHistoryFrom.isBlank()) "Dari tanggal ▾" else "Dari: $sessionHistoryFrom") }
+                    OutlinedButton(onClick = { val d = runCatching { java.time.LocalDate.parse(sessionHistoryTo) }.getOrDefault(java.time.LocalDate.now()); android.app.DatePickerDialog(context, { _, y, m, day -> sessionHistoryTo = java.time.LocalDate.of(y, m + 1, day).toString() }, d.year, d.monthValue - 1, d.dayOfMonth).show() }, modifier = Modifier.weight(1f)) { Text(if (sessionHistoryTo.isBlank()) "Sampai tanggal ▾" else "Sampai: $sessionHistoryTo") }
+                }
+                if (sessionHistoryFrom.isNotBlank() || sessionHistoryTo.isNotBlank()) TextButton(onClick = { sessionHistoryFrom = ""; sessionHistoryTo = "" }) { Text("Hapus filter tanggal") }
+            }
+        }
+        if (sessions.isEmpty()) item { Text("Tidak ada sesi pada rentang tanggal ini.", color = MaterialTheme.colorScheme.onSurfaceVariant) }
         items(sessions, key = { "session-" + it.id }) { session ->
             val startAt = session.createdAt ?: ""
             val nextStart = sessions.filter { (it.createdAt ?: "") > startAt }.minByOrNull { it.createdAt ?: "" }?.createdAt

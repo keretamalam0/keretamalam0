@@ -171,6 +171,7 @@ export interface Expense {
   description: string;
   expense_date: string;
   payment_method: string;
+  cash_source?: string;
   created_at: string;
 }
 

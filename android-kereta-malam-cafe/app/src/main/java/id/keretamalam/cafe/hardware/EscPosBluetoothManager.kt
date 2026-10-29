@@ -21,6 +21,7 @@ import java.nio.charset.Charset
 import java.text.SimpleDateFormat
 import java.util.Date
 import java.util.Locale
+import java.util.TimeZone
 import java.util.UUID
 import java.util.concurrent.ConcurrentHashMap
 
@@ -151,7 +152,7 @@ class EscPosBluetoothManager(private val context: Context) {
     suspend fun testPrint(role: PrinterRole): Result<Unit> = withContext(Dispatchers.IO) {
         val printer = getSavedPrinter(role)
             ?: return@withContext Result.failure(IllegalStateException("${role.labelId} belum dipilih."))
-        val dateStr = SimpleDateFormat("dd/MM/yyyy HH:mm:ss", Locale("id", "ID")).format(Date())
+        val dateStr = SimpleDateFormat("dd/MM/yyyy HH:mm:ss", Locale("id", "ID")).apply { timeZone = TimeZone.getTimeZone("Asia/Jakarta") }.format(Date())
         val payload = buildString {
             appendLine("KERETA MALAM CAFE")
             appendLine(if (role == PrinterRole.KITCHEN) "TEST TIKET DAPUR" else "TEST STRUK KASIR")
@@ -248,7 +249,7 @@ class EscPosBluetoothManager(private val context: Context) {
                 appendLine("--------------------------------")
                 appendLine("ORDER #${order.orderNo}")
                 order.restaurantTable?.name?.let { appendLine("MEJA : $it") }
-                appendLine("Waktu: ${order.createdAt}")
+                appendLine("Waktu: ${formatWibTimestamp(order.createdAt)} WIB")
                 appendLine("--------------------------------")
                 order.orderItems.forEach { item ->
                     appendLine("${item.quantity}x ${item.productName}")

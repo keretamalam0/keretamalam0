@@ -136,3 +136,12 @@ Project directory: `android-kereta-malam-cafe/`
 
 
 - 2026-10-21: Cashier now refreshes product toppings and customization options from Supabase whenever the native cashier screen is entered, preventing stale in-memory options from hiding newly saved add-ons/options. Runtime and APK build verification required.
+
+
+## 2026-10-30 — Per-account activity log and access controls
+- Reworked the native Android Activity Log into an account-first view sourced from the live staff profile list. Selecting an account shows only records where that account is the actor, with date range, activity-type dropdown, search, readable action/entity labels, and filtered per-account CSV export.
+- Added the activity export permission as a child permission under the Activity Log menu in Pegawai & Shift; the export action is disabled unless the signed-in staff profile has that permission. Existing menu, dashboard, and action permission controls remain grouped and persisted through the existing staff permission update flow.
+- Added `staff_profiles.email`, backfilled it from Supabase Auth, and included it in Android staff profile reads so the account list can show email addresses.
+- Added a database trigger that records staff account creation and changes to role, active status, and permission settings in `audit_logs`. New staff profiles therefore appear in the account list immediately after the normal staff refresh, even before their first login; the creation event is recorded automatically.
+- Expanded Android audit retrieval from 200 to 1,000 latest records. Login and logout events were already emitted by the authentication repository; the new screen now renders their action names in human-readable Indonesian and formats timestamps as WIB.
+- Database migration applied successfully; the new `staff_profiles.email` column and audit trigger were verified. Android Gradle build and physical-device interaction verification are still pending. Existing historical audit rows with a null actor ID cannot be safely assigned to an account retroactively.

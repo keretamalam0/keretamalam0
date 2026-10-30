@@ -320,7 +320,7 @@ class CafeFlowRepository(private val context: Context) {
         // regardless of the profile's owner_id. RLS enforces the Owner-only boundary.
         val raw = executeJsonRequest(
             "GET",
-            "${creds.supabaseUrl}/rest/v1/staff_profiles?select=user_id,owner_id,full_name,role,is_active,permissions&order=created_at.asc",
+            "${creds.supabaseUrl}/rest/v1/staff_profiles?select=user_id,owner_id,full_name,email,role,is_active,permissions&order=created_at.asc",
             buildHeaders(creds)
         )
         return json.decodeFromString(raw)
@@ -330,7 +330,7 @@ class CafeFlowRepository(private val context: Context) {
         val creds = requireVerifiedCredentials()
         if (creds.authenticatedUserId.isBlank()) return null
         val encodedId = URLEncoder.encode(creds.authenticatedUserId, "UTF-8")
-        val url = "${creds.supabaseUrl}/rest/v1/staff_profiles?select=user_id,owner_id,full_name,role,is_active,permissions&user_id=eq.$encodedId&limit=1"
+        val url = "${creds.supabaseUrl}/rest/v1/staff_profiles?select=user_id,owner_id,full_name,email,role,is_active,permissions&user_id=eq.$encodedId&limit=1"
         val raw = executeJsonRequest("GET", url, buildHeaders(creds))
         val list = json.decodeFromString<List<StaffProfile>>(raw)
         return list.firstOrNull()?.copy(email = creds.authenticatedEmail)
@@ -1520,7 +1520,7 @@ class CafeFlowRepository(private val context: Context) {
 
     suspend fun fetchAuditLogs(): List<AuditLog> {
         val creds = requireVerifiedCredentials()
-        val url = "${creds.supabaseUrl}/rest/v1/audit_logs?select=*&order=created_at.desc&limit=200"
+        val url = "${creds.supabaseUrl}/rest/v1/audit_logs?select=*&order=created_at.desc&limit=1000"
         val raw = executeJsonRequest("GET", url, buildHeaders(creds))
         return json.decodeFromString(raw)
     }

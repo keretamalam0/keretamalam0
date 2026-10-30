@@ -654,6 +654,7 @@ class PosViewModel(application: Application) : AndroidViewModel(application) {
     }
 
     fun uploadPaymentPhoto(bytes: ByteArray, mime: String, ext: String, onDone: (String?) -> Unit) {
+        if (!requirePermission("payments.manage_methods", "Akses kelola metode pembayaran dinonaktifkan oleh Owner.")) return
         viewModelScope.launch {
             runCatching { repository.uploadPaymentMethodImage(bytes, mime, ext) }
                 .onSuccess { onDone(it) }
@@ -962,6 +963,7 @@ class PosViewModel(application: Application) : AndroidViewModel(application) {
     }
 
     fun uploadOrderAlertSound(bytes: ByteArray, mimeType: String, extension: String, onUploaded: (String) -> Unit) {
+        if (!requirePermission("settings.manage", "Akses pengaturan outlet dinonaktifkan oleh Owner.")) return
         if (_uiState.value.backendStatus != BackendIntegrationStatus.ACTIVE_VERIFIED) {
             showNotice("Upload suara memerlukan koneksi Supabase aktif.", isError = true)
             return
@@ -1893,6 +1895,7 @@ class PosViewModel(application: Application) : AndroidViewModel(application) {
     }
 
     fun toggleCategoryActive(categoryId: String, active: Boolean) {
+        if (!requirePermission("products.edit", "Akses ubah kategori dinonaktifkan oleh Owner.")) return
         val category = _uiState.value.categories.firstOrNull { it.id == categoryId } ?: return
         viewModelScope.launch {
             if (_uiState.value.backendStatus == BackendIntegrationStatus.ACTIVE_VERIFIED) {

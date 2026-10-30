@@ -683,7 +683,7 @@ class CafeFlowRepository(private val context: Context) {
 
     fun buildValidTableQrUrl(tableCode: String): String {
         val creds = SupabaseConfigManager.loadCredentials(context)
-        val baseUrl = "https://keretamalamqr.netlify.app"
+        val baseUrl = "https://kemalcafe.netlify.app"
         return "$baseUrl/menu?table=${URLEncoder.encode(tableCode, "UTF-8")}"
     }
 

@@ -2835,8 +2835,8 @@ private fun AuditShiftComposeScreen(viewModel: PosViewModel, uiState: PosUiState
             }
         }
         Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(6.dp), verticalAlignment = Alignment.CenterVertically) {
-            OutlinedTextField(value = fromDate, onValueChange = { fromDate = it.take(10) }, label = { Text("Dari") }, placeholder = { Text("YYYY-MM-DD") }, modifier = Modifier.weight(1f).heightIn(max = 54.dp), singleLine = true, textStyle = MaterialTheme.typography.bodySmall)
-            OutlinedTextField(value = toDate, onValueChange = { toDate = it.take(10) }, label = { Text("Sampai") }, placeholder = { Text("YYYY-MM-DD") }, modifier = Modifier.weight(1f).heightIn(max = 54.dp), singleLine = true, textStyle = MaterialTheme.typography.bodySmall)
+            OutlinedButton(onClick = { val d = runCatching { java.time.LocalDate.parse(fromDate) }.getOrDefault(java.time.LocalDate.now(java.time.ZoneId.of("Asia/Jakarta"))); android.app.DatePickerDialog(context, { _, y, m, day -> fromDate = java.time.LocalDate.of(y, m + 1, day).toString() }, d.year, d.monthValue - 1, d.dayOfMonth).show() }, modifier = Modifier.weight(1f)) { Text(if (fromDate.isBlank()) "Dari tanggal ▾" else "Dari: $fromDate", maxLines = 1) }
+            OutlinedButton(onClick = { val d = runCatching { java.time.LocalDate.parse(toDate) }.getOrDefault(java.time.LocalDate.now(java.time.ZoneId.of("Asia/Jakarta"))); android.app.DatePickerDialog(context, { _, y, m, day -> toDate = java.time.LocalDate.of(y, m + 1, day).toString() }, d.year, d.monthValue - 1, d.dayOfMonth).show() }, modifier = Modifier.weight(1f)) { Text(if (toDate.isBlank()) "Sampai tanggal ▾" else "Sampai: $toDate", maxLines = 1) }
             if (fromDate.isNotBlank() || toDate.isNotBlank()) TextButton(onClick = { fromDate = ""; toDate = "" }, contentPadding = PaddingValues(horizontal = 4.dp, vertical = 0.dp)) { Text("Reset", style = MaterialTheme.typography.labelSmall) }
         }
         Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp), verticalAlignment = Alignment.CenterVertically) {

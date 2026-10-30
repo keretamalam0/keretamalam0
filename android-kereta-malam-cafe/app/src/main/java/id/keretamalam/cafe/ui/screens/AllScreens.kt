@@ -2312,9 +2312,9 @@ private fun HistoryComposeScreen(viewModel: PosViewModel, uiState: PosUiState) {
                 OutlinedButton(onClick = {
                     confirmDeleteSelected = false
                     val ids = selectedIds.toList()
-                    viewModel.deleteOrders(ids)
+                    if (canDeleteHistory) viewModel.deleteOrders(ids)
                     selectedIds = emptySet()
-                }) { Text("Ya, Hapus", color = MaterialTheme.colorScheme.error) }
+                }, enabled = canDeleteHistory) { Text("Ya, Hapus", color = MaterialTheme.colorScheme.error) }
             },
             dismissButton = { OutlinedButton(onClick = { confirmDeleteSelected = false }) { Text("Batal") } }
         )

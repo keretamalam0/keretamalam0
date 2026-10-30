@@ -1520,9 +1520,22 @@ class CafeFlowRepository(private val context: Context) {
 
     suspend fun fetchAuditLogs(): List<AuditLog> {
         val creds = requireVerifiedCredentials()
-        val url = "${creds.supabaseUrl}/rest/v1/audit_logs?select=*&order=created_at.desc&limit=1000"
-        val raw = executeJsonRequest("GET", url, buildHeaders(creds))
-        return json.decodeFromString(raw)
+        val url = "${creds.supabaseUrl}/rest/v1/audit_logs?select=*&order=created_at.desc"
+        val allLogs = mutableListOf<AuditLog>()
+        val pageSize = 1000
+        var offset = 0
+        while (true) {
+            val headers = buildHeaders(creds).toMutableMap().apply {
+                put("Range-Unit", "items")
+                put("Range", "$offset-${offset + pageSize - 1}")
+            }
+            val raw = executeJsonRequest("GET", url, headers)
+            val page = json.decodeFromString<List<AuditLog>>(raw)
+            allLogs += page
+            if (page.size < pageSize) break
+            offset += pageSize
+        }
+        return allLogs
     }
 
     suspend fun invokeAiAssistant(

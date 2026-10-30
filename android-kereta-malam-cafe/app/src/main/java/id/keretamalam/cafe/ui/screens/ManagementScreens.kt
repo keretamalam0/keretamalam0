@@ -1731,7 +1731,7 @@ fun PegawaiComposeScreen(viewModel: PosViewModel, uiState: PosUiState) {
                                     }
                                     Icon(if (isExpanded) Icons.Outlined.ExpandLess else Icons.Outlined.ExpandMore, contentDescription = null)
                                 }
-                                PermissionToggleRow("Buka halaman $label", st.permissions[key] == true, isOwner && !isCurrent && st.role != StaffRole.OWNER) { enabled -> viewModel.toggleStaffPermission(st.userId, key, enabled) }
+                                PermissionToggleRow("Buka halaman $label", st.canAccessKey(key), isOwner && !isCurrent && st.role != StaffRole.OWNER) { enabled -> viewModel.toggleStaffPermission(st.userId, key, enabled) }
                                 if (isExpanded) {
                                     HorizontalDivider()
                                     val nested = when (key) {
@@ -1764,8 +1764,8 @@ fun PegawaiComposeScreen(viewModel: PosViewModel, uiState: PosUiState) {
                                         "reports.order_details" to "Halaman · Detail pesanan"
                                     ) else emptyList()
                                     (nested + reportPages).distinctBy { it.first }.forEach { (permissionKey, permissionLabel) ->
-                                        val parentAllowed = st.permissions[key] == true
-                                        val childAllowed = if (st.permissions.containsKey(permissionKey)) st.permissions[permissionKey] == true else parentAllowed
+                                        val parentAllowed = st.canAccessKey(key)
+                                        val childAllowed = st.canAccessKey(permissionKey)
                                         PermissionToggleRow(permissionLabel, childAllowed, isOwner && !isCurrent && st.role != StaffRole.OWNER) { enabled -> viewModel.toggleStaffPermission(st.userId, permissionKey, enabled) }
                                     }
                                     if (nested.isEmpty() && reportPages.isEmpty()) {

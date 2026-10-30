@@ -1428,7 +1428,7 @@ fun LaporanPenjualanComposeScreen(viewModel: PosViewModel, uiState: PosUiState, 
                 Spacer(Modifier.width(4.dp))
                 Text("Custom", maxLines = 1)
             }
-            OutlinedButton(onClick = { csv.launch("laporan-${selectedSection.lowercase().replace(" ", "-")}.csv") }, contentPadding = PaddingValues(horizontal = 10.dp, vertical = 7.dp)) {
+            OutlinedButton(onClick = { csv.launch("laporan-${selectedSection.lowercase().replace(" ", "-")}.csv") }, enabled = uiState.staffProfile.canAccessKey("report.export"), contentPadding = PaddingValues(horizontal = 10.dp, vertical = 7.dp)) {
                 Icon(Icons.Outlined.FileDownload, contentDescription = null, modifier = Modifier.size(17.dp))
             }
         }
@@ -1657,6 +1657,7 @@ fun PegawaiComposeScreen(viewModel: PosViewModel, uiState: PosUiState) {
         "audit.verify" to "Verifikasi audit shift",
         "staff.manage" to "Kelola pegawai dan hak akses",
         "audit.view" to "Lihat audit shift & rentang tanggal",
+        "audit.export" to "Ekspor audit shift (CSV)",
         "shift.view_cash" to "Lihat nominal kas shift",
         "settings.manage" to "Ubah pengaturan outlet",
         "report.view" to "Lihat laporan",

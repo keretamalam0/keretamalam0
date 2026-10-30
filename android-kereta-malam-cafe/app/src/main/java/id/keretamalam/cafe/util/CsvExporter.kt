@@ -63,6 +63,34 @@ object CsvExporter {
         writeCsvRows(context, targetUri, rows)
     }
 
+    fun writeProfitLossReportToUri(
+        context: Context,
+        targetUri: Uri,
+        fromDate: String,
+        toDate: String,
+        grossSales: Double,
+        discounts: Double,
+        netSales: Double,
+        tax: Double,
+        serviceAndRounding: Double,
+        cogs: Double,
+        grossProfit: Double
+    ): Result<Unit> = runCatching {
+        val rows = mutableListOf<List<Any?>>()
+        rows.add(listOf("Profit & Loss Kereta Malam Cafe"))
+        rows.add(listOf("Periode", fromDate, "sampai", toDate))
+        rows.add(emptyList())
+        rows.add(listOf("Komponen", "Nominal (Rp)", "Keterangan"))
+        rows.add(listOf("Penjualan Kotor", grossSales.toLong(), "Subtotal sebelum diskon"))
+        rows.add(listOf("Diskon & Promo", discounts.toLong(), "Potongan transaksi"))
+        rows.add(listOf("Penjualan Bersih", netSales.toLong(), "Penjualan kotor dikurangi diskon"))
+        rows.add(listOf("Pajak", tax.toLong(), "Dicatat terpisah, bukan omzet"))
+        rows.add(listOf("Service / Pembulatan", serviceAndRounding.toLong(), "Selisih total setelah pajak"))
+        rows.add(listOf("HPP / COGS", cogs.toLong(), "Biaya modal item terjual"))
+        rows.add(listOf("Profit Kotor (Estimasi)", grossProfit.toLong(), "Penjualan bersih dikurangi HPP"))
+        writeCsvRows(context, targetUri, rows)
+    }
+
     fun writeFinancialReportToUri(
         context: Context,
         targetUri: Uri,

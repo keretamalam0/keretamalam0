@@ -2029,6 +2029,7 @@ class PosViewModel(application: Application) : AndroidViewModel(application) {
     }
 
     fun saveProductAddon(addon: ProductAddon) {
+        if (!requirePermission("products.edit", "Akses kelola add-on produk dinonaktifkan oleh Owner.")) return
         if (addon.name.isBlank() || addon.productId.isBlank() || addon.price < 0) {
             showNotice("Pilih produk, isi nama topping, dan pastikan harga tidak negatif.", isError = true)
             return
@@ -2046,6 +2047,7 @@ class PosViewModel(application: Application) : AndroidViewModel(application) {
     }
 
     fun deleteProductAddon(id: String) {
+        if (!requirePermission("products.edit", "Akses kelola add-on produk dinonaktifkan oleh Owner.")) return
         viewModelScope.launch {
             if (_uiState.value.backendStatus == BackendIntegrationStatus.ACTIVE_VERIFIED) {
                 runCatching { repository.deleteProductAddon(id) }
@@ -2058,6 +2060,7 @@ class PosViewModel(application: Application) : AndroidViewModel(application) {
     }
 
     fun saveCustomizationOption(option: ProductCustomizationOption, onSaved: (() -> Unit)? = null) {
+        if (!requirePermission("products.edit", "Akses opsi produk dinonaktifkan oleh Owner.")) return
         if (option.name.isBlank() || option.productId.isBlank() || option.priceDelta < 0 || option.groupKey !in listOf("size", "portion", "sugar", "ice", "spice", "rice", "cooking", "side", "extra", "sauce", "sambal", "topping")) {
             showNotice("Lengkapi produk, nama opsi, grup, dan harga yang valid.", isError = true)
             return
@@ -2080,6 +2083,7 @@ class PosViewModel(application: Application) : AndroidViewModel(application) {
     }
 
     fun saveProductAndOption(product: Product, optionName: String, optionGroup: String, optionPrice: Double, onSaved: (Product, Boolean) -> Unit) {
+        if (!requirePermission("products.edit", "Akses opsi produk dinonaktifkan oleh Owner.")) return
         if (product.name.isBlank() || product.price <= 0) {
             showNotice("Nama produk dan harga jual wajib valid.", isError = true)
             return
@@ -2133,6 +2137,7 @@ class PosViewModel(application: Application) : AndroidViewModel(application) {
     }
 
     fun deleteCustomizationOption(id: String) {
+        if (!requirePermission("products.edit", "Akses opsi produk dinonaktifkan oleh Owner.")) return
         viewModelScope.launch {
             if (_uiState.value.backendStatus == BackendIntegrationStatus.ACTIVE_VERIFIED) {
                 runCatching { repository.deleteCustomizationOption(id) }
@@ -2332,6 +2337,7 @@ class PosViewModel(application: Application) : AndroidViewModel(application) {
         allowCustomer: Boolean = true,
         allowCashier: Boolean = true
     ) {
+        if (!requirePermission("promotions.create", "Akses membuat promosi dinonaktifkan oleh Owner.")) return
         if (name.isBlank()) {
             showNotice("Nama promosi wajib diisi.", isError = true)
             return
@@ -2778,6 +2784,7 @@ class PosViewModel(application: Application) : AndroidViewModel(application) {
     }
 
     fun printOrderToThermal(order: OrderWithItems, role: PrinterRole, forceReprint: Boolean = false) {
+        if (!requirePermission("printer.print", "Akses cetak struk dinonaktifkan oleh Owner.")) return
         viewModelScope.launch {
             _uiState.update {
                 it.copy(

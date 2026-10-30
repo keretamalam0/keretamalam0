@@ -1623,12 +1623,14 @@ fun PegawaiComposeScreen(viewModel: PosViewModel, uiState: PosUiState) {
     val metrics = listOf("dashboard.total_sales" to "Total penjualan", "dashboard.paid_orders" to "Jumlah transaksi lunas", "dashboard.average_transaction" to "Rata-rata transaksi", "dashboard.peak_hour" to "Jam tersibuk", "dashboard.trend_chart" to "Grafik tren omzet", "dashboard.hourly_activity" to "Aktivitas per jam", "dashboard.best_sellers" to "Menu terlaris", "dashboard.quick_actions" to "Akses cepat")
     val actionPermissions = listOf(
         "orders.update_status" to "Ubah status pesanan",
+        "orders.reject" to "Tolak pesanan",
         "payments" to "Lihat / proses pembayaran",
         "payments.confirm" to "Konfirmasi pembayaran",
         "sales_history.return" to "Retur transaksi (pengembalian penuh)",
         "history.delete" to "Hapus transaksi / detail riwayat",
         "history.export" to "Download / ekspor History (CSV)",
         "profit_loss.export" to "Ekspor laporan Profit & Loss (CSV)",
+        "pos.create_order" to "Buat transaksi baru",
         "pos.manual_discount" to "Terapkan diskon manual di kasir",
         "pos.void_transaction" to "Batalkan transaksi",
         "pos.open_drawer" to "Buka laci kas",
@@ -1648,6 +1650,11 @@ fun PegawaiComposeScreen(viewModel: PosViewModel, uiState: PosUiState) {
         "tables.create" to "Tambah meja / QR",
         "tables.edit" to "Edit meja / QR",
         "tables.delete" to "Hapus meja / QR",
+        "cashier_chat.send" to "Kirim pesan ke pelanggan",
+        "cashier_chat.delete" to "Hapus percakapan pelanggan",
+        "cash_fund.adjust" to "Adjustment / isi ulang modal kas",
+        "shift.manage" to "Buka / tutup sesi kasir",
+        "audit.verify" to "Verifikasi audit shift",
         "staff.manage" to "Kelola pegawai dan hak akses",
         "audit.view" to "Lihat audit shift & rentang tanggal",
         "shift.view_cash" to "Lihat nominal kas shift",
@@ -1665,6 +1672,7 @@ fun PegawaiComposeScreen(viewModel: PosViewModel, uiState: PosUiState) {
         "reports.channels" to "Lihat laporan kanal",
         "reports.order_details" to "Lihat detail pesanan",
         "printer.manage" to "Kelola printer",
+        "printer.print" to "Cetak struk / tiket",
         "activity_log.export" to "Ekspor riwayat aktivitas akun"
     )
     pendingDelete?.let { target -> AlertDialog(onDismissRequest = { pendingDelete = null }, title = { Text("Hapus profil staf?") }, text = { Text("Profil ${target.fullName} akan dihapus dari daftar pegawai aplikasi. Lanjutkan?") }, confirmButton = { Button(onClick = { viewModel.deleteStaffProfile(target.userId); pendingDelete = null }, enabled = isOwner && !uiState.isLoading) { Text("Hapus profil") } }, dismissButton = { OutlinedButton(onClick = { pendingDelete = null }) { Text("Batal") } }) }
@@ -1727,7 +1735,8 @@ fun PegawaiComposeScreen(viewModel: PosViewModel, uiState: PosUiState) {
                                 if (isExpanded) {
                                     HorizontalDivider()
                                     val nested = when (key) {
-                                        "dashboard" -> metrics
+                                        "dashboard" -> metrics + actionPermissions.filter { it.first.startsWith("dashboard.") }
+                                        "cashier_chat" -> actionPermissions.filter { it.first.startsWith("cashier_chat.") }
                                         "profit_loss" -> actionPermissions.filter { it.first.startsWith("profit_loss.") }
                                         "pos" -> actionPermissions.filter { it.first.startsWith("pos.") || it.first.startsWith("payments") }
                                         "orders" -> actionPermissions.filter { it.first.startsWith("orders.") }
@@ -1736,7 +1745,7 @@ fun PegawaiComposeScreen(viewModel: PosViewModel, uiState: PosUiState) {
                                         "inventory" -> actionPermissions.filter { it.first.startsWith("inventory.") }
                                         "tables" -> actionPermissions.filter { it.first.startsWith("tables.") }
                                         "promotions" -> actionPermissions.filter { it.first.startsWith("promotions.") }
-                                        "cash_fund" -> actionPermissions.filter { it.first.startsWith("expenses.") || it.first.startsWith("shift.") }
+                                        "cash_fund" -> actionPermissions.filter { it.first.startsWith("cash_fund.") || it.first.startsWith("expenses.") || it.first.startsWith("shift.") }
                                         "shift_audit" -> actionPermissions.filter { it.first.startsWith("audit.") }
                                         "reports" -> actionPermissions.filter { it.first.startsWith("reports.") || it.first.startsWith("report.") || it.first in setOf("export.download", "data.export") }
                                         "staff_management" -> actionPermissions.filter { it.first.startsWith("staff.") }

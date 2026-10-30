@@ -2235,6 +2235,9 @@ private fun HistoryComposeScreen(viewModel: PosViewModel, uiState: PosUiState) {
     var returnsOnly by remember { mutableStateOf(false) }
     var showFromDatePicker by remember { mutableStateOf(false) }
     var showToDatePicker by remember { mutableStateOf(false) }
+    val canDeleteHistory = uiState.staffProfile.canAccessKey("history.delete")
+    val canExportHistory = uiState.staffProfile.canAccessKey("history.export")
+    val canReturnHistory = uiState.staffProfile.canAccessKey("sales_history.return")
 
     val filteredOrders = remember(uiState.orders, fromDate, toDate, search, returnsOnly) {
         uiState.orders.filter { o ->
@@ -2324,9 +2327,9 @@ private fun HistoryComposeScreen(viewModel: PosViewModel, uiState: PosUiState) {
             confirmButton = {
                 OutlinedButton(onClick = {
                     confirmDeleteAll = false
-                    viewModel.deleteAllOrders()
+                    if (canDeleteHistory) viewModel.deleteAllOrders()
                     selectedIds = emptySet()
-                }) { Text("Hapus Semua", color = MaterialTheme.colorScheme.error) }
+                }, enabled = canDeleteHistory) { Text("Hapus Semua", color = MaterialTheme.colorScheme.error) }
             },
             dismissButton = { OutlinedButton(onClick = { confirmDeleteAll = false }) { Text("Jangan Hapus") } }
         )
@@ -2339,10 +2342,10 @@ private fun HistoryComposeScreen(viewModel: PosViewModel, uiState: PosUiState) {
                 Text(if (returnsOnly) "Daftar Return · ${filteredOrders.size} transaksi" else "History · ${filteredOrders.size} order", style = MaterialTheme.typography.titleSmall, fontWeight = FontWeight.SemiBold)
                 Text(if (returnsOnly) "Nominal retur: ${RupiahFormatter.format(filteredOrders.sumOf { it.total })}" else "Lunas: ${RupiahFormatter.format(filteredOrders.filter { it.isPaid && it.returnedAt == null }.sumOf { it.total })}", style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
             }
-            IconButton(onClick = { csvLauncher.launch("history-transaksi-kereta-malam.csv") }, modifier = Modifier.size(38.dp)) {
+            IconButton(onClick = { if (canExportHistory) csvLauncher.launch("history-transaksi-kereta-malam.csv") }, enabled = canExportHistory, modifier = Modifier.size(38.dp)) {
                 Icon(Icons.Outlined.FileDownload, contentDescription = "Ekspor CSV", tint = Color(0xFF2878F0))
             }
-            IconButton(onClick = { confirmDeleteAll = true }, modifier = Modifier.size(38.dp)) {
+            IconButton(onClick = { if (canDeleteHistory) confirmDeleteAll = true }, enabled = canDeleteHistory, modifier = Modifier.size(38.dp)) {
                 Icon(Icons.Outlined.DeleteSweep, contentDescription = "Hapus semua data", tint = MaterialTheme.colorScheme.error)
             }
         }
@@ -2378,14 +2381,14 @@ private fun HistoryComposeScreen(viewModel: PosViewModel, uiState: PosUiState) {
             OutlinedTextField(value = search, onValueChange = { search = it }, label = { Text("Cari order") }, leadingIcon = { Icon(Icons.Outlined.Search, contentDescription = null, modifier = Modifier.size(18.dp)) }, modifier = Modifier.weight(1f).heightIn(max = 58.dp), singleLine = true, textStyle = MaterialTheme.typography.bodySmall)
             OutlinedButton(onClick = {
                 selectedIds = if (filteredOrders.isNotEmpty() && filteredOrders.all { it.id in selectedIds }) selectedIds - filteredOrders.map { it.id }.toSet()
-                else selectedIds + filteredOrders.map { it.id }
-            }, contentPadding = PaddingValues(horizontal = 9.dp, vertical = 0.dp), modifier = Modifier.height(40.dp)) {
+                else selectedIds + filteredOrders.map { it.id }.toSet()
+            }, enabled = canDeleteHistory, contentPadding = PaddingValues(horizontal = 9.dp, vertical = 0.dp), modifier = Modifier.height(40.dp)) {
                 Text(if (filteredOrders.isNotEmpty() && filteredOrders.all { it.id in selectedIds }) "Batal pilih" else "Pilih semua", style = MaterialTheme.typography.labelSmall)
             }
         }
         Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween, verticalAlignment = Alignment.CenterVertically) {
             Text("${selectedIds.size} dipilih", style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
-            TextButton(onClick = { confirmDeleteSelected = true }, enabled = selectedIds.isNotEmpty(), contentPadding = PaddingValues(horizontal = 8.dp, vertical = 0.dp)) {
+            TextButton(onClick = { if (canDeleteHistory) confirmDeleteSelected = true }, enabled = canDeleteHistory && selectedIds.isNotEmpty(), contentPadding = PaddingValues(horizontal = 8.dp, vertical = 0.dp)) {
                 Icon(Icons.Outlined.Delete, contentDescription = null, modifier = Modifier.size(16.dp), tint = MaterialTheme.colorScheme.error)
                 Spacer(Modifier.width(4.dp))
                 Text("Hapus terpilih", color = MaterialTheme.colorScheme.error, style = MaterialTheme.typography.labelMedium)
@@ -2400,7 +2403,7 @@ private fun HistoryComposeScreen(viewModel: PosViewModel, uiState: PosUiState) {
                         horizontalArrangement = Arrangement.spacedBy(8.dp),
                         verticalAlignment = Alignment.CenterVertically
                     ) {
-                        Checkbox(checked = order.id in selectedIds, onCheckedChange = { checked ->
+                        Checkbox(checked = order.id in selectedIds, enabled = canDeleteHistory, onCheckedChange = { checked ->
                             selectedIds = if (checked) selectedIds + order.id else selectedIds - order.id
                         })
                         Column(modifier = Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(3.dp)) {
@@ -2422,7 +2425,7 @@ private fun HistoryComposeScreen(viewModel: PosViewModel, uiState: PosUiState) {
                             Text("Total", style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
                             Text(RupiahFormatter.format(order.total), fontWeight = FontWeight.Bold)
                             OutlinedButton(onClick = { viewModel.openReceiptDialog(order) }) { Text("Detail") }
-                            if (order.status == OrderStatus.COMPLETED && order.isPaid && order.returnedAt == null && uiState.staffProfile.role in setOf(StaffRole.OWNER, StaffRole.CASHIER)) OutlinedButton(onClick = { orderToReturn = order; returnReason = "" }) { Text("Return") }
+                            if (order.status == OrderStatus.COMPLETED && order.isPaid && order.returnedAt == null && canReturnHistory) OutlinedButton(onClick = { orderToReturn = order; returnReason = "" }) { Text("Return") }
                         }
                     }
                 }

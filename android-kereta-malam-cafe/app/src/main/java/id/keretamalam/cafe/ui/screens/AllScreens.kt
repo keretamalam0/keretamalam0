@@ -3007,36 +3007,70 @@ private fun ActivityLogComposeScreen(uiState: PosUiState) {
 }
 
 private fun readableAuditAction(raw: String): String {
-    val value = raw.replace('_', ' ').replace('.', ' ').trim()
-    val normalized = value.lowercase()
+    val action = raw.lowercase()
     return when {
-        normalized.contains("login") || normalized.contains("sign in") -> "Login ke aplikasi"
-        normalized.contains("logout") || normalized.contains("sign out") -> "Keluar dari aplikasi"
-        normalized.contains("insert") || normalized.contains("create") || normalized.contains("add") -> "Menambahkan data"
-        normalized.contains("update") || normalized.contains("edit") -> "Mengubah data"
-        normalized.contains("delete") || normalized.contains("remove") -> "Menghapus data"
-        normalized.contains("return") || normalized.contains("refund") -> "Melakukan retur transaksi"
-        normalized.contains("payment") -> "Memproses pembayaran"
-        normalized.contains("shift") -> "Aktivitas shift"
-        else -> value.replaceFirstChar { it.uppercase() }
+        action.contains("staff_account_created") -> "Membuat akun pegawai"
+        action.contains("staff_permissions_changed") -> "Mengubah hak akses pegawai"
+        action.contains("staff_role_changed") -> "Mengubah jabatan pegawai"
+        action.contains("staff_status_changed") -> "Mengubah status akun pegawai"
+        action.contains("login") || action.contains("sign in") -> "Login ke aplikasi"
+        action.contains("logout") || action.contains("sign out") -> "Keluar dari aplikasi"
+        action.startsWith("products.insert") || action.startsWith("product.insert") -> "Menambahkan produk"
+        action.startsWith("products.update") || action.startsWith("product.update") -> "Mengubah produk"
+        action.startsWith("products.delete") || action.startsWith("product.delete") -> "Menghapus produk"
+        action.startsWith("orders.insert") || action.startsWith("order.insert") -> "Membuat transaksi"
+        action.startsWith("orders.update") || action.startsWith("order.update") -> "Memperbarui transaksi"
+        action.contains("return") || action.contains("refund") -> "Melakukan retur transaksi"
+        action.contains("payment") -> "Memproses pembayaran"
+        action.contains("shift") -> "Aktivitas shift"
+        action.contains("insert") || action.contains("create") || action.contains("add") -> "Menambahkan data"
+        action.contains("update") || action.contains("edit") -> "Mengubah data"
+        action.contains("delete") || action.contains("remove") -> "Menghapus data"
+        else -> raw.replace('_', ' ').replace('.', ' ').replaceFirstChar { it.uppercase() }
     }
 }
 
 private fun readableAuditEntity(raw: String): String = when (raw.lowercase()) {
     "staff_profiles", "staff", "pegawai" -> "Akun pegawai"
     "products", "product" -> "Produk"
-    "orders", "order" -> "Transaksi / pesanan"
+    "orders", "order", "order_items" -> "Transaksi / pesanan"
+    "payments" -> "Pembayaran"
     "staff_shifts", "shift" -> "Shift kasir"
     "inventory_movements", "inventory" -> "Mutasi stok"
     "outlet_settings", "settings" -> "Pengaturan outlet"
+    "auth" -> "Keamanan akun"
     else -> raw.replace('_', ' ').replaceFirstChar { it.uppercase() }
 }
 
 private fun readableAuditDetails(log: AuditLog): String {
-    if (log.detailsText.isNotBlank()) return log.detailsText.replace(Regex("[{}\\\"]"), " ").replace(',', ' ').replace(Regex("\\s+"), " ").trim()
-    val details = log.details ?: return ""
-    val labels = mapOf("old" to "Sebelumnya", "new" to "Menjadi", "before" to "Sebelumnya", "after" to "Menjadi", "name" to "Nama", "price" to "Harga", "stock" to "Stok", "role" to "Role", "is_active" to "Status", "full_name" to "Nama lengkap", "permissions" to "Hak akses", "amount" to "Nominal", "reason" to "Keterangan", "description" to "Deskripsi")
-    return details.entries.joinToString(" · ") { (key, value) ->
-        "${labels[key] ?: key.replace('_', ' ').replaceFirstChar { it.uppercase() }}: ${value.toString().trim('"')}"
+    if (log.detailsText.isNotBlank()) {
+        return log.detailsText.replace(Regex("[{}\\\"]"), " ").replace(',', ' ').replace(Regex("\\s+"), " ").trim()
     }
+    val details = log.details ?: return ""
+    val labels = mapOf(
+        "old" to "Sebelumnya", "new" to "Menjadi", "before" to "Sebelumnya", "after" to "Menjadi",
+        "name" to "Nama", "price" to "Harga", "stock" to "Stok", "role" to "Jabatan",
+        "is_active" to "Status", "full_name" to "Nama lengkap", "permissions" to "Hak akses",
+        "amount" to "Nominal", "reason" to "Keterangan", "description" to "Deskripsi",
+        "email" to "Email", "service_fee_mode" to "Mode biaya layanan", "service_fixed_amount" to "Biaya layanan tetap",
+        "opening_hours" to "Jam operasional", "instagram" to "Instagram", "status" to "Status"
+    )
+    val parts = mutableListOf<String>()
+    details.entries.forEach { (key, value) ->
+        when (key) {
+            "changes" -> {
+                val changes = runCatching { kotlinx.serialization.json.Json.parseToJsonElement(value.toString()).jsonObject }.getOrNull()
+                changes?.entries?.forEach { (field, change) ->
+                    val pair = runCatching { kotlinx.serialization.json.Json.parseToJsonElement(change.toString()).jsonObject }.getOrNull()
+                    val before = pair?.get("before")?.toString()?.trim('"')
+                    val after = pair?.get("after")?.toString()?.trim('"')
+                    val label = labels[field] ?: field.replace('_', ' ').replaceFirstChar { it.uppercase() }
+                    if (before != null || after != null) parts += "$label: ${before ?: "—"} → ${after ?: "—"}"
+                }
+            }
+            "before", "after" -> Unit
+            else -> parts += "${labels[key] ?: key.replace('_', ' ').replaceFirstChar { it.uppercase() }}: ${value.toString().trim('"')}"
+        }
+    }
+    return parts.joinToString(" · ")
 }

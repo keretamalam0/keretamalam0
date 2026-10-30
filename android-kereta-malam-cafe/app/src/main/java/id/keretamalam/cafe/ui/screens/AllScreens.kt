@@ -2719,7 +2719,7 @@ private fun ShiftKasirComposeScreen(viewModel: PosViewModel, uiState: PosUiState
                                 Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(2.dp)) {
                                     Text(expense.description, fontWeight = FontWeight.Medium)
                                     Text("${expense.category} • " + when (expense.cashSource) { "cash_fund" -> "Kas Modal"; "sales_cash" -> "Tunai"; "sales_qris", "sales_transfer" -> "Non-tunai"; else -> expense.cashSource }, style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
-                                    Text(expense.createdAt ?: expense.expenseDate, style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                                    Text(if (expense.createdAt.isNullOrBlank()) expense.expenseDate else "${formatTimestampWib(expense.createdAt)} WIB", style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
                                 }
                                 Text("−${RupiahFormatter.format(expense.amount)}", fontWeight = FontWeight.SemiBold, color = MaterialTheme.colorScheme.error)
                             }
@@ -2754,7 +2754,7 @@ private fun AuditShiftComposeScreen(viewModel: PosViewModel, uiState: PosUiState
     val needsReview = uiState.shifts.count { !it.auditVerified && it.status.equals("closed", true) }
     val filtered = uiState.shifts.filter { shift ->
         val queryMatch = search.isBlank() || shift.staffName.contains(search, true) || shift.id.contains(search, true) || shift.notes.orEmpty().contains(search, true)
-        val date = shift.openedAt.take(10)
+        val date = dateOnlyWib(shift.openedAt)
         val dateMatch = (fromDate.isBlank() || date >= fromDate) && (toDate.isBlank() || date <= toDate)
         val filterMatch = when (filter) {
             "PERLU" -> !shift.auditVerified && shift.status.equals("closed", true)

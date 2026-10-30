@@ -32,7 +32,7 @@ android {
         val supabaseAnonKey = localProps.getProperty("SUPABASE_PUBLISHABLE_KEY", "")
         val publicWebBaseUrl = localProps.getProperty(
             "PUBLIC_WEB_MENU_BASE_URL",
-            "https://pos.yuripratama246.workers.dev"
+            "https://kemalcafe.netlify.app"
         )
 
         buildConfigField("String", "SUPABASE_PROJECT_ID", "\"$supabaseProjectId\"")

@@ -2871,6 +2871,7 @@ private fun AuditShiftComposeScreen(viewModel: PosViewModel, uiState: PosUiState
 // 8. LOG AKTIVITAS SCREEN
 // ============================================================================
 @Composable
+@OptIn(ExperimentalMaterial3Api::class)
 private fun ActivityLogComposeScreen(uiState: PosUiState) {
     val context = LocalContext.current
     var selectedAccountId by remember { mutableStateOf<String?>(null) }

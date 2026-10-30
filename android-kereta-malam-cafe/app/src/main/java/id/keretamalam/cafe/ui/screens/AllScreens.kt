@@ -2198,11 +2198,13 @@ private fun PesananComposeScreen(
                                             else Text("Konfirmasi pembayaran sebelum diselesaikan", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.error)
                                         else -> {}
                                     }
-                                    if (order.status != OrderStatus.COMPLETED && order.status != OrderStatus.CANCELLED) {
+                                    val canRejectQrOrder = order.source == "qr" && order.status == OrderStatus.NEW
+                                    val canCancelPosOrder = order.source != "qr" && order.status != OrderStatus.COMPLETED && order.status != OrderStatus.CANCELLED
+                                    if (canRejectQrOrder || canCancelPosOrder) {
                                         OutlinedButton(
                                             onClick = { if (order.source == "qr") viewModel.rejectQrOrder(order) else viewModel.updateOrderStatus(order, OrderStatus.CANCELLED) { lane = "riwayat" } },
                                             colors = ButtonDefaults.outlinedButtonColors(contentColor = MaterialTheme.colorScheme.error)
-                                        ) { Text(if (order.source == "qr") "Ditolak" else "Batalkan") }
+                                        ) { Text(if (order.source == "qr") "Tolak" else "Batalkan") }
                                     }
                                 }
                             } else {

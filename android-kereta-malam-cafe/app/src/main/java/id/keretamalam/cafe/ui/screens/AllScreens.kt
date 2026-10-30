@@ -99,6 +99,15 @@ private fun formatTimestampWib(raw: String?): String {
     return local?.format(formatter) ?: raw
 }
 
+private fun dateOnlyWib(raw: String?): String {
+    if (raw.isNullOrBlank()) return ""
+    val zone = java.time.ZoneId.of("Asia/Jakarta")
+    val instant = runCatching { java.time.Instant.parse(raw) }.getOrNull()
+        ?: runCatching { java.time.OffsetDateTime.parse(raw).toInstant() }.getOrNull()
+    if (instant != null) return instant.atZone(zone).toLocalDate().toString()
+    return runCatching { java.time.LocalDate.parse(raw.take(10)).toString() }.getOrDefault("")
+}
+
 @Composable
 fun LoginComposeScreen(
     viewModel: PosViewModel,
@@ -801,7 +810,7 @@ private fun DashboardComposeScreen(
                         Row(Modifier.fillMaxWidth().padding(vertical = 4.dp), horizontalArrangement = Arrangement.SpaceBetween, verticalAlignment = Alignment.CenterVertically) {
                             Column(Modifier.weight(1f)) {
                                 Text("Pesanan #${order.orderNo}", fontWeight = FontWeight.SemiBold)
-                                Text(dateOf(order.createdAt)?.format(java.time.format.DateTimeFormatter.ofPattern("dd MMM, HH:mm", java.util.Locale("id", "ID"))) ?: order.createdAt, style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                                Text(dateOf(order.createdAt)?.format(java.time.format.DateTimeFormatter.ofPattern("dd MMM, HH:mm", java.util.Locale("id", "ID"))) ?: formatTimestampWib(order.createdAt), style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
                             }
                             Column(horizontalAlignment = Alignment.End) {
                                 Text(RupiahFormatter.format(order.total), fontWeight = FontWeight.Bold)
@@ -2247,7 +2256,7 @@ private fun HistoryComposeScreen(viewModel: PosViewModel, uiState: PosUiState) {
 
     val filteredOrders = remember(uiState.orders, fromDate, toDate, search, returnsOnly) {
         uiState.orders.filter { o ->
-            val datePart = (if (returnsOnly) o.returnedAt else o.createdAt)?.take(10).orEmpty()
+            val datePart = dateOnlyWib(if (returnsOnly) o.returnedAt else o.createdAt)
             val inRange = (fromDate.isBlank() || datePart >= fromDate) && (toDate.isBlank() || datePart <= toDate)
             val matchQuery = search.isBlank() ||
                 o.orderNo.toString().contains(search) ||
@@ -2425,7 +2434,7 @@ private fun HistoryComposeScreen(viewModel: PosViewModel, uiState: PosUiState) {
                                 )
                             }
                             Text("Dibayar: ${if (order.isPaid) "LUNAS" else "BELUM LUNAS"}", color = if (order.isPaid) Color(0xFF15803D) else MaterialTheme.colorScheme.error, style = MaterialTheme.typography.bodySmall)
-                            if (order.returnedAt != null) Text("DIRETUR · ${order.returnReason ?: "Tanpa alasan"} · ${order.returnedAt}", color = MaterialTheme.colorScheme.error, style = MaterialTheme.typography.bodySmall)
+                            if (order.returnedAt != null) Text("DIRETUR · ${order.returnReason ?: "Tanpa alasan"} · ${formatTimestampWib(order.returnedAt)} WIB", color = MaterialTheme.colorScheme.error, style = MaterialTheme.typography.bodySmall)
                         }
                         Column(horizontalAlignment = Alignment.End, verticalArrangement = Arrangement.spacedBy(5.dp)) {
                             Text("Total", style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
@@ -2481,7 +2490,7 @@ private fun ShiftKasirComposeScreen(viewModel: PosViewModel, uiState: PosUiState
     }.sortedByDescending { it.createdAt ?: "" } else emptyList()
     val hasSessionNotes = sessionRecentExpenses.isNotEmpty()
     val sessions = starts.filter { session ->
-        val day = (session.createdAt ?: "").take(10)
+        val day = dateOnlyWib(session.createdAt)
         (sessionHistoryFrom.isBlank() || day >= sessionHistoryFrom) && (sessionHistoryTo.isBlank() || day <= sessionHistoryTo)
     }
     // Saldo sumber penjualan dihitung dari transaksi lunas aktual, bukan angka contoh.
@@ -2535,7 +2544,7 @@ private fun ShiftKasirComposeScreen(viewModel: PosViewModel, uiState: PosUiState
                         Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween, verticalAlignment = Alignment.CenterVertically) {
                             Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(3.dp)) {
                                 Text("SESI AKTIF", style = MaterialTheme.typography.labelLarge, color = MaterialTheme.colorScheme.primary, fontWeight = FontWeight.Bold)
-                                Text("Mulai: ${latestStart.createdAt ?: "—"}", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                                Text("Mulai: ${formatTimestampWib(latestStart.createdAt)} WIB", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
                             }
                             Text(RupiahFormatter.format(currentFund), style = MaterialTheme.typography.titleLarge, fontWeight = FontWeight.Bold)
                         }
@@ -2598,7 +2607,7 @@ private fun ShiftKasirComposeScreen(viewModel: PosViewModel, uiState: PosUiState
                                             "sales_transfer" -> "Transfer Bank"
                                             else -> expense.cashSource
                                         }, style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
-                                        Text(expense.createdAt ?: expense.expenseDate, style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                                        Text(if (expense.createdAt.isNullOrBlank()) expense.expenseDate else "${formatTimestampWib(expense.createdAt)} WIB", style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
                                     }
                                     Text("−${RupiahFormatter.format(expense.amount)}", fontWeight = FontWeight.Bold, color = MaterialTheme.colorScheme.error)
                                 }
@@ -2614,7 +2623,7 @@ private fun ShiftKasirComposeScreen(viewModel: PosViewModel, uiState: PosUiState
                                             "sales_transfer" -> "Dari Transfer Bank"
                                             else -> fund.source
                                         }, style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
-                                        Text(fund.createdAt ?: "Waktu tidak tersedia", style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                                        Text("${formatTimestampWib(fund.createdAt)} WIB", style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
                                     }
                                     Text("+${RupiahFormatter.format(fund.amount)}", fontWeight = FontWeight.Bold, color = MaterialTheme.colorScheme.primary)
                                 }
@@ -2699,7 +2708,7 @@ private fun ShiftKasirComposeScreen(viewModel: PosViewModel, uiState: PosUiState
                     Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) { Text("Total pengeluaran"); Text(RupiahFormatter.format(allExpenses), fontWeight = FontWeight.Medium) }
                     Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) { Text("Adjustment modal"); Text(RupiahFormatter.format(adjustments), fontWeight = FontWeight.Medium) }
                     Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) { Text("Saldo akhir"); Text(RupiahFormatter.format(closing), fontWeight = FontWeight.Bold) }
-                    if (close != null) Text("Diakhiri: ${close.createdAt ?: "—"}", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                    if (close != null) Text("Diakhiri: ${formatTimestampWib(close.createdAt)} WIB", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
                     TextButton(onClick = { expandedSessionDetails = if (expandedSessionDetails == session.id) null else session.id }) { Text(if (expandedSessionDetails == session.id) "Tutup detail ▴" else "Detail sesi ▾") }
                     if (expandedSessionDetails == session.id) {
                         HorizontalDivider()
@@ -2778,9 +2787,9 @@ private fun AuditShiftComposeScreen(viewModel: PosViewModel, uiState: PosUiState
                     Text("Kasir: ${shift.staffName}", fontWeight = FontWeight.Bold)
                     Text("ID Shift: ${shift.id}", style = MaterialTheme.typography.bodySmall)
                     Text("Status: ${shift.status.uppercase()}")
-                    Text("Opening: ${shift.openedAt}")
+                    Text("Opening: ${formatTimestampWib(shift.openedAt)} WIB")
                     Text("Modal awal: ${RupiahFormatter.format(shift.openingCash)}")
-                    Text("Closing: ${shift.closedAt ?: "Belum ditutup"}")
+                    Text("Closing: ${if (shift.closedAt.isNullOrBlank()) "Belum ditutup" else "${formatTimestampWib(shift.closedAt)} WIB"}")
                     Text("Ekspektasi kas: ${RupiahFormatter.format(shift.expectedCash ?: 0.0)}")
                     Text("Kas fisik akhir: ${shift.closingCash?.let { RupiahFormatter.format(it) } ?: "Belum ada"}")
                     Text("Selisih kas: ${RupiahFormatter.format(variance)}")
@@ -2851,8 +2860,8 @@ private fun AuditShiftComposeScreen(viewModel: PosViewModel, uiState: PosUiState
                             Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween, verticalAlignment = Alignment.CenterVertically) {
                                 Column(Modifier.weight(1f)) {
                                     Text(shift.staffName, fontWeight = FontWeight.Bold)
-                                    Text("${shift.status.uppercase()} · Opening ${shift.openedAt}", style = MaterialTheme.typography.bodySmall)
-                                    Text("Closing: ${shift.closedAt ?: "Belum ditutup"}", style = MaterialTheme.typography.bodySmall)
+                                    Text("${shift.status.uppercase()} · Opening ${formatTimestampWib(shift.openedAt)} WIB", style = MaterialTheme.typography.bodySmall)
+                                    Text("Closing: ${if (shift.closedAt.isNullOrBlank()) "Belum ditutup" else "${formatTimestampWib(shift.closedAt)} WIB"}", style = MaterialTheme.typography.bodySmall)
                                 }
                                 if (shift.auditVerified) Text("Terverifikasi", color = Color(0xFF5F9E91), fontWeight = FontWeight.Bold)
                                 else if (shift.status.equals("closed", true)) Text("Perlu diperiksa", color = if (suspicious) MaterialTheme.colorScheme.error else Color(0xFFC29A5D), fontWeight = FontWeight.Bold)

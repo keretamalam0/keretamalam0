@@ -1371,6 +1371,10 @@ class PosViewModel(application: Application) : AndroidViewModel(application) {
     // PESANAN & QR ORDERING
     // ========================================================================
     fun deleteOrders(orderIds: List<String>) {
+        if (!_uiState.value.staffProfile.canAccessKey("history.delete")) {
+            showNotice("Akses hapus riwayat dinonaktifkan oleh Owner.", isError = true)
+            return
+        }
         val ids = orderIds.distinct()
         if (ids.isEmpty()) return
         viewModelScope.launch {
@@ -1394,6 +1398,10 @@ class PosViewModel(application: Application) : AndroidViewModel(application) {
     }
 
     fun deleteAllOrders() {
+        if (!_uiState.value.staffProfile.canAccessKey("history.delete")) {
+            showNotice("Akses hapus seluruh riwayat dinonaktifkan oleh Owner.", isError = true)
+            return
+        }
         viewModelScope.launch {
             val previousOrders = _uiState.value.orders
             val liveBackend = _uiState.value.backendStatus == BackendIntegrationStatus.ACTIVE_VERIFIED

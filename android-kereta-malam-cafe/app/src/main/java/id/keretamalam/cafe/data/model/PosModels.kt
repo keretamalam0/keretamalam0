@@ -74,6 +74,7 @@ data class StaffProfile(
             key.startsWith("history.") -> PermissionKey.SALES_HISTORY.key
             key.startsWith("sales_history.") -> PermissionKey.SALES_HISTORY.key
             key.startsWith("dashboard.") -> PermissionKey.DASHBOARD.key
+            key.startsWith("profit_loss.") -> PermissionKey.PROFIT_LOSS.key
             key.startsWith("pos.") -> PermissionKey.POS.key
             key.startsWith("orders.") -> PermissionKey.ORDERS.key
             key.startsWith("payments.") -> PermissionKey.POS.key

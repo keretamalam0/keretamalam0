@@ -3059,9 +3059,9 @@ private fun readableAuditDetails(log: AuditLog): String {
     details.entries.forEach { (key, value) ->
         when (key) {
             "changes" -> {
-                val changes = runCatching { kotlinx.serialization.json.Json.parseToJsonElement(value.toString()).jsonObject }.getOrNull()
+                val changes = runCatching { (kotlinx.serialization.json.Json.parseToJsonElement(value.toString()) as? kotlinx.serialization.json.JsonObject) }.getOrNull()
                 changes?.entries?.forEach { (field, change) ->
-                    val pair = runCatching { kotlinx.serialization.json.Json.parseToJsonElement(change.toString()).jsonObject }.getOrNull()
+                    val pair = runCatching { (kotlinx.serialization.json.Json.parseToJsonElement(change.toString()) as? kotlinx.serialization.json.JsonObject) }.getOrNull()
                     val before = pair?.get("before")?.toString()?.trim('"')
                     val after = pair?.get("after")?.toString()?.trim('"')
                     val label = labels[field] ?: field.replace('_', ' ').replaceFirstChar { it.uppercase() }

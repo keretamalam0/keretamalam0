@@ -130,16 +130,25 @@ data class PosUiState(
     val taxableBase: Double
         get() = (subtotal - discountAmount).coerceAtLeast(0.0)
 
-    val taxAndServiceAmount: Double
+    val serviceChargeAmount: Double
         get() {
-            val tax = if (outletSettings.taxEnabled) taxableBase * (outletSettings.taxRate / 100.0) else 0.0
-            val svc = if (!outletSettings.serviceEnabled) 0.0 else if (outletSettings.serviceFeeMode == "fixed") {
+            if (!outletSettings.serviceEnabled || !outletSettings.serviceShowInCashier) return 0.0
+            val amount = if (outletSettings.serviceFeeMode == "fixed") {
                 outletSettings.serviceFixedAmount.coerceAtLeast(0.0)
             } else {
                 taxableBase * (outletSettings.serviceRate.coerceAtLeast(0.0) / 100.0)
             }
-            return kotlin.math.round(tax + svc)
+            return kotlin.math.round(amount)
         }
+
+    val taxAmount: Double
+        get() {
+            if (!outletSettings.taxEnabled || !outletSettings.taxShowInCashier) return 0.0
+            return kotlin.math.round((taxableBase + serviceChargeAmount) * (outletSettings.taxRate.coerceAtLeast(0.0) / 100.0))
+        }
+
+    val taxAndServiceAmount: Double
+        get() = taxAmount + serviceChargeAmount
 
     val grandTotal: Double
         get() = taxableBase + taxAndServiceAmount

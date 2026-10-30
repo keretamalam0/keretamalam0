@@ -1728,10 +1728,16 @@ private fun KasirComposeScreen(
                             Text("-${RupiahFormatter.format(uiState.discountAmount)}")
                         }
                     }
-                    if (uiState.taxAndServiceAmount > 0) {
+                    if (uiState.taxAmount > 0) {
                         Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
-                            Text("Pajak & Layanan")
-                            Text(RupiahFormatter.format(uiState.taxAndServiceAmount))
+                            Text("Pajak (${uiState.outletSettings.taxRate.toInt()}%)")
+                            Text(RupiahFormatter.format(uiState.taxAmount))
+                        }
+                    }
+                    if (uiState.serviceChargeAmount > 0) {
+                        Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
+                            Text("Service charge")
+                            Text(RupiahFormatter.format(uiState.serviceChargeAmount))
                         }
                     }
                     Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {

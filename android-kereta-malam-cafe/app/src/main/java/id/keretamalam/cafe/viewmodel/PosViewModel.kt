@@ -542,6 +542,7 @@ class PosViewModel(application: Application) : AndroidViewModel(application) {
     }
 
     fun sendCashierChatMessage(threadId: String, body: String) {
+        if (!requirePermission("cashier_chat.send", "Akses kirim pesan dinonaktifkan oleh Owner.")) return
         if (threadId.isBlank() || body.isBlank()) return
         viewModelScope.launch {
             runCatching {
@@ -554,6 +555,7 @@ class PosViewModel(application: Application) : AndroidViewModel(application) {
     }
 
     fun deleteCashierChatThread(threadId: String) {
+        if (!requirePermission("cashier_chat.delete", "Akses hapus percakapan dinonaktifkan oleh Owner.")) return
         if (threadId.isBlank() || _uiState.value.backendStatus != BackendIntegrationStatus.ACTIVE_VERIFIED) return
         viewModelScope.launch {
             runCatching {
@@ -600,6 +602,7 @@ class PosViewModel(application: Application) : AndroidViewModel(application) {
     }
 
     fun addStaffProfile(fullName: String, email: String, role: StaffRole) {
+        if (!requirePermission("staff.manage", "Akses kelola pegawai dinonaktifkan oleh Owner.")) return
         if (fullName.isBlank() || email.isBlank()) {
             showNotice("Nama lengkap dan email pegawai wajib diisi.", isError = true)
             return
@@ -628,6 +631,7 @@ class PosViewModel(application: Application) : AndroidViewModel(application) {
     }
 
     fun savePaymentMethod(method: PaymentMethod) {
+        if (!requirePermission("payments.manage_methods", "Akses kelola metode pembayaran dinonaktifkan oleh Owner.")) return
         if (_uiState.value.backendStatus != BackendIntegrationStatus.ACTIVE_VERIFIED) {
             showNotice("Metode pembayaran hanya bisa disimpan saat layanan aktif.", isError = true)
             return
@@ -641,6 +645,7 @@ class PosViewModel(application: Application) : AndroidViewModel(application) {
     }
 
     fun deletePaymentMethod(id: String) {
+        if (!requirePermission("payments.manage_methods", "Akses kelola metode pembayaran dinonaktifkan oleh Owner.")) return
         viewModelScope.launch {
             runCatching { repository.deletePaymentMethod(id) }
                 .onSuccess { _uiState.update { s -> s.copy(paymentMethods = s.paymentMethods.filterNot { it.id == id }, successMessage = "Metode pembayaran dihapus.") } }
@@ -657,6 +662,7 @@ class PosViewModel(application: Application) : AndroidViewModel(application) {
     }
 
     fun toggleStaffPermission(userId: String, permKey: String, enabled: Boolean? = null) {
+        if (!requirePermission("staff.manage", "Akses kelola hak pegawai dinonaktifkan oleh Owner.")) return
         val state = _uiState.value
         val target = state.staffList.firstOrNull { it.userId == userId } ?: return
         if (!canManageStaff(state, target)) {
@@ -714,6 +720,7 @@ class PosViewModel(application: Application) : AndroidViewModel(application) {
     }
 
     fun setStaffActive(userId: String, active: Boolean) {
+        if (!requirePermission("staff.manage", "Akses kelola pegawai dinonaktifkan oleh Owner.")) return
         val state = _uiState.value
         val target = state.staffList.firstOrNull { it.userId == userId } ?: return
         if (!canManageStaff(state, target)) { showNotice("Hanya owner yang dapat mengubah status staf lain.", isError = true); return }
@@ -791,6 +798,7 @@ class PosViewModel(application: Application) : AndroidViewModel(application) {
     }
 
     fun deleteStaffProfile(userId: String) {
+        if (!requirePermission("staff.manage", "Akses hapus pegawai dinonaktifkan oleh Owner.")) return
         val state = _uiState.value
         val target = state.staffList.firstOrNull { it.userId == userId } ?: return
         if (!canManageStaff(state, target)) { showNotice("Hanya owner yang dapat menghapus profil staf lain.", isError = true); return }
@@ -808,6 +816,12 @@ class PosViewModel(application: Application) : AndroidViewModel(application) {
 
     private fun applyLocalStaffUpdate(updated: StaffProfile, message: String) {
         _uiState.update { state -> state.copy(staffList = state.staffList.map { if (it.userId == updated.userId) updated else it }, successMessage = message) }
+    }
+
+    private fun requirePermission(key: String, message: String): Boolean {
+        if (_uiState.value.staffProfile.canAccessKey(key)) return true
+        showNotice(message, isError = true)
+        return false
     }
 
     private fun appendAuditLog(action: String, entityType: String, entityId: String, detailsText: String) {
@@ -1221,6 +1235,7 @@ class PosViewModel(application: Application) : AndroidViewModel(application) {
     }
 
     fun submitPosCheckout() {
+        if (!requirePermission("pos.create_order", "Akses membuat transaksi dinonaktifkan oleh Owner.")) return
         val currentState = _uiState.value
         if (currentState.cart.isEmpty() || currentState.isCheckoutProcessing) return
         if (!currentState.isPromotionEligible) {
@@ -1480,6 +1495,7 @@ class PosViewModel(application: Application) : AndroidViewModel(application) {
     }
 
     fun updateOrderStatus(order: OrderWithItems, nextStatus: OrderStatus, onSuccess: (() -> Unit)? = null) {
+        if (!requirePermission("orders.update_status", "Akses mengubah status pesanan dinonaktifkan oleh Owner.")) return
         viewModelScope.launch {
             val liveBackend = _uiState.value.backendStatus == BackendIntegrationStatus.ACTIVE_VERIFIED
             val previousOrder = _uiState.value.orders.firstOrNull { it.id == order.id } ?: order
@@ -1528,6 +1544,7 @@ class PosViewModel(application: Application) : AndroidViewModel(application) {
     }
 
     fun approveQrOrder(order: OrderWithItems, method: String, onSuccess: (() -> Unit)? = null) {
+        if (!requirePermission("payments.confirm", "Akses konfirmasi pembayaran dinonaktifkan oleh Owner.")) return
         viewModelScope.launch {
             val liveBackend = _uiState.value.backendStatus == BackendIntegrationStatus.ACTIVE_VERIFIED
             val previousOrder = _uiState.value.orders.firstOrNull { it.id == order.id } ?: order
@@ -1581,6 +1598,7 @@ class PosViewModel(application: Application) : AndroidViewModel(application) {
         cashReceived: Double?,
         onSuccess: (() -> Unit)? = null
     ) {
+        if (!requirePermission("payments.confirm", "Akses konfirmasi pembayaran dinonaktifkan oleh Owner.")) return
         viewModelScope.launch {
             if (_uiState.value.backendStatus == BackendIntegrationStatus.ACTIVE_VERIFIED) {
                 runCatching {
@@ -1635,6 +1653,7 @@ class PosViewModel(application: Application) : AndroidViewModel(application) {
     }
 
     fun rejectQrOrder(order: OrderWithItems) {
+        if (!requirePermission("orders.reject", "Akses menolak pesanan dinonaktifkan oleh Owner.")) return
         viewModelScope.launch {
             val liveBackend = _uiState.value.backendStatus == BackendIntegrationStatus.ACTIVE_VERIFIED
             val previousOrder = _uiState.value.orders.firstOrNull { it.id == order.id } ?: order
@@ -1718,6 +1737,7 @@ class PosViewModel(application: Application) : AndroidViewModel(application) {
     // SHIFT KASIR & AUDIT SHIFT
     // ========================================================================
     fun openNewShift(openingCash: Double) {
+        if (!requirePermission("shift.manage", "Akses membuka sesi kasir dinonaktifkan oleh Owner.")) return
         if (openingCash < 0.0) {
             showNotice("Modal awal tidak boleh negatif.", isError = true)
             return
@@ -1763,6 +1783,7 @@ class PosViewModel(application: Application) : AndroidViewModel(application) {
     }
 
     fun closeActiveShift(shiftId: String, closingCash: Double, expectedCash: Double, notes: String) {
+        if (!requirePermission("shift.manage", "Akses menutup sesi kasir dinonaktifkan oleh Owner.")) return
         if (closingCash < 0.0) {
             showNotice("Kas akhir tidak boleh negatif.", isError = true)
             return
@@ -1809,6 +1830,7 @@ class PosViewModel(application: Application) : AndroidViewModel(application) {
     }
 
     fun verifyShiftAudit(shiftId: String) {
+        if (!requirePermission("audit.verify", "Akses verifikasi audit shift dinonaktifkan oleh Owner.")) return
         val state = _uiState.value
         val shift = state.shifts.firstOrNull { it.id == shiftId }
         if (shift == null) {
@@ -1847,6 +1869,7 @@ class PosViewModel(application: Application) : AndroidViewModel(application) {
     // PRODUK, KATEGORI, MEJA, INVENTORY, PROMOSI, KEUANGAN & PENGATURAN
     // ========================================================================
     fun addCategory(name: String) {
+        if (!requirePermission("products.create", "Akses tambah kategori/produk dinonaktifkan oleh Owner.")) return
         val trimmed = name.trim()
         if (trimmed.isEmpty()) return
         if (_uiState.value.categories.any { it.name.equals(trimmed, ignoreCase = true) }) {
@@ -1888,6 +1911,7 @@ class PosViewModel(application: Application) : AndroidViewModel(application) {
     }
 
     fun deleteCategoryItem(categoryId: String) {
+        if (!requirePermission("products.delete", "Akses hapus kategori dinonaktifkan oleh Owner.")) return
         val inUse = _uiState.value.products.any { it.categoryId == categoryId }
         if (inUse) {
             showNotice("Kategori masih dipakai produk. Pindahkan produk ke kategori lain sebelum menghapus.", isError = true)
@@ -1908,6 +1932,7 @@ class PosViewModel(application: Application) : AndroidViewModel(application) {
     }
 
     fun uploadProductPhoto(bytes: ByteArray, mimeType: String, extension: String, onUploaded: (String) -> Unit) {
+        if (!requirePermission("products.edit", "Akses ubah foto produk dinonaktifkan oleh Owner.")) return
         if (_uiState.value.backendStatus != BackendIntegrationStatus.ACTIVE_VERIFIED) {
             showNotice("Foto produk perlu koneksi Supabase aktif.", isError = true)
             return
@@ -1923,6 +1948,7 @@ class PosViewModel(application: Application) : AndroidViewModel(application) {
     }
 
     fun saveProductItem(product: Product, onSaved: (Product) -> Unit = {}) {
+        if (!requirePermission("products.edit", "Akses simpan perubahan produk dinonaktifkan oleh Owner.")) return
         if (product.name.isBlank() || product.price <= 0) {
             showNotice("Nama produk dan harga jual wajib valid.", isError = true)
             return
@@ -1968,6 +1994,7 @@ class PosViewModel(application: Application) : AndroidViewModel(application) {
     }
 
     fun deleteProductItem(productId: String) {
+        if (!requirePermission("products.delete", "Akses hapus produk dinonaktifkan oleh Owner.")) return
         viewModelScope.launch {
             if (_uiState.value.backendStatus == BackendIntegrationStatus.ACTIVE_VERIFIED) {
                 val before = _uiState.value.products
@@ -1990,11 +2017,13 @@ class PosViewModel(application: Application) : AndroidViewModel(application) {
     }
 
     fun toggleProductQrMenu(productId: String, show: Boolean) {
+        if (!requirePermission("products.edit", "Akses ubah visibilitas QR produk dinonaktifkan oleh Owner.")) return
         val product = _uiState.value.products.firstOrNull { it.id == productId } ?: return
         saveProductItem(product.copy(showOnMenu = show))
     }
 
     fun toggleProductActive(productId: String, active: Boolean) {
+        if (!requirePermission("products.edit", "Akses ubah status produk dinonaktifkan oleh Owner.")) return
         val product = _uiState.value.products.firstOrNull { it.id == productId } ?: return
         saveProductItem(product.copy(isActive = active))
     }
@@ -2133,6 +2162,7 @@ class PosViewModel(application: Application) : AndroidViewModel(application) {
     }
 
     fun addRestaurantTable(name: String, code: String) {
+        if (!requirePermission("tables.create", "Akses tambah meja dinonaktifkan oleh Owner.")) return
         val cleanName = name.trim()
         val cleanCode = code.trim().uppercase()
         if (cleanName.isBlank() || cleanCode.isBlank()) {
@@ -2198,6 +2228,7 @@ class PosViewModel(application: Application) : AndroidViewModel(application) {
     }
 
     fun deleteRestaurantTable(tableId: String) {
+        if (!requirePermission("tables.delete", "Akses hapus meja dinonaktifkan oleh Owner.")) return
         if (_uiState.value.backendStatus == BackendIntegrationStatus.ACTIVE_VERIFIED) {
             viewModelScope.launch {
                 _uiState.update { it.copy(isLoading = true, errorMessage = null, successMessage = null) }
@@ -2246,6 +2277,7 @@ class PosViewModel(application: Application) : AndroidViewModel(application) {
     }
 
     fun recordInventoryMovement(productId: String, type: String, qty: Int, reason: String, onSuccess: (() -> Unit)? = null) {
+        if (!requirePermission("inventory.adjust_stock", "Akses penyesuaian stok dinonaktifkan oleh Owner.")) return
         val prod = _uiState.value.products.find { it.id == productId }
         if (prod == null) { showNotice("Produk tidak ditemukan.", isError = true); return }
         if (qty <= 0 || reason.isBlank()) { showNotice("Jumlah dan alasan mutasi stok wajib diisi.", isError = true); return }
@@ -2359,6 +2391,7 @@ class PosViewModel(application: Application) : AndroidViewModel(application) {
     }
 
     fun togglePromotionActive(promoId: String) {
+        if (!requirePermission("promotions.manage", "Akses kelola status promosi dinonaktifkan oleh Owner.")) return
         val promo = _uiState.value.promotions.firstOrNull { it.id == promoId } ?: return
         val nextActive = !promo.active
         if (_uiState.value.backendStatus == BackendIntegrationStatus.ACTIVE_VERIFIED) {
@@ -2383,6 +2416,7 @@ class PosViewModel(application: Application) : AndroidViewModel(application) {
     }
 
     fun deletePromotion(promoId: String) {
+        if (!requirePermission("promotions.delete", "Akses hapus promosi dinonaktifkan oleh Owner.")) return
         val promo = _uiState.value.promotions.firstOrNull { it.id == promoId }
         if (_uiState.value.backendStatus == BackendIntegrationStatus.ACTIVE_VERIFIED) {
             viewModelScope.launch {
@@ -2407,6 +2441,7 @@ class PosViewModel(application: Application) : AndroidViewModel(application) {
 
 
     fun saveCashFundTarget(amount: Double) {
+        if (!requirePermission("cash_fund.adjust", "Akses penyesuaian modal kas dinonaktifkan oleh Owner.")) return
         if (amount <= 0.0) { showNotice("Modal awal harus lebih dari Rp0.", isError = true); return }
         if (_uiState.value.backendStatus != BackendIntegrationStatus.ACTIVE_VERIFIED) {
             showNotice("Modal kas hanya bisa disimpan saat terhubung ke Supabase.", isError = true); return
@@ -2422,6 +2457,7 @@ class PosViewModel(application: Application) : AndroidViewModel(application) {
     }
 
     fun endCashFundSession() {
+        if (!requirePermission("shift.manage", "Akses menutup sesi kas dinonaktifkan oleh Owner.")) return
         val state = _uiState.value
         if (state.backendStatus != BackendIntegrationStatus.ACTIVE_VERIFIED) {
             showNotice("Akhiri sesi hanya bisa disimpan saat terhubung ke Supabase.", isError = true)
@@ -2447,6 +2483,7 @@ class PosViewModel(application: Application) : AndroidViewModel(application) {
     }
 
     fun replenishCashFund(amount: Double, source: String, description: String) {
+        if (!requirePermission("cash_fund.adjust", "Akses isi ulang modal kas dinonaktifkan oleh Owner.")) return
         if (amount <= 0.0 || source !in listOf("sales_cash", "sales_qris", "sales_transfer", "owner_funds", "other") || description.isBlank()) {
             showNotice("Nominal, sumber isi ulang, dan keterangan wajib benar.", isError = true); return
         }
@@ -2527,6 +2564,7 @@ class PosViewModel(application: Application) : AndroidViewModel(application) {
     }
 
     fun addExpense(amount: Double, category: String, date: String, method: String, description: String, cashSource: String = "cash_fund") {
+        if (!requirePermission("expenses.create", "Akses catat pengeluaran dinonaktifkan oleh Owner.")) return
         if (amount <= 0.0 || category.isBlank() || description.isBlank()) {
             showNotice("Nominal harus lebih dari Rp0, kategori dan keterangan wajib diisi.", isError = true)
             return
@@ -2602,6 +2640,7 @@ class PosViewModel(application: Application) : AndroidViewModel(application) {
     }
 
     fun updateOutletSettings(settings: OutletSettings) {
+        if (!requirePermission("settings.manage", "Akses pengaturan outlet dinonaktifkan oleh Owner.")) return
         if (_uiState.value.backendStatus == BackendIntegrationStatus.ACTIVE_VERIFIED) {
             viewModelScope.launch {
                 val previous = _uiState.value.outletSettings
@@ -2657,6 +2696,7 @@ class PosViewModel(application: Application) : AndroidViewModel(application) {
     }
 
     fun scanBluetoothPrinters() {
+        if (!requirePermission("printer.manage", "Akses kelola printer dinonaktifkan oleh Owner.")) return
         val result = printerManager.listPairedPrinters()
         result.onSuccess { devices ->
             if (devices.isNotEmpty()) {
@@ -2675,6 +2715,7 @@ class PosViewModel(application: Application) : AndroidViewModel(application) {
     }
 
     fun forgetPairedPrinter(address: String) {
+        if (!requirePermission("printer.manage", "Akses kelola printer dinonaktifkan oleh Owner.")) return
         viewModelScope.launch {
             val result = printerManager.forgetPairedDevice(address)
             result.onSuccess {
@@ -2701,6 +2742,7 @@ class PosViewModel(application: Application) : AndroidViewModel(application) {
     }
 
     fun bindPrinterDevice(role: PrinterRole, name: String, address: String, autoPrint: Boolean) {
+        if (!requirePermission("printer.manage", "Akses kelola printer dinonaktifkan oleh Owner.")) return
         printerManager.savePrinter(role, name, address, autoPrint)
         showNotice("${role.labelId} berhasil disimpan.")
         viewModelScope.launch {
@@ -2712,6 +2754,7 @@ class PosViewModel(application: Application) : AndroidViewModel(application) {
     }
 
     fun removePrinterDevice(role: PrinterRole) {
+        if (!requirePermission("printer.manage", "Akses kelola printer dinonaktifkan oleh Owner.")) return
         printerManager.clearPrinter(role)
         showNotice("${role.labelId} berhasil dihapus dari aplikasi.")
         viewModelScope.launch {
@@ -2723,6 +2766,7 @@ class PosViewModel(application: Application) : AndroidViewModel(application) {
     }
 
     fun testPrintToThermal(role: PrinterRole) {
+        if (!requirePermission("printer.manage", "Akses tes printer dinonaktifkan oleh Owner.")) return
         viewModelScope.launch {
             val result = printerManager.testPrint(role)
             result.onSuccess {

@@ -2826,7 +2826,7 @@ private fun AuditShiftComposeScreen(viewModel: PosViewModel, uiState: PosUiState
         }
         Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp), verticalAlignment = Alignment.CenterVertically) {
             Text("Hasil: ${filtered.size} shift", modifier = Modifier.weight(1f), style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
-            OutlinedButton(onClick = { exportAuditLauncher.launch("audit-shift-${java.time.LocalDate.now(java.time.ZoneId.of("Asia/Jakarta"))}.csv") }, enabled = filtered.isNotEmpty()) {
+            OutlinedButton(onClick = { exportAuditLauncher.launch("audit-shift-${java.time.LocalDate.now(java.time.ZoneId.of("Asia/Jakarta"))}.csv") }, enabled = filtered.isNotEmpty() && uiState.staffProfile.canAccessKey("audit.export")) {
                 Icon(Icons.Outlined.FileDownload, contentDescription = null, modifier = Modifier.size(18.dp))
                 Spacer(Modifier.width(6.dp))
                 Text("Export CSV")

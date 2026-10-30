@@ -68,11 +68,30 @@ data class StaffProfile(
         if (key == PermissionKey.OWNER_MANAGEMENT.key) return role == StaffRole.SUPER_ADMIN
         if (role == StaffRole.SUPER_ADMIN) return false
         if (role == StaffRole.OWNER) return true
-        // A child permission can never override an explicitly disabled parent menu.
-        if (key.contains(".")) {
-            val parentKey = key.substringBefore(".")
-            if (permissions.containsKey(parentKey) && permissions[parentKey] != true) return false
+        // Child actions are always subordinate to their owning module, even when
+        // the module key has a different name (e.g. history.* belongs to sales_history).
+        val parentKey = when {
+            key.startsWith("history.") -> PermissionKey.SALES_HISTORY.key
+            key.startsWith("sales_history.") -> PermissionKey.SALES_HISTORY.key
+            key.startsWith("dashboard.") -> PermissionKey.DASHBOARD.key
+            key.startsWith("pos.") -> PermissionKey.POS.key
+            key.startsWith("orders.") -> PermissionKey.ORDERS.key
+            key.startsWith("payments.") -> PermissionKey.POS.key
+            key.startsWith("products.") -> PermissionKey.PRODUCTS.key
+            key.startsWith("inventory.") -> PermissionKey.INVENTORY.key
+            key.startsWith("tables.") -> PermissionKey.TABLES.key
+            key.startsWith("promotions.") -> PermissionKey.PROMOTIONS.key
+            key.startsWith("expenses.") -> PermissionKey.CASH_FUND.key
+            key.startsWith("shift.") -> PermissionKey.CASH_FUND.key
+            key.startsWith("audit.") -> PermissionKey.SHIFT_AUDIT.key
+            key.startsWith("reports.") || key == "report.view" || key == "report.export" -> PermissionKey.REPORTS.key
+            key.startsWith("staff.") -> PermissionKey.STAFF_MANAGEMENT.key
+            key.startsWith("activity_log.") -> PermissionKey.ACTIVITY_LOG.key
+            key.startsWith("settings.") || key == "payments.manage_methods" -> PermissionKey.SETTINGS.key
+            key.startsWith("printer.") -> PermissionKey.PRINTER_MANAGEMENT.key
+            else -> key.substringBefore(".")
         }
+        if (permissions.containsKey(parentKey) && permissions[parentKey] != true) return false
         if (permissions.containsKey(key)) return permissions[key] == true
         val legacyKey = when {
             key == PermissionKey.POS.key || key == PermissionKey.CASHIER_CHAT.key -> PermissionKey.ORDERS.key

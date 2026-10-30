@@ -1590,7 +1590,8 @@ fun PegawaiComposeScreen(viewModel: PosViewModel, uiState: PosUiState) {
         "reports.payment_methods" to "Lihat laporan pembayaran",
         "reports.channels" to "Lihat laporan kanal",
         "reports.order_details" to "Lihat detail pesanan",
-        "printer.manage" to "Kelola printer"
+        "printer.manage" to "Kelola printer",
+        "activity_log.export" to "Ekspor riwayat aktivitas akun"
     )
     pendingDelete?.let { target -> AlertDialog(onDismissRequest = { pendingDelete = null }, title = { Text("Hapus profil staf?") }, text = { Text("Profil ${target.fullName} akan dihapus dari daftar pegawai aplikasi. Lanjutkan?") }, confirmButton = { Button(onClick = { viewModel.deleteStaffProfile(target.userId); pendingDelete = null }, enabled = isOwner && !uiState.isLoading) { Text("Hapus profil") } }, dismissButton = { OutlinedButton(onClick = { pendingDelete = null }) { Text("Batal") } }) }
     LazyColumn(Modifier.fillMaxSize(), verticalArrangement = Arrangement.spacedBy(10.dp)) {
@@ -1664,6 +1665,7 @@ fun PegawaiComposeScreen(viewModel: PosViewModel, uiState: PosUiState) {
                                         "shift_audit" -> actionPermissions.filter { it.first.startsWith("audit.") }
                                         "reports" -> actionPermissions.filter { it.first.startsWith("reports.") || it.first.startsWith("report.") || it.first in setOf("export.download", "data.export") }
                                         "staff_management" -> actionPermissions.filter { it.first.startsWith("staff.") }
+                                        "activity_log" -> actionPermissions.filter { it.first.startsWith("activity_log.") }
                                         "settings" -> actionPermissions.filter { it.first.startsWith("settings.") || it.first.startsWith("payments.manage_methods") }
                                         "printer_management" -> actionPermissions.filter { it.first.startsWith("printer.") }
                                         else -> emptyList()

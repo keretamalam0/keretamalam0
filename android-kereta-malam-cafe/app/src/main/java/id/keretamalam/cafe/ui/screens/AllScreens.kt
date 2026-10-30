@@ -65,6 +65,7 @@ import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.SpanStyle
@@ -151,19 +152,14 @@ fun LoginComposeScreen(
             horizontalAlignment = Alignment.CenterHorizontally,
             verticalArrangement = Arrangement.spacedBy(0.dp)
         ) {
-            Box(
+            Image(
+                painter = painterResource(id = R.drawable.kereta_malam_logo),
+                contentDescription = "Logo Kereta Malam Cafe",
                 modifier = Modifier
-                    .size(64.dp)
-                    .graphicsLayer(scaleX = logoScale, scaleY = logoScale)
-                    .shadow(10.dp, RoundedCornerShape(18.dp))
-                    .background(
-                        Brush.linearGradient(listOf(Color(0xFF087E83), Color(0xFF003F42))),
-                        RoundedCornerShape(18.dp)
-                    ),
-                contentAlignment = Alignment.Center
-            ) {
-                Text("✳", color = Color.White, style = MaterialTheme.typography.headlineLarge, fontWeight = FontWeight.Black)
-            }
+                    .size(112.dp)
+                    .graphicsLayer(scaleX = logoScale, scaleY = logoScale),
+                contentScale = androidx.compose.ui.layout.ContentScale.Fit
+            )
             Spacer(Modifier.height(20.dp))
             Text(
                 "Kereta Malam Cafe",

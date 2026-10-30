@@ -147,3 +147,6 @@ Project directory: `android-kereta-malam-cafe/`
 - Database migration applied successfully; the new `staff_profiles.email` column and audit trigger were verified. Android Gradle build and physical-device interaction verification are still pending. Existing historical audit rows with a null actor ID cannot be safely assigned to an account retroactively.
 
 - Follow-up: corrected Android audit inserts so `owner_id` is the outlet owner while `actor_user_id` remains the actual signed-in account; this makes cashier activity visible inside the owner's outlet scope. Backfilled 45 existing actor-linked audit rows to their staff profile owner scope. Legacy rows with null actor IDs remain unassignable without guessing.
+
+
+- 2026-10-30: requested a fresh GitHub Actions Android Native Build for the latest per-account Activity Log changes; this tracker update intentionally triggers the workflow's `docs/ANDROID_CHANGE_TRACKER.md` push path. Await successful `assembleDebug` and APK artifact upload before distribution.

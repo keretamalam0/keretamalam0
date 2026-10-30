@@ -957,59 +957,131 @@ fun PromosiComposeScreen(viewModel: PosViewModel, uiState: PosUiState) {
 // ============================================================================
 // 13. PENGELUARAN & LABA RUGI (KEUANGAN) SCREEN
 // ============================================================================
+@OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun KeuanganComposeScreen(viewModel: PosViewModel, uiState: PosUiState) {
     val context = LocalContext.current
-    val grossSales = uiState.paidOrders.sumOf { it.subtotal }
-    val totalDiscounts = uiState.paidOrders.sumOf { it.discount }
-    val netSales = uiState.todayRevenue
-    val cogs = uiState.paidOrders.sumOf { order ->
-        order.orderItems.sumOf { item -> (item.costPriceSnapshot ?: 0.0) * item.quantity }
+    val zone = remember { java.time.ZoneId.of("Asia/Jakarta") }
+    var fromDate by remember { mutableStateOf(java.time.LocalDate.now(zone).withDayOfMonth(1)) }
+    var toDate by remember { mutableStateOf(java.time.LocalDate.now(zone)) }
+    var datePickerTarget by remember { mutableStateOf<String?>(null) }
+    val validRange = !toDate.isBefore(fromDate)
+    val canExport = uiState.staffProfile.canAccessKey("report.export")
+    val periodOrders = remember(uiState.paidOrders, fromDate, toDate, validRange) {
+        if (!validRange) emptyList() else uiState.paidOrders.filter { order ->
+            val date = runCatching {
+                java.time.OffsetDateTime.parse(order.createdAt).atZoneSameInstant(zone).toLocalDate()
+            }.getOrElse {
+                runCatching { java.time.Instant.parse(order.createdAt).atZone(zone).toLocalDate() }.getOrNull()
+            }
+            date != null && !date.isBefore(fromDate) && !date.isAfter(toDate) &&
+                order.isPaid && order.status != OrderStatus.CANCELLED && order.returnedAt == null
+        }
+    }
+    val grossSales = periodOrders.sumOf { it.subtotal }
+    val totalDiscounts = periodOrders.sumOf { it.discount }
+    val netSales = periodOrders.sumOf { (it.subtotal - it.discount).coerceAtLeast(0.0) }
+    val totalTax = periodOrders.sumOf { it.tax }
+    val serviceAndRounding = periodOrders.sumOf { order ->
+        order.total - ((order.subtotal - order.discount).coerceAtLeast(0.0) + order.tax)
+    }
+    val cogs = periodOrders.sumOf { order ->
+        order.orderItems.sumOf { item ->
+            val snapshot = item.costPriceSnapshot
+            val currentCost = uiState.products.firstOrNull { it.id == item.productId }?.costPrice ?: 0.0
+            (snapshot ?: currentCost) * item.quantity
+        }
     }
     val grossProfit = netSales - cogs
-    val totalExpenses = uiState.expenses.sumOf { it.amount }
-    val netProfit = grossProfit - totalExpenses
     val csvLauncher = rememberLauncherForActivityResult(ActivityResultContracts.CreateDocument("text/csv")) { uri ->
-        if (uri != null) {
-            CsvExporter.writeFinancialReportToUri(
-                context, uri, java.time.LocalDate.now(java.time.ZoneId.of("Asia/Jakarta")).toString(), java.time.LocalDate.now(java.time.ZoneId.of("Asia/Jakarta")).toString(),
-                netSales, cogs, totalExpenses, netProfit, uiState.expenses
+        if (uri != null && canExport && validRange) {
+            CsvExporter.writeProfitLossReportToUri(
+                context, uri, fromDate.toString(), toDate.toString(),
+                grossSales, totalDiscounts, netSales, totalTax, serviceAndRounding, cogs, grossProfit
             ).onSuccess { viewModel.showNotice("CSV Profit & Loss berhasil disimpan.") }
+                .onFailure { viewModel.showNotice(it.message ?: "Gagal menyimpan CSV.", isError = true) }
         }
+    }
+    if (datePickerTarget != null) {
+        val target = datePickerTarget!!
+        val selected = if (target == "from") fromDate else toDate
+        val picker = rememberDatePickerState(initialSelectedDateMillis = selected.atStartOfDay(zone).toInstant().toEpochMilli())
+        DatePickerDialog(
+            onDismissRequest = { datePickerTarget = null },
+            confirmButton = {
+                TextButton(onClick = {
+                    picker.selectedDateMillis?.let { millis ->
+                        val picked = java.time.Instant.ofEpochMilli(millis).atZone(zone).toLocalDate()
+                        if (target == "from") fromDate = picked else toDate = picked
+                    }
+                    datePickerTarget = null
+                }) { Text("Pilih") }
+            },
+            dismissButton = { TextButton(onClick = { datePickerTarget = null }) { Text("Batal") } }
+        ) { DatePicker(state = picker) }
     }
     LazyColumn(Modifier.fillMaxSize(), verticalArrangement = Arrangement.spacedBy(12.dp)) {
         item {
             OutlinedCard(Modifier.fillMaxWidth()) {
-                Column(Modifier.fillMaxWidth().padding(20.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
+                Column(Modifier.fillMaxWidth().padding(16.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
                     Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween, verticalAlignment = Alignment.CenterVertically) {
                         Column(Modifier.weight(1f)) {
                             Text("Profit & Loss", style = MaterialTheme.typography.titleLarge, fontWeight = FontWeight.Bold)
-                            Text("Ringkasan laba dan rugi operasional", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                            Text("Laporan transaksi lunas berdasarkan rentang tanggal", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
                         }
-                        Button(onClick = { csvLauncher.launch("profit-loss.csv") }) { Text("Ekspor CSV") }
+                        OutlinedButton(onClick = { csvLauncher.launch("profit-loss-${fromDate}-${toDate}.csv") }, enabled = canExport && validRange) {
+                            Icon(Icons.Outlined.FileDownload, contentDescription = null, modifier = Modifier.size(16.dp))
+                            Spacer(Modifier.width(4.dp))
+                            Text("Ekspor")
+                        }
                     }
+                    Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                        OutlinedButton(onClick = { datePickerTarget = "from" }, modifier = Modifier.weight(1f)) {
+                            Text("Dari: ${fromDate.format(java.time.format.DateTimeFormatter.ofPattern("dd MMM yyyy", java.util.Locale("id","ID")))}")
+                        }
+                        OutlinedButton(onClick = { datePickerTarget = "to" }, modifier = Modifier.weight(1f)) {
+                            Text("Sampai: ${toDate.format(java.time.format.DateTimeFormatter.ofPattern("dd MMM yyyy", java.util.Locale("id","ID")))}")
+                        }
+                    }
+                    Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(6.dp)) {
+                        TextButton(onClick = { fromDate = java.time.LocalDate.now(zone).withDayOfMonth(1); toDate = java.time.LocalDate.now(zone) }) { Text("Bulan ini") }
+                        TextButton(onClick = { fromDate = java.time.LocalDate.now(zone); toDate = java.time.LocalDate.now(zone) }) { Text("Hari ini") }
+                        TextButton(onClick = { fromDate = java.time.LocalDate.now(zone).minusDays(6); toDate = java.time.LocalDate.now(zone) }) { Text("7 hari") }
+                        TextButton(onClick = { fromDate = java.time.LocalDate.now(zone).withDayOfYear(1); toDate = java.time.LocalDate.now(zone) }) { Text("Tahun ini") }
+                    }
+                    if (!validRange) Text("Tanggal akhir tidak boleh lebih awal dari tanggal mulai.", color = MaterialTheme.colorScheme.error, style = MaterialTheme.typography.bodySmall)
+                    Text("${periodOrders.size} transaksi lunas · hanya transaksi yang tidak dibatalkan atau diretur", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
                     HorizontalDivider()
-                    Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) { Text("Penjualan Kotor"); Text(RupiahFormatter.format(grossSales)) }
-                    Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) { Text("Diskon & Promo"); Text("-${RupiahFormatter.format(totalDiscounts)}") }
-                    Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
-                        Text("Penjualan Bersih", fontWeight = FontWeight.SemiBold)
-                        Text(RupiahFormatter.format(netSales), fontWeight = FontWeight.SemiBold)
-                    }
-                    Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) { Text("HPP / COGS"); Text("-${RupiahFormatter.format(cogs)}") }
+                    FinanceLine("Penjualan Kotor", "Subtotal sebelum diskon", grossSales)
+                    FinanceLine("Diskon & Promo", "Total potongan transaksi", -totalDiscounts)
+                    FinanceLine("Penjualan Bersih", "Penjualan kotor dikurangi diskon", netSales, emphasized = true)
                     HorizontalDivider()
-                    Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
-                        Text("Profit Kotor", fontWeight = FontWeight.Bold)
-                        Text(RupiahFormatter.format(grossProfit), fontWeight = FontWeight.Bold)
-                    }
-                    Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) { Text("Beban Operasional"); Text("-${RupiahFormatter.format(totalExpenses)}") }
+                    FinanceLine("Pajak", "Dicatat terpisah, bukan omzet", totalTax)
+                    FinanceLine("Service / Pembulatan", "Selisih total transaksi setelah pajak", serviceAndRounding)
+                    FinanceLine("HPP / COGS", "Biaya modal item terjual", -cogs)
                     HorizontalDivider()
-                    Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
-                        Text(if (netProfit >= 0) "Profit Bersih" else "Loss Bersih", style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold)
-                        Text(RupiahFormatter.format(netProfit), style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold, color = if (netProfit >= 0) Color(0xFF18864B) else MaterialTheme.colorScheme.error)
+                    Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween, verticalAlignment = Alignment.CenterVertically) {
+                        Column(Modifier.weight(1f)) {
+                            Text("Profit Kotor (Estimasi)", fontWeight = FontWeight.Bold)
+                            Text("Penjualan bersih dikurangi HPP", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                        }
+                        Text(RupiahFormatter.format(grossProfit), fontWeight = FontWeight.Bold, color = if (grossProfit >= 0) Color(0xFF18864B) else MaterialTheme.colorScheme.error)
                     }
+                    Text("Beban operasional tidak ditampilkan atau dikurangkan di laporan ini. Pengeluaran kas tetap tercatat terpisah di menu Kas Modal & Pengeluaran. Profit kotor adalah estimasi dan bergantung pada kelengkapan HPP produk.", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
                 }
             }
         }
+    }
+}
+
+@Composable
+private fun FinanceLine(label: String, detail: String, amount: Double, emphasized: Boolean = false) {
+    Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween, verticalAlignment = Alignment.CenterVertically) {
+        Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(2.dp)) {
+            Text(label, fontWeight = if (emphasized) FontWeight.SemiBold else FontWeight.Normal)
+            Text(detail, style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+        }
+        Text(RupiahFormatter.format(amount), fontWeight = if (emphasized) FontWeight.SemiBold else FontWeight.Normal)
     }
 }
 
@@ -1555,6 +1627,7 @@ fun PegawaiComposeScreen(viewModel: PosViewModel, uiState: PosUiState) {
         "payments.confirm" to "Konfirmasi pembayaran",
         "sales_history.return" to "Retur transaksi (pengembalian penuh)",
         "history.delete" to "Hapus transaksi / detail riwayat",
+        "history.export" to "Download / ekspor History (CSV)",
         "pos.manual_discount" to "Terapkan diskon manual di kasir",
         "pos.void_transaction" to "Batalkan transaksi",
         "pos.open_drawer" to "Buka laci kas",

@@ -966,7 +966,7 @@ fun KeuanganComposeScreen(viewModel: PosViewModel, uiState: PosUiState) {
     var toDate by remember { mutableStateOf(java.time.LocalDate.now(zone)) }
     var datePickerTarget by remember { mutableStateOf<String?>(null) }
     val validRange = !toDate.isBefore(fromDate)
-    val canExport = uiState.staffProfile.canAccessKey("report.export")
+    val canExport = uiState.staffProfile.canAccessKey("profit_loss.export")
     val periodOrders = remember(uiState.paidOrders, fromDate, toDate, validRange) {
         if (!validRange) emptyList() else uiState.paidOrders.filter { order ->
             val date = runCatching {
@@ -1628,6 +1628,7 @@ fun PegawaiComposeScreen(viewModel: PosViewModel, uiState: PosUiState) {
         "sales_history.return" to "Retur transaksi (pengembalian penuh)",
         "history.delete" to "Hapus transaksi / detail riwayat",
         "history.export" to "Download / ekspor History (CSV)",
+        "profit_loss.export" to "Ekspor laporan Profit & Loss (CSV)",
         "pos.manual_discount" to "Terapkan diskon manual di kasir",
         "pos.void_transaction" to "Batalkan transaksi",
         "pos.open_drawer" to "Buka laci kas",
@@ -1727,6 +1728,7 @@ fun PegawaiComposeScreen(viewModel: PosViewModel, uiState: PosUiState) {
                                     HorizontalDivider()
                                     val nested = when (key) {
                                         "dashboard" -> metrics
+                                        "profit_loss" -> actionPermissions.filter { it.first.startsWith("profit_loss.") }
                                         "pos" -> actionPermissions.filter { it.first.startsWith("pos.") || it.first.startsWith("payments") }
                                         "orders" -> actionPermissions.filter { it.first.startsWith("orders.") }
                                         "sales_history" -> actionPermissions.filter { it.first.startsWith("sales_history.") || it.first.startsWith("history.") }

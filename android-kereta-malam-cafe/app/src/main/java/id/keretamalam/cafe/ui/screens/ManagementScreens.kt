@@ -1632,23 +1632,16 @@ fun PegawaiComposeScreen(viewModel: PosViewModel, uiState: PosUiState) {
         "profit_loss.export" to "Ekspor laporan Profit & Loss (CSV)",
         "pos.create_order" to "Buat transaksi baru",
         "pos.manual_discount" to "Terapkan diskon manual di kasir",
-        "pos.void_transaction" to "Batalkan transaksi",
-        "pos.open_drawer" to "Buka laci kas",
         "products.create" to "Tambah produk",
         "products.edit" to "Edit produk",
         "products.delete" to "Hapus produk",
         "inventory.view_stock" to "Lihat stok",
         "inventory.adjust_stock" to "Tambah / kurangi stok",
-        "inventory.purchase_order" to "Kelola pembelian stok",
         "promotions.create" to "Tambah promosi",
-        "promotions.edit" to "Edit promosi",
         "promotions.manage" to "Aktifkan / nonaktifkan promosi",
         "promotions.delete" to "Hapus promosi",
         "expenses.create" to "Catat pengeluaran",
-        "expenses.edit" to "Edit pengeluaran",
-        "expenses.delete" to "Hapus pengeluaran",
         "tables.create" to "Tambah meja / QR",
-        "tables.edit" to "Edit meja / QR",
         "tables.delete" to "Hapus meja / QR",
         "cashier_chat.send" to "Kirim pesan ke pelanggan",
         "cashier_chat.delete" to "Hapus percakapan pelanggan",
@@ -1656,14 +1649,9 @@ fun PegawaiComposeScreen(viewModel: PosViewModel, uiState: PosUiState) {
         "shift.manage" to "Buka / tutup sesi kasir",
         "audit.verify" to "Verifikasi audit shift",
         "staff.manage" to "Kelola pegawai dan hak akses",
-        "audit.view" to "Lihat audit shift & rentang tanggal",
         "audit.export" to "Ekspor audit shift (CSV)",
-        "shift.view_cash" to "Lihat nominal kas shift",
         "settings.manage" to "Ubah pengaturan outlet",
-        "report.view" to "Lihat laporan",
         "report.export" to "Ekspor / download laporan (CSV)",
-        "export.download" to "Download file hasil ekspor",
-        "data.export" to "Ekspor data aplikasi",
         "payments.manage_methods" to "Tambah / edit metode pembayaran",
         "reports.daily_summary" to "Lihat ringkasan penjualan harian",
         "reports.category_sales" to "Lihat penjualan per kategori",
@@ -1748,7 +1736,7 @@ fun PegawaiComposeScreen(viewModel: PosViewModel, uiState: PosUiState) {
                                         "promotions" -> actionPermissions.filter { it.first.startsWith("promotions.") }
                                         "cash_fund" -> actionPermissions.filter { it.first.startsWith("cash_fund.") || it.first.startsWith("expenses.") || it.first.startsWith("shift.") }
                                         "shift_audit" -> actionPermissions.filter { it.first.startsWith("audit.") }
-                                        "reports" -> actionPermissions.filter { it.first.startsWith("reports.") || it.first.startsWith("report.") || it.first in setOf("export.download", "data.export") }
+                                        "reports" -> actionPermissions.filter { it.first.startsWith("reports.") || it.first.startsWith("report.") }
                                         "staff_management" -> actionPermissions.filter { it.first.startsWith("staff.") }
                                         "activity_log" -> actionPermissions.filter { it.first.startsWith("activity_log.") }
                                         "settings" -> actionPermissions.filter { it.first.startsWith("settings.") || it.first.startsWith("payments.manage_methods") }

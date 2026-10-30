@@ -1241,7 +1241,13 @@ class PosViewModel(application: Application) : AndroidViewModel(application) {
     }
 
     fun clearCart() {
-        _uiState.update { it.copy(cart = emptyList(), selectedPromotionId = null) }
+        _uiState.update {
+            it.copy(
+                cart = emptyList(),
+                selectedPromotionId = null,
+                cashReceivedInput = ""
+            )
+        }
     }
 
     fun openReceiptDialog(order: OrderWithItems?) {

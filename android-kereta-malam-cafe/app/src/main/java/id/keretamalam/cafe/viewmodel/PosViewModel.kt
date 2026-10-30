@@ -2465,45 +2465,49 @@ class PosViewModel(application: Application) : AndroidViewModel(application) {
     fun saveCashFundTarget(amount: Double) {
         if (!requirePermission("cash_fund.adjust", "Akses penyesuaian modal kas dinonaktifkan oleh Owner.")) return
         if (amount <= 0.0) { showNotice("Modal awal harus lebih dari Rp0.", isError = true); return }
-        if (_uiState.value.backendStatus != BackendIntegrationStatus.ACTIVE_VERIFIED) {
-            showNotice("Modal kas hanya bisa disimpan saat terhubung ke Supabase.", isError = true); return
-        }
+        val initialState = _uiState.value
+        if (initialState.backendStatus != BackendIntegrationStatus.ACTIVE_VERIFIED) { showNotice("Modal kas hanya bisa disimpan saat terhubung ke Supabase.", isError = true); return }
+        if (initialState.shifts.any { it.staffUserId == initialState.staffProfile.userId && it.status.equals("open", true) }) { showNotice("Masih ada shift aktif di Audit Shift. Tutup shift tersebut sebelum memulai sesi kas baru.", isError = true); return }
         viewModelScope.launch {
-            runCatching { repository.createCashFundEntry("set_target", amount, "setting", "Penetapan target modal kas", _uiState.value.staffProfile.ownerId) }
-                .onSuccess { entry ->
-                    runCatching { repository.fetchCashFundEntries() }.onSuccess { rows ->
-                        _uiState.update { it.copy(cashFundEntries = rows, successMessage = "Target modal kas tersimpan di Supabase.") }
-                    }.onFailure { _uiState.update { it.copy(cashFundEntries = listOf(entry) + it.cashFundEntries, successMessage = "Target modal kas tersimpan di Supabase.") } }
-                }.onFailure { err -> showNotice(err.message ?: "Gagal menyimpan target modal kas.", isError = true) }
+            runCatching {
+                val entry = repository.createCashFundEntry("set_target", amount, "setting", "Penetapan target modal kas", initialState.staffProfile.ownerId)
+                val shift = StaffShift(staffUserId = initialState.staffProfile.userId, ownerId = initialState.staffProfile.ownerId, staffName = initialState.staffProfile.fullName, openingCash = amount, expectedCash = amount, status = "open", notes = "Sesi dibuka dari Kas Modal & Pengeluaran", openedAt = entry.createdAt ?: java.time.Instant.now().toString())
+                repository.createStaffShift(shift)
+                val shifts = repository.fetchStaffShifts()
+                val entries = repository.fetchCashFundEntries()
+                Pair(shifts, entries)
+            }.onSuccess { (shifts, entries) ->
+                _uiState.update { it.copy(shifts = shifts, cashFundEntries = entries, successMessage = "Sesi kas dimulai dan otomatis tercatat di Audit Shift.") }
+                appendAuditLog("cash_session.open", "staff_shifts", shifts.firstOrNull { it.staffUserId == initialState.staffProfile.userId && it.status.equals("open", true) }?.id, "{\"opening_cash\":${amount.toLong()}}")
+            }.onFailure { err -> showNotice("Sesi kas gagal disambungkan ke Audit Shift: ${err.message ?: "periksa koneksi dan izin shift"}", isError = true) }
         }
     }
 
     fun endCashFundSession() {
         if (!requirePermission("shift.manage", "Akses menutup sesi kas dinonaktifkan oleh Owner.")) return
         val state = _uiState.value
-        if (state.backendStatus != BackendIntegrationStatus.ACTIVE_VERIFIED) {
-            showNotice("Akhiri sesi hanya bisa disimpan saat terhubung ke Supabase.", isError = true)
-            return
-        }
+        if (state.backendStatus != BackendIntegrationStatus.ACTIVE_VERIFIED) { showNotice("Akhiri sesi hanya bisa disimpan saat terhubung ke Supabase.", isError = true); return }
         val latestStart = state.cashFundEntries.filter { it.entryType == "set_target" }.maxByOrNull { it.createdAt ?: "" }
         val latestClose = state.cashFundEntries.filter { it.entryType == "close_session" }.maxByOrNull { it.createdAt ?: "" }
-        if (latestStart == null || (latestClose != null && (latestClose.createdAt ?: "") > (latestStart.createdAt ?: ""))) {
-            showNotice("Tidak ada sesi kasir yang aktif.", isError = true)
-            return
-        }
+        if (latestStart == null || (latestClose != null && (latestClose.createdAt ?: "") > (latestStart.createdAt ?: ""))) { showNotice("Tidak ada sesi kasir yang aktif.", isError = true); return }
+        val activeShift = state.shifts.firstOrNull { it.staffUserId == state.staffProfile.userId && it.status.equals("open", true) }
+        if (activeShift == null) { showNotice("Sesi kas modal tidak memiliki pasangan Audit Shift. Muat ulang data; sesi tidak ditutup agar riwayat tidak hilang.", isError = true); return }
         viewModelScope.launch {
             runCatching {
-                repository.createCashFundEntry("close_session", 0.0, "setting", "Akhiri sesi kasir", state.staffProfile.ownerId)
-            }.onSuccess { closedEntry ->
-                runCatching { repository.fetchCashFundEntries() }.onSuccess { rows ->
-                    _uiState.update { it.copy(cashFundEntries = rows, successMessage = "Sesi kasir berhasil diakhiri dan saldo akhir tersimpan.") }
-                }.onFailure {
-                    _uiState.update { current -> current.copy(cashFundEntries = listOf(closedEntry) + current.cashFundEntries, successMessage = "Sesi kasir berhasil diakhiri.") }
-                }
-            }.onFailure { err -> showNotice(err.message ?: "Gagal mengakhiri sesi kasir.", isError = true) }
+                val adjustments = state.cashFundEntries.filter { it.entryType == "replenishment" && (it.createdAt ?: "") >= (latestStart.createdAt ?: "") }.sumOf { it.amount }
+                val expenses = state.expenses.filter { (it.createdAt ?: "") >= (latestStart.createdAt ?: "") && it.cashSource == "cash_fund" }.sumOf { it.amount }
+                val closingBalance = (latestStart.amount + adjustments - expenses).coerceAtLeast(0.0)
+                repository.closeStaffShift(activeShift, closingBalance, closingBalance, "Sesi kas modal ditutup dari Kas Modal & Pengeluaran")
+                val closedEntry = repository.createCashFundEntry("close_session", 0.0, "setting", "Akhiri sesi kasir", state.staffProfile.ownerId)
+                val shifts = repository.fetchStaffShifts()
+                val entries = repository.fetchCashFundEntries()
+                Pair(shifts, entries)
+            }.onSuccess { (shifts, entries) ->
+                _uiState.update { it.copy(shifts = shifts, cashFundEntries = entries, successMessage = "Sesi kas diakhiri dan status Audit Shift diperbarui.") }
+                appendAuditLog("cash_session.close", "staff_shifts", activeShift.id, "{\"closed\":true}")
+            }.onFailure { err -> showNotice("Penutupan sesi gagal disinkronkan ke Audit Shift: ${err.message ?: "periksa koneksi dan izin shift"}", isError = true) }
         }
     }
-
     fun replenishCashFund(amount: Double, source: String, description: String) {
         if (!requirePermission("cash_fund.adjust", "Akses isi ulang modal kas dinonaktifkan oleh Owner.")) return
         if (amount <= 0.0 || source !in listOf("sales_cash", "sales_qris", "sales_transfer", "owner_funds", "other") || description.isBlank()) {

@@ -2880,6 +2880,7 @@ private fun ActivityLogComposeScreen(uiState: PosUiState) {
     var toDate by remember { mutableStateOf("") }
     var category by remember { mutableStateOf("SEMUA") }
     var categoryMenuExpanded by remember { mutableStateOf(false) }
+    var datePickerTarget by remember { mutableStateOf<String?>(null) }
 
     val selectedStaff = uiState.staffList.firstOrNull { it.userId == selectedAccountId }
     val selectedLogs = remember(uiState.auditLogs, selectedAccountId) {
@@ -2965,6 +2966,27 @@ private fun ActivityLogComposeScreen(uiState: PosUiState) {
         }.onFailure { android.widget.Toast.makeText(context, "Ekspor PDF gagal. Coba lagi.", android.widget.Toast.LENGTH_LONG).show() }
     }
 
+        if (datePickerTarget != null) {
+            val initialDate = if (datePickerTarget == "from") fromDate else toDate
+            val initialMillis = runCatching {
+                java.time.LocalDate.parse(initialDate).atStartOfDay(java.time.ZoneOffset.UTC).toInstant().toEpochMilli()
+            }.getOrNull()
+            val pickerState = rememberDatePickerState(initialSelectedDateMillis = initialMillis)
+            DatePickerDialog(
+                onDismissRequest = { datePickerTarget = null },
+                confirmButton = {
+                    TextButton(onClick = {
+                        pickerState.selectedDateMillis?.let { millis ->
+                            val chosen = java.time.Instant.ofEpochMilli(millis).atZone(java.time.ZoneOffset.UTC).toLocalDate().toString()
+                            if (datePickerTarget == "from") fromDate = chosen else toDate = chosen
+                        }
+                        datePickerTarget = null
+                    }) { Text("Pilih") }
+                },
+                dismissButton = { TextButton(onClick = { datePickerTarget = null }) { Text("Batal") } }
+            ) { DatePicker(state = pickerState) }
+        }
+
     if (selectedStaff == null) {
         Column(Modifier.fillMaxSize(), verticalArrangement = Arrangement.spacedBy(10.dp)) {
             Text("Log Aktivitas per Akun", style = MaterialTheme.typography.titleLarge, fontWeight = FontWeight.Bold)
@@ -2991,18 +3013,27 @@ private fun ActivityLogComposeScreen(uiState: PosUiState) {
             }
         }
     } else {
-        Column(Modifier.fillMaxSize(), verticalArrangement = Arrangement.spacedBy(10.dp)) {
-            TextButton(onClick = { selectedAccountId = null; fromDate = ""; toDate = ""; category = "SEMUA"; search = "" }) {
-                Icon(Icons.Outlined.History, contentDescription = null)
-                Spacer(Modifier.width(6.dp))
-                Text("Kembali ke daftar akun")
+        Column(Modifier.fillMaxSize(), verticalArrangement = Arrangement.spacedBy(5.dp)) {
+            Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
+                TextButton(onClick = { selectedAccountId = null; fromDate = ""; toDate = ""; category = "SEMUA"; search = "" }, contentPadding = PaddingValues(horizontal = 4.dp, vertical = 0.dp)) {
+                    Icon(Icons.Outlined.History, contentDescription = null)
+                    Spacer(Modifier.width(4.dp))
+                    Text("Akun")
+                }
+                Spacer(Modifier.width(8.dp))
+                Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(1.dp)) {
+                    Text(selectedStaff.fullName, style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold, maxLines = 1)
+                    Text("${selectedStaff.email.ifBlank { selectedStaff.role.labelId }} · ${selectedStaff.role.labelId}", style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.onSurfaceVariant, maxLines = 1)
+                }
             }
-            Text(selectedStaff.fullName, style = MaterialTheme.typography.titleLarge, fontWeight = FontWeight.Bold)
-            Text("${selectedStaff.email.ifBlank { selectedStaff.role.labelId }} · ${selectedStaff.role.labelId}", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
             OutlinedTextField(value = search, onValueChange = { search = it }, label = { Text("Cari aktivitas atau detail perubahan") }, modifier = Modifier.fillMaxWidth(), singleLine = true)
             Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                OutlinedTextField(value = fromDate, onValueChange = { fromDate = it.take(10) }, label = { Text("Dari tanggal") }, placeholder = { Text("YYYY-MM-DD") }, modifier = Modifier.weight(1f), singleLine = true)
-                OutlinedTextField(value = toDate, onValueChange = { toDate = it.take(10) }, label = { Text("Sampai tanggal") }, placeholder = { Text("YYYY-MM-DD") }, modifier = Modifier.weight(1f), singleLine = true)
+                OutlinedButton(onClick = { datePickerTarget = "from" }, modifier = Modifier.weight(1f), contentPadding = PaddingValues(horizontal = 8.dp, vertical = 6.dp)) {
+                    Text(if (fromDate.isBlank()) "Dari tanggal" else java.time.LocalDate.parse(fromDate).format(java.time.format.DateTimeFormatter.ofPattern("dd MMM yyyy", java.util.Locale("id", "ID"))), maxLines = 1)
+                }
+                OutlinedButton(onClick = { datePickerTarget = "to" }, modifier = Modifier.weight(1f), contentPadding = PaddingValues(horizontal = 8.dp, vertical = 6.dp)) {
+                    Text(if (toDate.isBlank()) "Sampai tanggal" else java.time.LocalDate.parse(toDate).format(java.time.format.DateTimeFormatter.ofPattern("dd MMM yyyy", java.util.Locale("id", "ID"))), maxLines = 1)
+                }
             }
             ExposedDropdownMenuBox(expanded = categoryMenuExpanded, onExpandedChange = { categoryMenuExpanded = it }) {
                 OutlinedTextField(
@@ -3019,12 +3050,12 @@ private fun ActivityLogComposeScreen(uiState: PosUiState) {
             }
             Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
                 Text("${filteredLogs.size} aktivitas", Modifier.weight(1f), style = MaterialTheme.typography.bodySmall)
-                TextButton(onClick = { fromDate = ""; toDate = ""; search = ""; category = "SEMUA" }) { Text("Reset") }
-                OutlinedButton(onClick = { exportLogsLauncher.launch("aktivitas-${selectedStaff.fullName.lowercase().replace(Regex("[^a-z0-9]+"), "-")}.csv") }, enabled = filteredLogs.isNotEmpty() && uiState.staffProfile.canAccessKey("activity_log.export")) {
+                TextButton(onClick = { fromDate = ""; toDate = ""; search = ""; category = "SEMUA" }, contentPadding = PaddingValues(horizontal = 4.dp, vertical = 0.dp)) { Text("Reset") }
+                OutlinedButton(onClick = { exportLogsLauncher.launch("aktivitas-${selectedStaff.fullName.lowercase().replace(Regex("[^a-z0-9]+"), "-")}.csv") }, enabled = filteredLogs.isNotEmpty() && uiState.staffProfile.canAccessKey("activity_log.export"), contentPadding = PaddingValues(horizontal = 8.dp, vertical = 4.dp)) {
                     Icon(Icons.Outlined.FileDownload, contentDescription = null)
                     Text("CSV")
                 }
-                OutlinedButton(onClick = { exportPdfLauncher.launch("aktivitas-${selectedStaff.fullName.lowercase().replace(Regex("[^a-z0-9]+"), "-")}.pdf") }, enabled = filteredLogs.isNotEmpty() && uiState.staffProfile.canAccessKey("activity_log.export")) {
+                OutlinedButton(onClick = { exportPdfLauncher.launch("aktivitas-${selectedStaff.fullName.lowercase().replace(Regex("[^a-z0-9]+"), "-")}.pdf") }, enabled = filteredLogs.isNotEmpty() && uiState.staffProfile.canAccessKey("activity_log.export"), contentPadding = PaddingValues(horizontal = 8.dp, vertical = 4.dp)) {
                     Text("PDF")
                 }
             }

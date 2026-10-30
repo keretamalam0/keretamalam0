@@ -371,7 +371,7 @@ fun MejaQrComposeScreen(
     var selectedTable by remember(uiState.tables) { mutableStateOf(uiState.tables.firstOrNull()) }
 
     val targetTable = selectedTable ?: uiState.tables.firstOrNull()
-    val validQrUrl = "https://keretamalamqr.netlify.app/menu?table=${targetTable?.code ?: "M1"}"
+    val validQrUrl = "https://kemalcafe.netlify.app/menu?table=${targetTable?.code ?: "M1"}"
     val qrBitmap = remember(validQrUrl) { generateQrImageBitmap(validQrUrl) }
 
     Column(

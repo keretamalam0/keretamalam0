@@ -132,6 +132,8 @@ data class PosUiState(
 
     val serviceChargeAmount: Double
         get() {
+            // Never retain a fixed service fee after the last cart item is removed/checked out.
+            if (cart.isEmpty() || taxableBase <= 0.0) return 0.0
             if (!outletSettings.serviceEnabled || !outletSettings.serviceShowInCashier) return 0.0
             val amount = if (outletSettings.serviceFeeMode == "fixed") {
                 outletSettings.serviceFixedAmount.coerceAtLeast(0.0)
@@ -143,6 +145,7 @@ data class PosUiState(
 
     val taxAmount: Double
         get() {
+            if (cart.isEmpty() || taxableBase <= 0.0) return 0.0
             if (!outletSettings.taxEnabled || !outletSettings.taxShowInCashier) return 0.0
             return kotlin.math.round((taxableBase + serviceChargeAmount) * (outletSettings.taxRate.coerceAtLeast(0.0) / 100.0))
         }
@@ -470,7 +473,7 @@ class PosViewModel(application: Application) : AndroidViewModel(application) {
             appendLine(divider)
             appendLine("Subtotal  : ${RupiahFormatter.format(order.subtotal)}")
             if (order.discount > 0) appendLine("Diskon    : -${RupiahFormatter.format(order.discount)}")
-            if (order.tax > 0) appendLine("Pajak/Svc : ${RupiahFormatter.format(order.tax)}")
+            if (order.tax > 0) appendLine("Pajak & Service : ${RupiahFormatter.format(order.tax)}")
             appendLine("TOTAL     : ${RupiahFormatter.format(order.total)}")
             appendLine("Metode    : ${(payment?.method ?: order.paymentMethod ?: "cash").uppercase()}")
             payment?.cashReceived?.let { appendLine("Tunai     : ${RupiahFormatter.format(it)}") }

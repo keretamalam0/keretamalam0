@@ -94,6 +94,9 @@ data class StaffProfile(
         }
         if (permissions.containsKey(parentKey) && permissions[parentKey] != true) return false
         if (permissions.containsKey(key)) return permissions[key] == true
+        // Unconfigured child actions inherit their module's access; an explicit false
+        // always wins. This matches the Owner UI and the database has_permission helper.
+        if (key.contains(".")) return permissions[parentKey] == true
         val legacyKey = when {
             key == PermissionKey.POS.key || key == PermissionKey.CASHIER_CHAT.key -> PermissionKey.ORDERS.key
             key == PermissionKey.PROFIT_LOSS.key || key == PermissionKey.AI_ASSISTANT.key || key == PermissionKey.EXPENSES.key || key.startsWith("reports.") -> PermissionKey.REPORTS.key

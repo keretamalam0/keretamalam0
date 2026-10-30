@@ -1977,6 +1977,18 @@ fun PengaturanOutletComposeScreen(viewModel: PosViewModel, uiState: PosUiState) 
                     modifier = Modifier.fillMaxWidth(),
                     singleLine = true
                 )
+                Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween, verticalAlignment = Alignment.CenterVertically) {
+                    Text("Tampilkan pajak di Kasir", style = MaterialTheme.typography.bodyMedium)
+                    Switch(checked = uiState.outletSettings.taxShowInCashier, onCheckedChange = {
+                        viewModel.updateOutletSettings(uiState.outletSettings.copy(taxShowInCashier = it))
+                    })
+                }
+                Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween, verticalAlignment = Alignment.CenterVertically) {
+                    Text("Tampilkan pajak di QR Ordering", style = MaterialTheme.typography.bodyMedium)
+                    Switch(checked = uiState.outletSettings.taxShowInQrOrdering, onCheckedChange = {
+                        viewModel.updateOutletSettings(uiState.outletSettings.copy(taxShowInQrOrdering = it))
+                    })
+                }
                 HorizontalDivider()
                 Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween, verticalAlignment = Alignment.CenterVertically) {
                     Column(modifier = Modifier.weight(1f)) {
@@ -2007,6 +2019,18 @@ fun PengaturanOutletComposeScreen(viewModel: PosViewModel, uiState: PosUiState) 
                         modifier = Modifier.fillMaxWidth(),
                         singleLine = true
                     )
+                }
+                Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween, verticalAlignment = Alignment.CenterVertically) {
+                    Text("Tampilkan service charge di Kasir", style = MaterialTheme.typography.bodyMedium)
+                    Switch(checked = uiState.outletSettings.serviceShowInCashier, onCheckedChange = {
+                        viewModel.updateOutletSettings(uiState.outletSettings.copy(serviceShowInCashier = it))
+                    })
+                }
+                Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween, verticalAlignment = Alignment.CenterVertically) {
+                    Text("Tampilkan service charge di QR Ordering", style = MaterialTheme.typography.bodyMedium)
+                    Switch(checked = uiState.outletSettings.serviceShowInQrOrdering, onCheckedChange = {
+                        viewModel.updateOutletSettings(uiState.outletSettings.copy(serviceShowInQrOrdering = it))
+                    })
                 }
                 if (feeValidationError != null) {
                     Text(feeValidationError!!, color = MaterialTheme.colorScheme.error, style = MaterialTheme.typography.bodySmall)

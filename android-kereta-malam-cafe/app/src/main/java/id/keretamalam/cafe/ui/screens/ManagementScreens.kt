@@ -1005,13 +1005,13 @@ fun KeuanganComposeScreen(viewModel: PosViewModel, uiState: PosUiState) {
     if (datePickerTarget != null) {
         val target = datePickerTarget!!
         val selected = if (target == "from") fromDate else toDate
-        val picker = rememberDatePickerState(initialSelectedDateMillis = selected.atStartOfDay(zone).toInstant().toEpochMilli())
+        val picker = rememberDatePickerState(initialSelectedDateMillis = selected.atStartOfDay(java.time.ZoneOffset.UTC).toInstant().toEpochMilli())
         DatePickerDialog(
             onDismissRequest = { datePickerTarget = null },
             confirmButton = {
                 TextButton(onClick = {
                     picker.selectedDateMillis?.let { millis ->
-                        val picked = java.time.Instant.ofEpochMilli(millis).atZone(zone).toLocalDate()
+                        val picked = java.time.Instant.ofEpochMilli(millis).atZone(java.time.ZoneOffset.UTC).toLocalDate()
                         if (target == "from") fromDate = picked else toDate = picked
                     }
                     datePickerTarget = null

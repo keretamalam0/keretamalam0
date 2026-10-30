@@ -2920,6 +2920,49 @@ private fun ActivityLogComposeScreen(uiState: PosUiState) {
             android.widget.Toast.makeText(context, "Ekspor aktivitas berhasil.", android.widget.Toast.LENGTH_SHORT).show()
         }.onFailure { android.widget.Toast.makeText(context, "Ekspor gagal. Coba lagi.", android.widget.Toast.LENGTH_LONG).show() }
     }
+    val exportPdfLauncher = rememberLauncherForActivityResult(ActivityResultContracts.CreateDocument("application/pdf")) { uri ->
+        if (uri != null) runCatching {
+            val document = android.graphics.pdf.PdfDocument()
+            val bodyPaint = android.graphics.Paint().apply { color = android.graphics.Color.BLACK; textSize = 10f; isAntiAlias = true }
+            val titlePaint = android.graphics.Paint().apply { color = android.graphics.Color.BLACK; textSize = 16f; typeface = android.graphics.Typeface.create(android.graphics.Typeface.DEFAULT, android.graphics.Typeface.BOLD) }
+            val lines = buildList {
+                add("LAPORAN AKTIVITAS AKUN")
+                add("Nama: ${selectedStaff?.fullName.orEmpty()}")
+                add("Email: ${selectedStaff?.email.orEmpty()}")
+                add("Role: ${selectedStaff?.role?.labelId.orEmpty()}")
+                add("Periode: ${fromDate.ifBlank { "Semua tanggal" }} s.d. ${toDate.ifBlank { "Sekarang" }}")
+                add("Jenis aktivitas: $category")
+                add("Jumlah aktivitas: ${filteredLogs.size}")
+                add("")
+                filteredLogs.forEachIndexed { index, log ->
+                    val actor = uiState.staffList.firstOrNull { it.userId == log.actorUserId }?.fullName ?: log.actorName
+                    add("${index + 1}. ${readableAuditAction(log.action)}")
+                    add("   ${formatTimestampWib(log.createdAt)} WIB · ${readableAuditEntity(log.entityType)} · $actor")
+                    val detail = readableAuditDetails(log)
+                    if (detail.isNotBlank()) detail.chunked(88).forEach { add("   $it") }
+                    add("")
+                }
+            }
+            var pageNumber = 1
+            var page = document.startPage(android.graphics.pdf.PdfDocument.PageInfo.Builder(595, 842, pageNumber).create())
+            var y = 48f
+            lines.forEachIndexed { index, line ->
+                if (y > 800f) {
+                    document.finishPage(page)
+                    pageNumber += 1
+                    page = document.startPage(android.graphics.pdf.PdfDocument.PageInfo.Builder(595, 842, pageNumber).create())
+                    y = 48f
+                }
+                page.canvas.drawText(line.take(100), 40f, y, if (index == 0) titlePaint else bodyPaint)
+                y += if (index == 0) 30f else 17f
+            }
+            document.finishPage(page)
+            context.contentResolver.openOutputStream(uri)?.use { document.writeTo(it) }
+                ?: throw IllegalStateException("File tujuan tidak dapat dibuka.")
+            document.close()
+            android.widget.Toast.makeText(context, "PDF aktivitas berhasil diekspor.", android.widget.Toast.LENGTH_SHORT).show()
+        }.onFailure { android.widget.Toast.makeText(context, "Ekspor PDF gagal. Coba lagi.", android.widget.Toast.LENGTH_LONG).show() }
+    }
 
     if (selectedStaff == null) {
         Column(Modifier.fillMaxSize(), verticalArrangement = Arrangement.spacedBy(10.dp)) {
@@ -2978,7 +3021,10 @@ private fun ActivityLogComposeScreen(uiState: PosUiState) {
                 TextButton(onClick = { fromDate = ""; toDate = ""; search = ""; category = "SEMUA" }) { Text("Reset") }
                 OutlinedButton(onClick = { exportLogsLauncher.launch("aktivitas-${selectedStaff.fullName.lowercase().replace(Regex("[^a-z0-9]+"), "-")}.csv") }, enabled = filteredLogs.isNotEmpty() && uiState.staffProfile.canAccessKey("activity_log.export")) {
                     Icon(Icons.Outlined.FileDownload, contentDescription = null)
-                    Text("Ekspor CSV")
+                    Text("CSV")
+                }
+                OutlinedButton(onClick = { exportPdfLauncher.launch("aktivitas-${selectedStaff.fullName.lowercase().replace(Regex("[^a-z0-9]+"), "-")}.pdf") }, enabled = filteredLogs.isNotEmpty() && uiState.staffProfile.canAccessKey("activity_log.export")) {
+                    Text("PDF")
                 }
             }
             if (filteredLogs.isEmpty()) {

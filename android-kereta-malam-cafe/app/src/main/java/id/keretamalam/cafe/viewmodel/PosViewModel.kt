@@ -1948,7 +1948,8 @@ class PosViewModel(application: Application) : AndroidViewModel(application) {
     }
 
     fun saveProductItem(product: Product, onSaved: (Product) -> Unit = {}) {
-        if (!requirePermission("products.edit", "Akses simpan perubahan produk dinonaktifkan oleh Owner.")) return
+        val requiredPermission = if (product.id.isBlank()) "products.create" else "products.edit"
+        if (!requirePermission(requiredPermission, "Akses simpan produk dinonaktifkan oleh Owner.")) return
         if (product.name.isBlank() || product.price <= 0) {
             showNotice("Nama produk dan harga jual wajib valid.", isError = true)
             return

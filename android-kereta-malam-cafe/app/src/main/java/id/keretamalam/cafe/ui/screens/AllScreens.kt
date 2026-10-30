@@ -2865,7 +2865,11 @@ private fun AuditShiftComposeScreen(viewModel: PosViewModel, uiState: PosUiState
                                 }
                                 if (shift.auditVerified) Text("Terverifikasi", color = Color(0xFF5F9E91), fontWeight = FontWeight.Bold)
                                 else if (shift.status.equals("closed", true)) Text("Perlu diperiksa", color = if (suspicious) MaterialTheme.colorScheme.error else Color(0xFFC29A5D), fontWeight = FontWeight.Bold)
-                                else Text("Aktif", color = Color(0xFF6F91C5), fontWeight = FontWeight.Bold)
+                                else {
+                                    val opened = runCatching { java.time.Instant.parse(shift.openedAt) }.getOrNull()
+                                    val overdue = opened != null && java.time.Duration.between(opened, java.time.Instant.now()).toHours() >= 12
+                                    Text(if (overdue) "⚠ Sesi terlalu lama" else "Aktif", color = if (overdue) MaterialTheme.colorScheme.error else Color(0xFF6F91C5), fontWeight = FontWeight.Bold)
+                                }
                             }
                             Text("Modal awal: ${RupiahFormatter.format(shift.openingCash)} · Kas akhir: ${shift.closingCash?.let { RupiahFormatter.format(it) } ?: "-"}")
                             if (shift.status.equals("closed", true)) {

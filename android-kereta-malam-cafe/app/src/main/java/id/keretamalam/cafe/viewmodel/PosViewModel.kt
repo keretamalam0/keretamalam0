@@ -1444,13 +1444,7 @@ class PosViewModel(application: Application) : AndroidViewModel(application) {
 
     fun returnPaidOrder(order: OrderWithItems, reason: String) {
         val activeState = _uiState.value
-        val role = activeState.staffProfile.role
-        if (role !in setOf(StaffRole.OWNER, StaffRole.CASHIER)) {
-            showNotice("Hanya Owner dan Kasir yang boleh melakukan Return.", isError = true)
-            return
-        }
-        // Granular permissions take precedence over the role. An explicit OFF switch
-        // must block the action even when the user has a cashier role.
+        // The Owner-controlled action permission is the source of truth for every staff role.
         if (!activeState.staffProfile.canAccessKey("sales_history.return")) {
             showNotice("Akses retur dinonaktifkan untuk akun ini oleh Owner.", isError = true)
             return

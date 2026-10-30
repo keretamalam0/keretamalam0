@@ -2872,78 +2872,170 @@ private fun AuditShiftComposeScreen(viewModel: PosViewModel, uiState: PosUiState
 @Composable
 private fun ActivityLogComposeScreen(uiState: PosUiState) {
     val context = LocalContext.current
+    var selectedAccountId by remember { mutableStateOf<String?>(null) }
     var search by remember { mutableStateOf("") }
     var fromDate by remember { mutableStateOf("") }
     var toDate by remember { mutableStateOf("") }
     var category by remember { mutableStateOf("SEMUA") }
-    val filteredLogs = remember(uiState.auditLogs, search, fromDate, toDate, category) {
-        uiState.auditLogs.filter { log ->
-            val date = log.createdAt.take(10)
+    var categoryMenuExpanded by remember { mutableStateOf(false) }
+
+    val selectedStaff = uiState.staffList.firstOrNull { it.userId == selectedAccountId }
+    val selectedLogs = remember(uiState.auditLogs, selectedAccountId) {
+        uiState.auditLogs.filter { it.actorUserId == selectedAccountId }
+    }
+    val filteredLogs = remember(selectedLogs, search, fromDate, toDate, category) {
+        selectedLogs.filter { log ->
+            val instant = runCatching { java.time.Instant.parse(log.createdAt) }.getOrNull()
+                ?: runCatching { java.time.OffsetDateTime.parse(log.createdAt).toInstant() }.getOrNull()
+            val date = instant?.atZone(java.time.ZoneId.of("Asia/Jakarta"))?.toLocalDate()?.toString()
+                ?: log.createdAt.take(10)
             val dateMatch = (fromDate.isBlank() || date >= fromDate) && (toDate.isBlank() || date <= toDate)
-            val haystack = "${log.action} ${log.entityType} ${log.detailsText}".lowercase()
+            val actionText = "${log.action} ${log.entityType} ${log.detailsText}".lowercase()
             val categoryMatch = when (category) {
-                "PEGAWAI" -> listOf("staff", "pegawai", "permission", "hak akses", "auth").any { it in haystack }
-                "PRODUK" -> listOf("product", "produk", "category", "kategori", "addon", "topping").any { it in haystack }
-                "STOK" -> listOf("inventory", "stock", "stok", "adjustment").any { it in haystack }
-                "SHIFT" -> listOf("shift", "audit").any { it in haystack }
-                "PEMBAYARAN" -> listOf("payment", "pembayaran", "refund").any { it in haystack }
-                "PENGATURAN" -> listOf("setting", "pengaturan", "printer", "outlet").any { it in haystack }
+                "LOGIN" -> listOf("login", "logout", "auth", "masuk", "keluar").any { it in actionText }
+                "TRANSAKSI" -> listOf("order", "transaction", "transaksi", "payment", "pembayaran", "retur").any { it in actionText }
+                "PRODUK" -> listOf("product", "produk", "category", "kategori").any { it in actionText }
+                "STOK" -> listOf("inventory", "stock", "stok").any { it in actionText }
+                "PEGAWAI" -> listOf("staff", "pegawai", "permission", "hak akses", "akun").any { it in actionText }
+                "SHIFT" -> listOf("shift", "cash", "kas", "pengeluaran").any { it in actionText }
+                "PENGATURAN" -> listOf("setting", "pengaturan", "printer", "outlet").any { it in actionText }
                 else -> true
             }
             dateMatch && categoryMatch && (search.isBlank() ||
-                log.action.contains(search, true) ||
-                log.actorName.contains(search, true) ||
-                log.entityType.contains(search, true) ||
+                log.action.contains(search, true) || log.entityType.contains(search, true) ||
                 log.detailsText.contains(search, true))
-        }
+        }.sortedByDescending { it.createdAt }
     }
     val exportLogsLauncher = rememberLauncherForActivityResult(ActivityResultContracts.CreateDocument("text/csv")) { uri ->
         if (uri != null) runCatching {
             context.contentResolver.openOutputStream(uri)?.bufferedWriter()?.use { writer ->
                 fun csv(value: String) = "\"" + value.replace("\"", "\"\"") + "\""
-                writer.appendLine("id,waktu,aksi,aktor,tipe_entitas,id_entitas,detail")
+                writer.appendLine("Waktu WIB,Aktivitas,Akun,Tipe,Detail")
                 filteredLogs.forEach { log ->
-                    writer.appendLine(listOf(log.id,log.createdAt,log.action,log.actorName,log.entityType,log.entityId.orEmpty(),log.detailsText).joinToString(",") { csv(it) })
+                    val actor = uiState.staffList.firstOrNull { it.userId == log.actorUserId }?.fullName ?: log.actorName
+                    writer.appendLine(listOf(formatTimestampWib(log.createdAt), readableAuditAction(log.action), actor, readableAuditEntity(log.entityType), readableAuditDetails(log)).joinToString(",") { csv(it) })
                 }
             }
-        }.onFailure { android.widget.Toast.makeText(context, "Export log gagal: ${it.message ?: "kesalahan file"}", android.widget.Toast.LENGTH_LONG).show() }
+            android.widget.Toast.makeText(context, "Ekspor aktivitas berhasil.", android.widget.Toast.LENGTH_SHORT).show()
+        }.onFailure { android.widget.Toast.makeText(context, "Ekspor gagal. Coba lagi.", android.widget.Toast.LENGTH_LONG).show() }
     }
 
-    Column(modifier = Modifier.fillMaxSize(), verticalArrangement = Arrangement.spacedBy(10.dp)) {
-        OutlinedTextField(
-            value = search,
-            onValueChange = { search = it },
-            label = { Text("Cari aksi log, nama staf, atau entitas...") },
-            modifier = Modifier.fillMaxWidth(),
-            singleLine = true
-        )
-        Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp), verticalAlignment = Alignment.CenterVertically) {
-            OutlinedTextField(value = fromDate, onValueChange = { fromDate = it.take(10) }, label = { Text("Dari") }, placeholder = { Text("YYYY-MM-DD") }, modifier = Modifier.weight(1f), singleLine = true)
-            OutlinedTextField(value = toDate, onValueChange = { toDate = it.take(10) }, label = { Text("Sampai") }, placeholder = { Text("YYYY-MM-DD") }, modifier = Modifier.weight(1f), singleLine = true)
-        }
-        Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
-            Text("Hasil: ${filteredLogs.size} log", modifier = Modifier.weight(1f), style = MaterialTheme.typography.bodySmall)
-            TextButton(onClick = { fromDate = ""; toDate = ""; search = ""; category = "SEMUA" }) { Text("Reset") }
-            OutlinedButton(onClick = { exportLogsLauncher.launch("log-aktivitas-${java.time.LocalDate.now(java.time.ZoneId.of("Asia/Jakarta"))}.csv") }, enabled = filteredLogs.isNotEmpty()) { Text("Export CSV") }
-        }
-        Row(Modifier.fillMaxWidth().horizontalScroll(rememberScrollState()), horizontalArrangement = Arrangement.spacedBy(6.dp)) {
-            listOf("SEMUA" to "Semua", "PEGAWAI" to "Pegawai & akses", "PRODUK" to "Produk", "STOK" to "Stok", "SHIFT" to "Shift & audit", "PEMBAYARAN" to "Pembayaran", "PENGATURAN" to "Pengaturan").forEach { (key, label) ->
-                FilterChip(selected = category == key, onClick = { category = key }, label = { Text(label, style = MaterialTheme.typography.labelSmall) })
-            }
-        }
-        LazyColumn(modifier = Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(8.dp)) {
-            items(filteredLogs, key = { it.id }) { log ->
-                OutlinedCard(modifier = Modifier.fillMaxWidth()) {
-                    Column(modifier = Modifier.padding(14.dp), verticalArrangement = Arrangement.spacedBy(4.dp)) {
-                        Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
-                            Text(log.action, fontFamily = FontFamily.Monospace, fontWeight = FontWeight.Bold)
-                            Text(log.createdAt, style = MaterialTheme.typography.labelMedium)
+    if (selectedStaff == null) {
+        Column(Modifier.fillMaxSize(), verticalArrangement = Arrangement.spacedBy(10.dp)) {
+            Text("Log Aktivitas per Akun", style = MaterialTheme.typography.titleLarge, fontWeight = FontWeight.Bold)
+            Text("Setiap akun tetap tampil meskipun belum memiliki riwayat aktivitas.", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+            OutlinedTextField(value = search, onValueChange = { search = it }, label = { Text("Cari nama atau email akun") }, modifier = Modifier.fillMaxWidth(), singleLine = true)
+            Text("Total akun: ${uiState.staffList.size}", style = MaterialTheme.typography.labelMedium)
+            LazyColumn(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                items(uiState.staffList.filter { search.isBlank() || it.fullName.contains(search, true) || it.email.contains(search, true) }, key = { it.userId }) { staff ->
+                    val count = uiState.auditLogs.count { it.actorUserId == staff.userId }
+                    OutlinedCard(Modifier.fillMaxWidth().clickable { selectedAccountId = staff.userId }) {
+                        Row(Modifier.fillMaxWidth().padding(14.dp), verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(12.dp)) {
+                            Surface(shape = RoundedCornerShape(50), color = MaterialTheme.colorScheme.secondaryContainer) {
+                                Text(staff.fullName.trim().firstOrNull()?.uppercase() ?: "?", Modifier.padding(horizontal = 14.dp, vertical = 10.dp), fontWeight = FontWeight.Bold)
+                            }
+                            Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(3.dp)) {
+                                Text(staff.fullName, fontWeight = FontWeight.Bold)
+                                Text("${staff.email.ifBlank { staff.role.labelId }} · ${if (staff.isActive) "Aktif" else "Nonaktif"}", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                                Text("$count aktivitas tercatat", style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                            }
+                            Icon(Icons.Outlined.ChevronRight, contentDescription = "Lihat aktivitas akun")
                         }
-                        Text("Aktor: ${log.actorName} · Entitas: ${log.entityType} (${log.entityId ?: "-"})")
-                        if (log.detailsText.isNotBlank()) Text(log.detailsText, fontFamily = FontFamily.Monospace, style = MaterialTheme.typography.labelMedium)
                     }
                 }
             }
         }
+    } else {
+        Column(Modifier.fillMaxSize(), verticalArrangement = Arrangement.spacedBy(10.dp)) {
+            TextButton(onClick = { selectedAccountId = null; fromDate = ""; toDate = ""; category = "SEMUA"; search = "" }) {
+                Icon(Icons.Outlined.History, contentDescription = null)
+                Spacer(Modifier.width(6.dp))
+                Text("Kembali ke daftar akun")
+            }
+            Text(selectedStaff.fullName, style = MaterialTheme.typography.titleLarge, fontWeight = FontWeight.Bold)
+            Text("${selectedStaff.email.ifBlank { selectedStaff.role.labelId }} · ${selectedStaff.role.labelId}", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+            OutlinedTextField(value = search, onValueChange = { search = it }, label = { Text("Cari aktivitas atau detail perubahan") }, modifier = Modifier.fillMaxWidth(), singleLine = true)
+            Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                OutlinedTextField(value = fromDate, onValueChange = { fromDate = it.take(10) }, label = { Text("Dari tanggal") }, placeholder = { Text("YYYY-MM-DD") }, modifier = Modifier.weight(1f), singleLine = true)
+                OutlinedTextField(value = toDate, onValueChange = { toDate = it.take(10) }, label = { Text("Sampai tanggal") }, placeholder = { Text("YYYY-MM-DD") }, modifier = Modifier.weight(1f), singleLine = true)
+            }
+            ExposedDropdownMenuBox(expanded = categoryMenuExpanded, onExpandedChange = { categoryMenuExpanded = it }) {
+                OutlinedTextField(
+                    value = mapOf("SEMUA" to "Semua aktivitas", "LOGIN" to "Login & keamanan", "TRANSAKSI" to "Transaksi & pembayaran", "PRODUK" to "Produk", "STOK" to "Stok", "PEGAWAI" to "Pegawai & hak akses", "SHIFT" to "Shift & kas", "PENGATURAN" to "Pengaturan")[category] ?: "Semua aktivitas",
+                    onValueChange = {}, readOnly = true, label = { Text("Jenis aktivitas") },
+                    trailingIcon = { ExposedDropdownMenuDefaults.TrailingIcon(expanded = categoryMenuExpanded) },
+                    modifier = Modifier.menuAnchor().fillMaxWidth()
+                )
+                ExposedDropdownMenu(expanded = categoryMenuExpanded, onDismissRequest = { categoryMenuExpanded = false }) {
+                    listOf("SEMUA" to "Semua aktivitas", "LOGIN" to "Login & keamanan", "TRANSAKSI" to "Transaksi & pembayaran", "PRODUK" to "Produk", "STOK" to "Stok", "PEGAWAI" to "Pegawai & hak akses", "SHIFT" to "Shift & kas", "PENGATURAN" to "Pengaturan").forEach { (key, label) ->
+                        DropdownMenuItem(text = { Text(label) }, onClick = { category = key; categoryMenuExpanded = false })
+                    }
+                }
+            }
+            Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
+                Text("${filteredLogs.size} aktivitas", Modifier.weight(1f), style = MaterialTheme.typography.bodySmall)
+                TextButton(onClick = { fromDate = ""; toDate = ""; search = ""; category = "SEMUA" }) { Text("Reset") }
+                OutlinedButton(onClick = { exportLogsLauncher.launch("aktivitas-${selectedStaff.fullName.lowercase().replace(Regex("[^a-z0-9]+"), "-")}.csv") }, enabled = filteredLogs.isNotEmpty()) {
+                    Icon(Icons.Outlined.FileDownload, contentDescription = null)
+                    Text("Ekspor CSV")
+                }
+            }
+            if (filteredLogs.isEmpty()) {
+                Box(Modifier.fillMaxWidth().weight(1f), contentAlignment = Alignment.Center) {
+                    Text("Belum ada aktivitas untuk akun ini pada filter yang dipilih.", color = MaterialTheme.colorScheme.onSurfaceVariant)
+                }
+            } else {
+                LazyColumn(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                    items(filteredLogs, key = { it.id }) { log ->
+                        OutlinedCard(Modifier.fillMaxWidth()) {
+                            Column(Modifier.padding(14.dp), verticalArrangement = Arrangement.spacedBy(5.dp)) {
+                                Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween, verticalAlignment = Alignment.Top) {
+                                    Text(readableAuditAction(log.action), Modifier.weight(1f), fontWeight = FontWeight.Bold)
+                                    Text(formatTimestampWib(log.createdAt), style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                                }
+                                Text(readableAuditEntity(log.entityType), style = MaterialTheme.typography.labelMedium, color = MaterialTheme.colorScheme.primary)
+                                val detail = readableAuditDetails(log)
+                                if (detail.isNotBlank()) Text(detail, style = MaterialTheme.typography.bodySmall)
+                            }
+                        }
+                    }
+                }
+            }
+        }
+    }
+}
+
+private fun readableAuditAction(raw: String): String {
+    val value = raw.replace('_', ' ').replace('.', ' ').trim()
+    val normalized = value.lowercase()
+    return when {
+        normalized.contains("login") || normalized.contains("sign in") -> "Login ke aplikasi"
+        normalized.contains("logout") || normalized.contains("sign out") -> "Keluar dari aplikasi"
+        normalized.contains("insert") || normalized.contains("create") || normalized.contains("add") -> "Menambahkan data"
+        normalized.contains("update") || normalized.contains("edit") -> "Mengubah data"
+        normalized.contains("delete") || normalized.contains("remove") -> "Menghapus data"
+        normalized.contains("return") || normalized.contains("refund") -> "Melakukan retur transaksi"
+        normalized.contains("payment") -> "Memproses pembayaran"
+        normalized.contains("shift") -> "Aktivitas shift"
+        else -> value.replaceFirstChar { it.uppercase() }
+    }
+}
+
+private fun readableAuditEntity(raw: String): String = when (raw.lowercase()) {
+    "staff_profiles", "staff", "pegawai" -> "Akun pegawai"
+    "products", "product" -> "Produk"
+    "orders", "order" -> "Transaksi / pesanan"
+    "staff_shifts", "shift" -> "Shift kasir"
+    "inventory_movements", "inventory" -> "Mutasi stok"
+    "outlet_settings", "settings" -> "Pengaturan outlet"
+    else -> raw.replace('_', ' ').replaceFirstChar { it.uppercase() }
+}
+
+private fun readableAuditDetails(log: AuditLog): String {
+    if (log.detailsText.isNotBlank()) return log.detailsText.replace(Regex("[{}\\\"]"), " ").replace(',', ' ').replace(Regex("\\s+"), " ").trim()
+    val details = log.details ?: return ""
+    val labels = mapOf("old" to "Sebelumnya", "new" to "Menjadi", "before" to "Sebelumnya", "after" to "Menjadi", "name" to "Nama", "price" to "Harga", "stock" to "Stok", "role" to "Role", "is_active" to "Status", "full_name" to "Nama lengkap", "permissions" to "Hak akses", "amount" to "Nominal", "reason" to "Keterangan", "description" to "Deskripsi")
+    return details.entries.joinToString(" · ") { (key, value) ->
+        "${labels[key] ?: key.replace('_', ' ').replaceFirstChar { it.uppercase() }}: ${value.toString().trim('"')}"
     }
 }

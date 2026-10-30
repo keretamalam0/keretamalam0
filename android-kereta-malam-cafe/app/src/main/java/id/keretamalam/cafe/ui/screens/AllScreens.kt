@@ -55,6 +55,7 @@ import androidx.compose.material.icons.outlined.Visibility
 import androidx.compose.material.icons.outlined.Delete
 import androidx.compose.material.icons.outlined.DeleteSweep
 import androidx.compose.material.icons.outlined.FileDownload
+import androidx.compose.material.icons.outlined.ChevronRight
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.shadow
 import androidx.compose.ui.graphics.vector.ImageVector
@@ -2975,7 +2976,7 @@ private fun ActivityLogComposeScreen(uiState: PosUiState) {
             Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
                 Text("${filteredLogs.size} aktivitas", Modifier.weight(1f), style = MaterialTheme.typography.bodySmall)
                 TextButton(onClick = { fromDate = ""; toDate = ""; search = ""; category = "SEMUA" }) { Text("Reset") }
-                OutlinedButton(onClick = { exportLogsLauncher.launch("aktivitas-${selectedStaff.fullName.lowercase().replace(Regex("[^a-z0-9]+"), "-")}.csv") }, enabled = filteredLogs.isNotEmpty()) {
+                OutlinedButton(onClick = { exportLogsLauncher.launch("aktivitas-${selectedStaff.fullName.lowercase().replace(Regex("[^a-z0-9]+"), "-")}.csv") }, enabled = filteredLogs.isNotEmpty() && uiState.staffProfile.canAccessKey("activity_log.export")) {
                     Icon(Icons.Outlined.FileDownload, contentDescription = null)
                     Text("Ekspor CSV")
                 }

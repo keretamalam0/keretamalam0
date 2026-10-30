@@ -2478,7 +2478,7 @@ class PosViewModel(application: Application) : AndroidViewModel(application) {
                 Pair(shifts, entries)
             }.onSuccess { (shifts, entries) ->
                 _uiState.update { it.copy(shifts = shifts, cashFundEntries = entries, successMessage = "Sesi kas dimulai dan otomatis tercatat di Audit Shift.") }
-                appendAuditLog("cash_session.open", "staff_shifts", shifts.firstOrNull { it.staffUserId == initialState.staffProfile.userId && it.status.equals("open", true) }?.id, "{\"opening_cash\":${amount.toLong()}}")
+                appendAuditLog("cash_session.open", "staff_shifts", shifts.firstOrNull { it.staffUserId == initialState.staffProfile.userId && it.status.equals("open", true) }?.id ?: "unknown", "{\"opening_cash\":${amount.toLong()}}")
             }.onFailure { err -> showNotice("Sesi kas gagal disambungkan ke Audit Shift: ${err.message ?: "periksa koneksi dan izin shift"}", isError = true) }
         }
     }

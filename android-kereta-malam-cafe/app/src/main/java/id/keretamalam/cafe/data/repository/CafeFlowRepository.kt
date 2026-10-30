@@ -1567,8 +1567,10 @@ class CafeFlowRepository(private val context: Context) {
     suspend fun logActivity(action: String, entityType: String, entityId: String?, details: JsonObject) {
         val creds = SupabaseConfigManager.loadCredentials(context)
         if (creds.status != BackendIntegrationStatus.ACTIVE_VERIFIED || creds.authenticatedUserId.isBlank()) return
+        val ownerId = runCatching { fetchMyStaffProfile()?.ownerId }.getOrNull()
+            ?.takeIf { it.isNotBlank() } ?: creds.authenticatedUserId
         val payload = buildJsonObject {
-            put("owner_id", creds.authenticatedUserId)
+            put("owner_id", ownerId)
             put("actor_user_id", creds.authenticatedUserId)
             put("action", action)
             put("entity_type", entityType)
